@@ -4,6 +4,7 @@ import { CompanyWorkspace } from '../companies/CompanyWorkspace'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
+import { ResearchLauncher } from '../activity/ResearchLauncher'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -123,7 +124,7 @@ function EmptyState() {
 
 export function OpportunityWorkspace() {
   const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
-  const [, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
+  const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
@@ -215,7 +216,7 @@ export function OpportunityWorkspace() {
         {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
-        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /></div>}
+        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">
             Demo fixture data · Example companies are not confirmed sales opportunities.
