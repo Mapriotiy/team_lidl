@@ -14,6 +14,14 @@ test('shows the opportunity workspace with fixture disclosure', async () => {
   expect(await screen.findByText('Lufthansa Group')).toBeInTheDocument()
 })
 
+test('opens company evidence from the ranked opportunity list', async () => {
+  render(<App />)
+  const evidenceButtons = await screen.findAllByRole('button', { name: 'View evidence' })
+  fireEvent.click(evidenceButtons[0])
+  expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
+  expect(screen.getByText('Score breakdown')).toBeInTheDocument()
+})
+
 test('opens profile configuration from primary navigation', async () => {
   render(<App />)
   fireEvent.click(screen.getByRole('button', { name: /Service profiles/ }))
