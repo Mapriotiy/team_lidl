@@ -127,6 +127,7 @@ export function OpportunityWorkspace() {
   const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
   const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
   const [profileOptions, setProfileOptions] = useState(serviceOptions)
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
@@ -227,7 +228,7 @@ export function OpportunityWorkspace() {
           </div>
         </header>
 
-        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace companyId={selectedCompanyId} /></div>}
+        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace companyId={selectedCompanyId} opportunityId={selectedOpportunity?.id} opportunityNote={null} opportunityStatus={selectedOpportunity?.status} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
         {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
@@ -321,7 +322,7 @@ export function OpportunityWorkspace() {
             ) : opportunities.length > 0 ? (
               <div>
                 {opportunities.map((opportunity) => (
-                  <OpportunityRow key={opportunity.id} onOpen={() => { setSelectedCompanyId(opportunity.companyId); setView('company') }} opportunity={opportunity} />
+                  <OpportunityRow key={opportunity.id} onOpen={() => { setSelectedCompanyId(opportunity.companyId); setSelectedOpportunity(opportunity); setView('company') }} opportunity={opportunity} />
                 ))}
               </div>
             ) : (

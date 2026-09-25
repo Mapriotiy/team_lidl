@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import { CompanyWorkspace } from './CompanyWorkspace'
 
@@ -11,12 +11,13 @@ test('separates evidence, interpretation and unknown facts', async () => {
   expect(screen.getAllByText('Unknown').length).toBeGreaterThan(0)
 })
 
-test('supports local shortlist and note actions', async () => {
-  render(<CompanyWorkspace />)
+test('persists shortlist and note actions', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'op-1', status: 'shortlisted', note: 'Review with the automation team.' }) }))
+  render(<CompanyWorkspace opportunityId="op-1" />)
   await screen.findByRole('heading', { name: 'Lufthansa Group' })
   fireEvent.click(screen.getByRole('button', { name: 'Shortlist' }))
-  expect(screen.getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
+  expect(await screen.findByRole('button', { name: 'Restore' })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.change(screen.getByLabelText('Account note'), { target: { value: 'Review with the automation team.' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save note' }))
-  expect(screen.getByText('Note saved in this session.')).toBeInTheDocument()
+  expect(await screen.findByText('Saved and persisted.')).toBeInTheDocument()
 })
