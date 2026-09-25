@@ -1,0 +1,110 @@
+{
+  "opportunity_list": {
+    "request": "GET /opportunities?profile_id=profile-automation&status=new&eligibility=eligible&min_score=50&sort=score_desc&page=1&page_size=25",
+    "response": {
+      "items": [{
+        "id": "opportunity-1",
+        "company_id": "company-example",
+        "company_name": "Example Company",
+        "canonical_domain": "example.com",
+        "profile_id": "profile-automation",
+        "profile_name": "Process automation",
+        "profile_version_id": "profile-automation-v1",
+        "status": "new",
+        "note": null,
+        "score": 68.5,
+        "eligibility": "eligible",
+        "coverage": 0.75,
+        "collection_completion": 0.67,
+        "strongest_signal": "efficiency-program",
+        "last_researched_at": "2026-09-25T16:20:00Z"
+      }],
+      "meta": {"page": 1, "page_size": 25, "total": 1}
+    }
+  },
+  "company_detail": {
+    "request": "GET /companies/company-example",
+    "response": {
+      "id": "company-example",
+      "canonical_domain": "example.com",
+      "display_name": "Example Company",
+      "aliases": [],
+      "facts": {"industry": {"value": "Logistics", "source_ids": ["source-1"]}},
+      "assessments": [{
+        "id": "assessment-1",
+        "profile_version_id": "profile-automation-v1",
+        "signal_id": "efficiency-program",
+        "status": "supported",
+        "evidence_strength": "strong",
+        "rationale": "A current named program is documented.",
+        "evidence": [{
+          "id": "evidence-1",
+          "source_id": "source-1",
+          "excerpt": "The company announced a two-year operational-efficiency program.",
+          "start_offset": 120,
+          "end_offset": 185,
+          "factual_claim": "The company announced an operational-efficiency program.",
+          "event_group_key": "example-efficiency-2026",
+          "source": {
+            "id": "source-1",
+            "canonical_url": "https://example.com/news/efficiency",
+            "source_type": "company",
+            "title": "Example efficiency program",
+            "retrieved_at": "2026-09-25T16:15:00Z",
+            "publication_date": "2026-09-20T00:00:00Z",
+            "event_date": null,
+            "content_hash": "sha256-example"
+          },
+          "translations": [{
+            "id": "translation-1",
+            "target_language": "ro",
+            "translated_excerpt": "Compania a anunțat un program de eficiență operațională pe doi ani.",
+            "provider_model": "provider/model",
+            "source_text_hash": "sha256-example",
+            "created_at": "2026-09-25T16:25:00Z"
+          }]
+        }],
+        "model_version": "provider/model",
+        "prompt_version": "v1"
+      }],
+      "scores": [{
+        "id": "score-1",
+        "profile_version_id": "profile-automation-v1",
+        "calculation_version": "v1",
+        "score": 68.5,
+        "eligibility": "eligible",
+        "coverage": 0.75,
+        "icp_fit": 0.8,
+        "positive_strength": 0.9,
+        "penalty_points": 0,
+        "contributions": [{"signal_id": "efficiency-program", "effect": "positive", "weighted_value": 18, "evidence_ids": ["evidence-1"]}],
+        "exclusion_reasons": [],
+        "warnings": [],
+        "created_at": "2026-09-25T16:20:00Z"
+      }],
+      "research_history": [{
+        "id": "run-1",
+        "profile_version_id": "profile-automation-v1",
+        "status": "completed",
+        "progress": [{"stage": "collection", "completed": 4, "total": 6}, {"stage": "assessment", "completed": 6, "total": 6}],
+        "partial_errors": [{"stage": "collection", "code": "http_error", "message": "One public source returned HTTP 403"}],
+        "usage": {"prompt_tokens": 1200, "completion_tokens": 180, "total_tokens": 1380, "cost_usd": 0.012},
+        "queued_at": "2026-09-25T16:10:00Z",
+        "started_at": "2026-09-25T16:11:00Z",
+        "finished_at": "2026-09-25T16:20:00Z"
+      }],
+      "created_at": "2026-09-25T16:00:00Z",
+      "updated_at": "2026-09-25T16:20:00Z"
+    }
+  },
+  "opportunity_update": {
+    "request": {"method": "PATCH", "path": "/opportunities/opportunity-1", "body": {"status": "shortlisted", "note": "Discuss with sales."}}
+  },
+  "evidence_translation": {
+    "request": {"method": "POST", "path": "/evidence/evidence-1/translations", "body": {"target_language": "ro"}},
+    "response": {"id": "translation-1", "target_language": "ro", "translated_excerpt": "Compania a anunțat un program de eficiență operațională pe doi ani.", "provider_model": "provider/model", "source_text_hash": "sha256-example", "created_at": "2026-09-25T16:25:00Z"}
+  },
+  "csv_export": {
+    "request": "GET /exports/opportunities.csv?profile_id=profile-automation&status=shortlisted&eligibility=eligible&min_score=50&search=example"
+  }
+}

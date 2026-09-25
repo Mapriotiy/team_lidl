@@ -17,6 +17,7 @@ from app.collection.models import (
     CollectionResult,
     SourceTarget,
 )
+from app.collection.planning import plan_first_party_sources
 from app.collection.safety import canonical_domain, canonical_url
 from app.collection.transport import FetchResponse, SafeHTTPTransport
 from app.contracts.evidence import SourceType
@@ -58,14 +59,15 @@ class PublicSourceCollector:
             return CollectionResult(
                 (), (CollectionError(company.canonical_domain, exc.code, str(exc)),)
             )
-        sources = targets if targets is not None else [SourceTarget(f"https://{domain}/")]
+        sources = list(targets) if targets is not None else [SourceTarget(f"https://{domain}/")]
         documents: list[CollectedDocument] = []
         errors: list[CollectionError] = []
         seen_urls: set[str] = set()
         seen_hashes: set[str] = set()
         if len(sources) > self.max_pages:
             errors.append(CollectionError("", "page_limit", "Additional sources were not fetched"))
-        for target in sources[: self.max_pages]:
+            sources = sources[: self.max_pages]
+        for target in sources:
             try:
                 url = canonical_url(target.url)
                 if url in seen_urls:
@@ -132,6 +134,20 @@ class PublicSourceCollector:
                             )
                         )
                         seen_hashes.add(digest)
+                    if (
+                        target.source_type == SourceType.COMPANY
+                        and urlsplit(url).path in {"", "/"}
+                        and "html" in response.headers.get("content-type", "").lower()
+                    ):
+                        remaining_slots = self.max_pages - len(sources)
+                        if remaining_slots > 0:
+                            sources.extend(
+                                plan_first_party_sources(
+                                    response.body,
+                                    url,
+                                    limit=remaining_slots,
+                                )
+                            )
                     break
                 seen_urls.update(chain)
             except CollectionFailure as exc:

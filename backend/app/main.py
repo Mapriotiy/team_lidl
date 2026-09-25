@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.api.discovery import router as discovery_router
 from app.api.profiles import router as profiles_router
 from app.api.research import router as research_router
+from app.api.results import router as results_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 app.include_router(profiles_router)
 app.include_router(research_router)
+app.include_router(results_router)
 app.include_router(discovery_router)
 
 
