@@ -1,0 +1,31 @@
+name: PR conventions
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          title = os.environ["PR_TITLE"]
+          pattern = r"(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([a-z0-9][a-z0-9._/-]*\))?!?: \S[^\r\n]*"
+          if not re.fullmatch(pattern, title) or title != title.strip():
+              print("::error::Use a Conventional Commit PR title, for example: feat(profiles): add editable service questions")
+              sys.exit(1)
+          print("PR title is valid.")
+          PY
