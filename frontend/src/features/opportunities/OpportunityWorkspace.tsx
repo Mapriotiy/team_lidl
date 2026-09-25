@@ -6,6 +6,7 @@ import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
 import { ResearchLauncher } from '../activity/ResearchLauncher'
 import { listProfiles } from '../../api/profiles'
+import { downloadOpportunities } from '../../api/exports'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -242,6 +243,7 @@ export function OpportunityWorkspace() {
               <p className="text-sm text-slate-500">
                 <span className="font-semibold text-slate-200">{eligibleCount}</span> eligible accounts
               </p>
+              <button className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300" onClick={() => void downloadOpportunities({ profile_id: service, status: status === 'all' ? undefined : status, search: query })}>Export filtered CSV</button>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
