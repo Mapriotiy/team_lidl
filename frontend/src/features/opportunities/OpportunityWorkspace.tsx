@@ -19,6 +19,7 @@ const statusOptions: Array<{ label: string; value: OpportunityStatus | 'all' }> 
   { label: 'All', value: 'all' },
   { label: 'New', value: 'new' },
   { label: 'Shortlisted', value: 'shortlisted' },
+  { label: 'Dismissed', value: 'dismissed' },
 ]
 
 function formatRelativeTime(value: string | null) {
@@ -133,6 +134,9 @@ export function OpportunityWorkspace() {
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [eligibility, setEligibility] = useState<'all' | 'eligible' | 'needs_research' | 'excluded'>('all')
+  const [sort, setSort] = useState<'score_desc' | 'score_asc' | 'updated_desc'>('score_desc')
+  const [page, setPage] = useState(1)
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -153,7 +157,7 @@ export function OpportunityWorkspace() {
     setIsLoading(true)
 
     setLoadError('')
-    void listOpportunities({ service, status, query })
+    void listOpportunities({ service, status, query, eligibility, sort, page })
       .then((result) => { if (active) setOpportunities(result) })
       .catch(() => { if (active) setLoadError('Opportunities could not be loaded. Try again.') })
       .finally(() => { if (active) setIsLoading(false) })
@@ -161,7 +165,7 @@ export function OpportunityWorkspace() {
     return () => {
       active = false
     }
-  }, [service, status, query])
+  }, [service, status, query, eligibility, sort, page])
 
   const eligibleCount = useMemo(
     () => opportunities.filter((item) => item.eligibility === 'eligible').length,
@@ -243,7 +247,7 @@ export function OpportunityWorkspace() {
               <p className="text-sm text-slate-500">
                 <span className="font-semibold text-slate-200">{eligibleCount}</span> eligible accounts
               </p>
-              <button className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300" onClick={() => void downloadOpportunities({ profile_id: service, status: status === 'all' ? undefined : status, search: query })}>Export filtered CSV</button>
+              <button className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300" onClick={() => void downloadOpportunities({ profile_id: service, status: status === 'all' ? undefined : status, eligibility: eligibility === 'all' ? undefined : eligibility, search: query })}>Export filtered CSV</button>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -293,6 +297,8 @@ export function OpportunityWorkspace() {
                 ))}
               </div>
 
+              <div className="flex gap-2"><select aria-label="Eligibility" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300" value={eligibility} onChange={(event) => { setEligibility(event.target.value as typeof eligibility); setPage(1) }}><option value="all">All eligibility</option><option value="eligible">Eligible</option><option value="needs_research">Needs research</option><option value="excluded">Excluded</option></select><select aria-label="Sort opportunities" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="score_desc">Score high to low</option><option value="score_asc">Score low to high</option><option value="updated_desc">Recently updated</option></select></div>
+
               <label className="relative block lg:w-72">
                 <span className="sr-only">Search companies</span>
                 <span aria-hidden="true" className="absolute left-3 top-2.5 text-slate-500">⌕</span>
@@ -330,6 +336,7 @@ export function OpportunityWorkspace() {
             ) : (
               <EmptyState />
             )}
+            <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4"><button className="text-xs font-semibold text-slate-400 disabled:opacity-30" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span className="text-xs text-slate-500">Page {page}</span><button className="text-xs font-semibold text-slate-400 disabled:opacity-30" disabled={opportunities.length < 25} onClick={() => setPage((value) => value + 1)}>Next</button></div>
           </section>
         </div>}
       </main>

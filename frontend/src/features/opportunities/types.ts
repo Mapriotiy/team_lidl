@@ -32,5 +32,9 @@ export interface OpportunityFilters {
   service: ServiceKey
   status: OpportunityStatus | 'all'
   query: string
+  eligibility?: Eligibility | 'all'
+  minScore?: number
+  sort?: 'score_desc' | 'score_asc' | 'updated_desc'
+  page?: number
 }
 
