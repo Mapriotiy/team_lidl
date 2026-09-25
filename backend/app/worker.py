@@ -1,28 +1,24 @@
 import logging
 import time
 
-from sqlalchemy import text
-
-from app.db import create_database_engine
+from app.db import SessionLocal
+from app.jobs.runner import ResearchPipeline, UnconfiguredPipeline, run_once
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def run() -> None:
-    engine = create_database_engine()
+def run(pipeline: ResearchPipeline | None = None) -> None:
+    pipeline = pipeline or UnconfiguredPipeline()
     logger.info("Worker started")
-
     while True:
         try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-            logger.info("Worker database heartbeat succeeded")
+            if not run_once(SessionLocal, pipeline):
+                time.sleep(2)
         except Exception:
-            logger.exception("Worker database heartbeat failed")
-        time.sleep(30)
+            logger.exception("Worker iteration failed")
+            time.sleep(5)
 
 
 if __name__ == "__main__":
     run()
-
