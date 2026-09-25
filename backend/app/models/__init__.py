@@ -1,6 +1,7 @@
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import (
+    DiscoveryRun,
     Opportunity,
     StoredEvidence,
     StoredScoreSnapshot,
@@ -10,6 +11,7 @@ from app.models.results import (
 
 __all__ = [
     "Company",
+    "DiscoveryRun",
     "Opportunity",
     "ResearchRun",
     "ServiceProfile",

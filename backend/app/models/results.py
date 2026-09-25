@@ -116,3 +116,15 @@ class Opportunity(Base):
     note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class DiscoveryRun(Base):
+    __tablename__ = "discovery_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    status: Mapped[str] = mapped_column(String(20), default="completed")
+    request: Mapped[dict[str, object]] = mapped_column(json_type)
+    candidates: Mapped[list[dict[str, object]]] = mapped_column(json_type, default=list)
+    confirmed_domains: Mapped[list[str]] = mapped_column(json_type, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
