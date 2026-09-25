@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     assessment_model: str | None = None
     assessment_timeout_seconds: float = 60
     research_budget_usd: float = 5
+    source_text_retention_days: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
