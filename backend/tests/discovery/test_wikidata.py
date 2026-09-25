@@ -13,107 +13,75 @@ class FakeTransport:
     def get_json(
         self, url: str, *, params: Mapping[str, str], headers: Mapping[str, str], timeout: float
     ) -> object:
-        assert url == "https://query.wikidata.org/sparql"
+        assert url == "https://qlever.dev/api/wikidata"
         assert headers["Accept"] == "application/sparql-results+json"
-        assert timeout == 20
+        assert timeout == 30
         self.params = params
         return self.payload
 
 
-class FallbackTransport(FakeTransport):
-    def __init__(self, payload: object) -> None:
-        super().__init__(payload)
-        self.queries: list[str] = []
-
-    def get_json(
-        self, url: str, *, params: Mapping[str, str], headers: Mapping[str, str], timeout: float
-    ) -> object:
-        self.queries.append(params["query"])
-        if len(self.queries) == 1:
-            raise TimeoutError("public endpoint timed out")
-        return super().get_json(url, params=params, headers=headers, timeout=timeout)
+class FakeLabels:
+    def resolve(self, entity_ids: set[str], *, timeout: float) -> dict[str, str]:
+        assert timeout == 30
+        return {
+            "Q1": "Verified SA",
+            "Q2": "Second SA",
+            "Q36": "Poland",
+            "Q177": "logistics",
+        }
 
 
-def binding(
-    *, name: str, website: str, employees: str | None, industry: str = "logistics"
-) -> dict[str, dict[str, str]]:
-    result = {
-        "company": {"value": f"https://www.wikidata.org/entity/Q-{name}"},
-        "companyLabel": {"value": name},
+def binding(*, entity_id: str, website: str, employees: str) -> dict[str, dict[str, str]]:
+    return {
+        "company": {"value": f"https://www.wikidata.org/entity/{entity_id}"},
         "website": {"value": website},
+        "country": {"value": "https://www.wikidata.org/entity/Q36"},
         "countryCode": {"value": "PL"},
-        "countryLabel": {"value": "Poland"},
-        "industryLabel": {"value": industry},
+        "industry": {"value": "https://www.wikidata.org/entity/Q177"},
+        "employees": {"value": employees},
     }
-    if employees is not None:
-        result["employees"] = {"value": employees}
-    return result
 
 
-def test_discovers_verified_and_unknown_size_companies() -> None:
+def test_discovers_verified_companies_and_resolves_labels() -> None:
     transport = FakeTransport(
         {
             "results": {
                 "bindings": [
-                    binding(
-                        name="Verified SA",
-                        website="https://www.verified.example/",
-                        employees="2500",
-                    ),
-                    binding(name="Unknown SA", website="https://unknown.example", employees=None),
+                    binding(entity_id="Q1", website="https://verified.example", employees="2500"),
+                    binding(entity_id="Q2", website="https://second.example", employees="1500"),
                 ]
             }
         }
     )
 
-    candidates = WikidataDiscovery(transport).discover(DiscoveryRequest())
+    candidates = WikidataDiscovery(transport, FakeLabels()).discover(DiscoveryRequest())
 
-    assert [candidate.domain for candidate in candidates] == [
-        "verified.example",
-        "unknown.example",
-    ]
+    assert [candidate.name for candidate in candidates] == ["Verified SA", "Second SA"]
+    assert candidates[0].country_name == "Poland"
+    assert candidates[0].industry == "logistics"
     assert candidates[0].size_verification == SizeVerification.VERIFIED
     assert candidates[0].discovery_confidence == 0.9
-    assert candidates[1].size_verification == SizeVerification.NEEDS_VERIFICATION
-    assert candidates[1].discovery_confidence == 0.55
-    assert 'VALUES ?countryCode { "PL" "CZ"' in transport.params["query"]
+    query = transport.params["query"]
+    assert 'VALUES ?countryCode { "PL" "CZ"' in query
+    assert "wdt:P31/wdt:P279* wd:Q783794" in query
+    assert "FILTER NOT EXISTS" in query
 
 
-def test_filters_unknown_size_when_disabled() -> None:
+def test_deduplicates_multiple_domains_for_one_company() -> None:
     transport = FakeTransport(
         {
             "results": {
-                "bindings": [binding(name="Unknown", website="https://x.example", employees=None)]
-            }
-        }
-    )
-
-    candidates = WikidataDiscovery(transport).discover(DiscoveryRequest(include_unknown_size=False))
-
-    assert candidates == []
-
-
-def test_falls_back_to_cheaper_verified_company_query_after_timeout() -> None:
-    transport = FallbackTransport(
-        {
-            "results": {
                 "bindings": [
-                    binding(
-                        name="Fallback SA",
-                        website="https://fallback.example",
-                        employees="5000",
-                    )
+                    binding(entity_id="Q1", website="https://first.example", employees="2500"),
+                    binding(entity_id="Q1", website="https://second.example", employees="2500"),
                 ]
             }
         }
     )
 
-    candidates = WikidataDiscovery(transport).discover(DiscoveryRequest())
+    candidates = WikidataDiscovery(transport, FakeLabels()).discover(DiscoveryRequest())
 
-    assert [candidate.domain for candidate in candidates] == ["fallback.example"]
-    assert len(transport.queries) == 2
-    assert "wdt:P856 ?website" in transport.queries[0]
-    assert "wdt:P1128 ?employees" in transport.queries[1]
+    assert [candidate.domain for candidate in candidates] == ["first.example"]
 
 
 def test_rejects_invalid_country_codes() -> None:
@@ -123,4 +91,6 @@ def test_rejects_invalid_country_codes() -> None:
 
 def test_rejects_invalid_provider_response() -> None:
     with pytest.raises(WikidataError, match="no bindings"):
-        WikidataDiscovery(FakeTransport({"results": {}})).discover(DiscoveryRequest())
+        WikidataDiscovery(FakeTransport({"results": {}}), FakeLabels()).discover(
+            DiscoveryRequest()
+        )
