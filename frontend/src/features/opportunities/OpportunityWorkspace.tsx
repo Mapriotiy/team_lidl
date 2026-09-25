@@ -5,6 +5,7 @@ import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
 import { ResearchLauncher } from '../activity/ResearchLauncher'
+import { listProfiles } from '../../api/profiles'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -125,12 +126,25 @@ function EmptyState() {
 export function OpportunityWorkspace() {
   const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
   const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
+  const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
+  const [profileOptions, setProfileOptions] = useState(serviceOptions)
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return
+    const controller = new AbortController()
+    void listProfiles(controller.signal).then((profiles) => {
+      const options = profiles.map((profile) => ({ key: profile.id, name: profile.name, shortName: profile.name }))
+      setProfileOptions(options)
+      if (options[0]) setService(options[0].key)
+    }).catch(() => setLoadError('Service profiles could not be loaded.'))
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -213,15 +227,11 @@ export function OpportunityWorkspace() {
           </div>
         </header>
 
-        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace /></div>}
+        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace companyId={selectedCompanyId} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
         {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
-          <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">
-            Demo fixture data · Example companies are not confirmed sales opportunities.
-          </div>
-
           <section aria-labelledby="service-heading" className="mt-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
@@ -234,7 +244,7 @@ export function OpportunityWorkspace() {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {serviceOptions.map((option) => {
+              {profileOptions.map((option) => {
                 const selected = option.key === service
                 return (
                   <button
@@ -311,7 +321,7 @@ export function OpportunityWorkspace() {
             ) : opportunities.length > 0 ? (
               <div>
                 {opportunities.map((opportunity) => (
-                  <OpportunityRow key={opportunity.id} onOpen={() => setView('company')} opportunity={opportunity} />
+                  <OpportunityRow key={opportunity.id} onOpen={() => { setSelectedCompanyId(opportunity.companyId); setView('company') }} opportunity={opportunity} />
                 ))}
               </div>
             ) : (
