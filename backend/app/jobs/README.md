@@ -47,5 +47,5 @@ pytest
 ```
 
 Set `TEST_DATABASE_URL` before pytest to enable concurrency/lease and retry tests;
-without it those two tests are skipped. Test rows use unique identities and remain
+without it those four tests are skipped. Test rows use unique identities and remain
 in the disposable database. No paid provider or live web calls are made.

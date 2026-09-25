@@ -106,3 +106,67 @@ def test_bounded_retry(sessions: sessionmaker[Session]) -> None:
         assert service.claim(session) is None
         run = session.get(ResearchRun, run_id)
         assert run is not None and run.status == "failed" and len(run.partial_errors) == 3
+
+
+def test_locked_exhausted_job_does_not_block_queue(sessions: sessionmaker[Session]) -> None:
+    exhausted_id = seed(sessions)
+    with sessions.begin() as session:
+        run = session.get(ResearchRun, exhausted_id)
+        assert run is not None
+        run.status = "running"
+        run.attempts = 3
+        run.lease_token = "old"
+        run.lease_expires_at = utc_now() - timedelta(seconds=1)
+        run.stage_results = {"collection": ["saved"]}
+        run.partial_errors = [{"stage": "collection", "code": "timeout", "message": "saved"}]
+    queued_id = seed(sessions)
+    with sessions.begin() as locked:
+        from sqlalchemy import select
+
+        locked.scalar(select(ResearchRun).where(ResearchRun.id == exhausted_id).with_for_update())
+        with ThreadPoolExecutor(max_workers=1) as pool:
+
+            def claim_other() -> str:
+                with sessions.begin() as session:
+                    from sqlalchemy import text
+
+                    session.execute(text("SET LOCAL lock_timeout = '2s'"))
+                    claimed = service.claim(session)
+                    assert claimed is not None and claimed.lease_token is not None
+                    claimed_id = claimed.id
+                    service.finish(session, claimed_id, claimed.lease_token)
+                    return claimed_id
+
+            assert pool.submit(claim_other).result(timeout=5) == queued_id
+    with sessions.begin() as session:
+        assert service.claim(session) is None
+        run = session.get(ResearchRun, exhausted_id)
+        assert run is not None and run.status == "partial"
+        assert run.stage_results == {"collection": ["saved"]}
+        assert len(run.partial_errors) == 2
+
+
+def test_runner_resumes_saved_collection(sessions: sessionmaker[Session]) -> None:
+    from app.jobs.runner import StageResult, run_once
+
+    run_id = seed(sessions)
+    with sessions.begin() as session:
+        run = session.get(ResearchRun, run_id)
+        assert run is not None
+        run.stage_results = {"collection": {"sources": ["saved"]}}
+
+    class Pipeline:
+        def collect(self, company: Company) -> StageResult:
+            raise AssertionError("Persisted collection must not run twice")
+
+        def assess(
+            self, company: Company, profile: dict[str, object], sources: object
+        ) -> StageResult:
+            assert sources == {"sources": ["saved"]}
+            return StageResult(data={"assessments": []}, completed=1, total=1)
+
+    assert run_once(sessions, Pipeline())
+    with sessions() as session:
+        run = session.get(ResearchRun, run_id)
+        assert run is not None and run.status == "completed"
+        assert set(run.stage_results) == {"collection", "assessment"}
