@@ -156,11 +156,15 @@ def test_runner_resumes_saved_collection(sessions: sessionmaker[Session]) -> Non
         run.stage_results = {"collection": {"sources": ["saved"]}}
 
     class Pipeline:
-        def collect(self, company: Company) -> StageResult:
+        def collect(self, run_id: str, company: Company) -> StageResult:
             raise AssertionError("Persisted collection must not run twice")
 
         def assess(
-            self, company: Company, profile: dict[str, object], sources: object
+            self,
+            run_id: str,
+            company: Company,
+            profile: ServiceProfileVersion,
+            sources: object,
         ) -> StageResult:
             assert sources == {"sources": ["saved"]}
             return StageResult(data={"assessments": []}, completed=1, total=1)

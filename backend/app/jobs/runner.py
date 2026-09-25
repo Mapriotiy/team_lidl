@@ -25,10 +25,10 @@ class StageResult:
 
 
 class ResearchPipeline(Protocol):
-    def collect(self, company: Company) -> StageResult: ...
+    def collect(self, run_id: str, company: Company) -> StageResult: ...
 
     def assess(
-        self, company: Company, profile: dict[str, object], sources: object
+        self, run_id: str, company: Company, profile: ServiceProfileVersion, sources: object
     ) -> StageResult: ...
 
 
@@ -37,10 +37,12 @@ class RetryableResearchError(Exception):
 
 
 class UnconfiguredPipeline:
-    def collect(self, company: Company) -> StageResult:
+    def collect(self, run_id: str, company: Company) -> StageResult:
         raise RuntimeError("Collection and assessment adapters are not configured")
 
-    def assess(self, company: Company, profile: dict[str, object], sources: object) -> StageResult:
+    def assess(
+        self, run_id: str, company: Company, profile: ServiceProfileVersion, sources: object
+    ) -> StageResult:
         raise RuntimeError("Assessment adapter is not configured")
 
 
@@ -72,15 +74,15 @@ def run_once(sessions: sessionmaker[Session], pipeline: ResearchPipeline) -> boo
             profile = session.get(ServiceProfileVersion, current.profile_version_id)
             assert company is not None and profile is not None
             saved = dict(current.stage_results)
-            configuration = dict(profile.configuration)
             session.expunge(company)
+            session.expunge(profile)
         for stage in ("collection", "assessment"):
             if stage in saved:
                 continue
             result = (
-                pipeline.collect(company)
+                pipeline.collect(run_id, company)
                 if stage == "collection"
-                else pipeline.assess(company, configuration, saved["collection"])
+                else pipeline.assess(run_id, company, profile, saved["collection"])
             )
             with sessions.begin() as session:
                 service.checkpoint(
