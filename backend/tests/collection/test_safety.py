@@ -76,3 +76,13 @@ def test_transport_revalidates_injected_resolver() -> None:
     transport = SafeHTTPTransport(resolver=lambda host, port, timeout: ("127.0.0.1",))
     with pytest.raises(CollectionFailure):
         transport.fetch("https://example.com", timeout=1, max_bytes=100)
+
+
+def test_unicode_request_targets_are_ascii_without_double_encoding() -> None:
+    result = canonical_url("https://example.com/über/%2F?q=новости&next=/résumé#title")
+    assert result == (
+        "https://example.com/%C3%BCber/%2F?"
+        "q=%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8&next=/r%C3%A9sum%C3%A9"
+    )
+    assert canonical_url(result) == result
+    assert result.isascii()

@@ -95,7 +95,12 @@ def extract(body: bytes, content_type: str) -> ExtractedText:
     if media_type not in {"text/html", "application/xhtml+xml"}:
         raise CollectionFailure("unsupported_content", "Only HTML and plain text are supported")
     parser = TextParser()
-    parser.feed(decoded)
+    try:
+        parser.feed(decoded)
+        parser.close()
+    except AssertionError as exc:
+        # Older Python HTMLParser versions assert on unknown marked declarations.
+        raise CollectionFailure("invalid_html", "Source HTML could not be parsed") from exc
     directives = parser.metadata.get("robots", "").lower()
     if any(token in directives for token in ("noarchive", "nosnippet", "none")):
         raise CollectionFailure("retention_restricted", "Source disallows retained snippets")

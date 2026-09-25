@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from app.collection import CanonicalCompany, PublicSourceCollector, SourceTarget
 from app.collection.transport import FetchResponse
 from app.contracts.evidence import SourceType
@@ -162,3 +164,45 @@ def test_size_media_and_http_errors() -> None:
         "unsupported_content",
         "http_error",
     ]
+
+
+def test_unicode_source_url_is_normalized_before_transport() -> None:
+    transport = SavedTransport({"https://example.com/%C3%BCber?q=%C3%A9": html()})
+    result = PublicSourceCollector(transport).collect(
+        COMPANY,
+        [
+            SourceTarget("https://example.com/über?q=é"),
+        ],
+    )
+    assert not result.errors
+    assert result.documents[0].canonical_url == "https://example.com/%C3%BCber?q=%C3%A9"
+
+
+def test_html_parser_failure_preserves_batch_successes(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.collection.extraction import TextParser
+
+    original_feed = TextParser.feed
+
+    def parser_with_legacy_assertion(self: TextParser, data: str) -> None:
+        if data == "<![foo]>":
+            raise AssertionError("unknown status keyword 'foo' in marked section")
+        original_feed(self, data)
+
+    monkeypatch.setattr(TextParser, "feed", parser_with_legacy_assertion)
+    transport = SavedTransport(
+        {
+            "https://example.com/malformed": FetchResponse(
+                200, {"content-type": "text/html"}, b"<![foo]>"
+            ),
+            "https://example.com/": html(),
+        }
+    )
+    result = PublicSourceCollector(transport).collect(
+        COMPANY,
+        [
+            SourceTarget("https://example.com/malformed"),
+            SourceTarget("https://example.com/"),
+        ],
+    )
+    assert len(result.documents) == 1
+    assert [error.code for error in result.errors] == ["invalid_html"]

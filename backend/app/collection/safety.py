@@ -5,7 +5,7 @@ import re
 import socket
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from threading import BoundedSemaphore
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from app.collection.models import CollectionFailure
 
@@ -39,7 +39,10 @@ def canonical_url(value: str) -> str:
         else:
             require_public(str(address))
         authority = f"[{host}]" if ":" in host else host
-        return urlunsplit((parts.scheme, authority, parts.path or "/", parts.query, ""))
+        # Preserve existing escapes and URL separators while making request targets ASCII.
+        path = quote(parts.path or "/", safe="/%:@!$&'()*+,;=-._~")
+        query = quote(parts.query, safe="/%?:@!$&'()*+,;=-._~")
+        return urlunsplit((parts.scheme, authority, path, query, ""))
     except (UnicodeError, ValueError) as exc:
         raise CollectionFailure("unsafe_url", str(exc)) from exc
 
