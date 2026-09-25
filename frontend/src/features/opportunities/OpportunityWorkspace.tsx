@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { CompanyWorkspace } from '../companies/CompanyWorkspace'
+import { CompanyListWorkspace } from '../companies/CompanyListWorkspace'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
@@ -126,7 +127,7 @@ function EmptyState() {
 }
 
 export function OpportunityWorkspace() {
-  const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
+  const [view, setView] = useState<'opportunities' | 'companies' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
   const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
@@ -141,10 +142,12 @@ export function OpportunityWorkspace() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [profileReload, setProfileReload] = useState(0)
 
   useEffect(() => {
     if (testMode) return
     const controller = new AbortController()
+    setLoadError('')
     void listProfiles(controller.signal).then((profiles) => {
       const options = profiles.map((profile) => ({ key: profile.id, name: profile.name, shortName: profile.name }))
       setProfileOptions(options)
@@ -159,7 +162,7 @@ export function OpportunityWorkspace() {
       setIsLoading(false)
     })
     return () => controller.abort()
-  }, [testMode])
+  }, [testMode, profileReload])
 
   useEffect(() => {
     if (!service) return
@@ -196,7 +199,7 @@ export function OpportunityWorkspace() {
         <nav aria-label="Primary" className="flex-1 space-y-1 px-3 py-6">
           {([
             ['opportunities', 'Opportunities'],
-            ['company', 'Companies'],
+            ['companies', 'Companies'],
             ['activity', 'Research activity'],
             ['profiles', 'Service profiles'],
             ['discovery', 'Discover companies'],
@@ -231,7 +234,7 @@ export function OpportunityWorkspace() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Configuration'}</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Configuration'}</h1>
             </div>
             <button
               className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -244,6 +247,7 @@ export function OpportunityWorkspace() {
         </header>
 
         {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace companyId={selectedCompanyId} opportunityId={selectedOpportunity?.id} opportunityNote={null} opportunityStatus={selectedOpportunity?.status} /></div>}
+        {view === 'companies' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyListWorkspace onOpen={(companyId) => { setSelectedCompanyId(companyId); setSelectedOpportunity(null); setView('company') }} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
         {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
@@ -336,7 +340,7 @@ export function OpportunityWorkspace() {
                 ))}
               </div>
             ) : loadError ? (
-              <div className="px-6 py-20 text-center"><h3 className="font-semibold text-red-200">Research data unavailable</h3><p className="mt-2 text-sm text-slate-500">{loadError}</p></div>
+              <div className="px-6 py-20 text-center"><h3 className="font-semibold text-red-200">Research data unavailable</h3><p className="mt-2 text-sm text-slate-500">{loadError}</p><button className="mt-4 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300" onClick={() => setProfileReload((value) => value + 1)}>Retry loading</button></div>
             ) : opportunities.length > 0 ? (
               <div>
                 {opportunities.map((opportunity) => (
