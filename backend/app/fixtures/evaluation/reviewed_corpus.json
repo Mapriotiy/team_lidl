@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "review_status": "reviewed-labels-v1",
+  "reviewed_at": "2026-09-26",
+  "guidance": "Labels judge factual support, attribution, excerpt accuracy, assessment status, and event identity. They do not prescribe generated wording.",
+  "companies": [
+    {
+      "id": "eval-uipath",
+      "name": "UiPath",
+      "country": "Romania",
+      "domains": ["uipath.com"],
+      "case_tags": ["strong-match", "multi-service"],
+      "sources": [{"id": "uipath-s1", "url": "https://www.uipath.com/newsroom", "source_type": "company_newsroom", "published_at": "2025-03-12", "language": "en", "company_attribution": "confirmed", "event_key": "uipath-agentic-platform-2025", "normalized_text": "UiPath announced new agentic automation capabilities for its enterprise automation platform."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "transformation-initiative", "expected_status": "supported", "evidence": [{"source_id": "uipath-s1", "excerpt": "UiPath announced new agentic automation capabilities for its enterprise automation platform."}]},
+        {"profile": "Process automation", "signal_id": "internal-capability", "expected_status": "supported", "evidence": [{"source_id": "uipath-s1", "excerpt": "enterprise automation platform"}]},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "supported", "evidence": [{"source_id": "uipath-s1", "excerpt": "new agentic automation capabilities"}]},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-allegro",
+      "name": "Allegro.eu",
+      "country": "Poland",
+      "domains": ["allegro.eu"],
+      "case_tags": ["strong-match", "multi-service"],
+      "sources": [{"id": "allegro-s1", "url": "https://about.allegro.eu/financial-results", "source_type": "annual_report", "published_at": "2025-02-27", "language": "en", "company_attribution": "confirmed", "event_key": "allegro-platform-investment-2025", "normalized_text": "Allegro continued investing in its marketplace platform and customer-facing digital services."}],
+      "labels": [
+        {"profile": "Software development", "signal_id": "platform-modernization", "expected_status": "supported", "evidence": [{"source_id": "allegro-s1", "excerpt": "investing in its marketplace platform"}]},
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "allegro-s1", "excerpt": "customer-facing digital services"}]},
+        {"profile": "Process automation", "signal_id": "process-consolidation", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-pko",
+      "name": "PKO Bank Polski",
+      "country": "Poland",
+      "domains": ["pkobp.pl"],
+      "case_tags": ["multi-service", "native-language"],
+      "sources": [{"id": "pko-s1", "url": "https://www.pkobp.pl/relacje-inwestorskie/raporty", "source_type": "annual_report", "published_at": "2025-03-10", "language": "pl", "company_attribution": "confirmed", "event_key": "pko-digitalization-2025", "normalized_text": "Bank kontynuuje cyfryzację procesów oraz rozwój kanałów mobilnych dla klientów."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "transformation-initiative", "expected_status": "supported", "evidence": [{"source_id": "pko-s1", "excerpt": "cyfryzację procesów"}]},
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "pko-s1", "excerpt": "rozwój kanałów mobilnych dla klientów"}]},
+        {"profile": "Cybersecurity", "signal_id": "compliance-initiative", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-omv-petrom",
+      "name": "OMV Petrom",
+      "country": "Romania",
+      "domains": ["omvpetrom.com"],
+      "case_tags": ["strong-match", "native-language"],
+      "sources": [{"id": "petrom-s1", "url": "https://www.omvpetrom.com/ro/news", "source_type": "company_newsroom", "published_at": "2025-05-06", "language": "ro", "company_attribution": "confirmed", "event_key": "petrom-efficiency-2025", "normalized_text": "OMV Petrom accelerează programul de eficientizare și digitalizare a operațiunilor."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "supported", "evidence": [{"source_id": "petrom-s1", "excerpt": "programul de eficientizare"}]},
+        {"profile": "Process automation", "signal_id": "transformation-initiative", "expected_status": "supported", "evidence": [{"source_id": "petrom-s1", "excerpt": "digitalizare a operațiunilor"}]},
+        {"profile": "Process automation", "signal_id": "incumbent-partner", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-banca-transilvania",
+      "name": "Banca Transilvania",
+      "country": "Romania",
+      "domains": ["bancatransilvania.ro"],
+      "case_tags": ["multi-service", "native-language"],
+      "sources": [{"id": "bt-s1", "url": "https://www.bancatransilvania.ro/news", "source_type": "company_newsroom", "published_at": "2025-01-21", "language": "ro", "company_attribution": "confirmed", "event_key": "bt-mobile-channel-2025", "normalized_text": "Banca Transilvania a extins funcționalitățile aplicației mobile pentru clienți."}],
+      "labels": [
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "bt-s1", "excerpt": "a extins funcționalitățile aplicației mobile"}]},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "contradicted", "evidence": [{"source_id": "bt-s1", "excerpt": "a extins funcționalitățile aplicației mobile"}]},
+        {"profile": "Cybersecurity", "signal_id": "cloud-migration", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-cez",
+      "name": "ČEZ Group",
+      "country": "Czechia",
+      "domains": ["cez.cz"],
+      "case_tags": ["ambiguous-name", "native-language"],
+      "identity_notes": "Match ČEZ Group, not unrelated organizations abbreviated CEZ; require cez.cz or explicit group attribution.",
+      "sources": [{"id": "cez-s1", "url": "https://www.cez.cz/cs/pro-media", "source_type": "company_newsroom", "published_at": "2025-04-09", "language": "cs", "company_attribution": "confirmed", "event_key": "cez-digital-grid-2025", "normalized_text": "Skupina ČEZ pokračuje v digitalizaci distribuční sítě a modernizaci zákaznických služeb."}],
+      "labels": [
+        {"profile": "Software development", "signal_id": "platform-modernization", "expected_status": "supported", "evidence": [{"source_id": "cez-s1", "excerpt": "digitalizaci distribuční sítě"}]},
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "cez-s1", "excerpt": "modernizaci zákaznických služeb"}]},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Process automation", "signal_id": "process-consolidation", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-skoda",
+      "name": "Škoda Auto",
+      "country": "Czechia",
+      "domains": ["skoda-auto.com"],
+      "case_tags": ["strong-match", "native-language"],
+      "sources": [{"id": "skoda-s1", "url": "https://www.skoda-storyboard.com/cs/", "source_type": "company_newsroom", "published_at": "2024-11-14", "language": "cs", "company_attribution": "confirmed", "event_key": "skoda-digital-production-2024", "normalized_text": "Škoda Auto rozšiřuje automatizaci výroby a digitální řízení výrobních procesů."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "transformation-initiative", "expected_status": "supported", "evidence": [{"source_id": "skoda-s1", "excerpt": "automatizaci výroby"}]},
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "supported", "evidence": [{"source_id": "skoda-s1", "excerpt": "digitální řízení výrobních procesů"}]},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "security-hiring", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-wizz",
+      "name": "Wizz Air Holdings",
+      "country": "Hungary",
+      "domains": ["wizzair.com"],
+      "case_tags": ["weak-match", "sparse-sources"],
+      "sources": [{"id": "wizz-s1", "url": "https://wizzair.com/en-gb/information-and-services/about-us/news", "source_type": "company_newsroom", "published_at": "2025-06-02", "language": "en", "company_attribution": "confirmed", "event_key": "wizz-app-update-2025", "normalized_text": "Wizz Air released an update to its mobile application with revised booking features."}],
+      "labels": [
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "wizz-s1", "excerpt": "update to its mobile application"}]},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "contradicted", "evidence": [{"source_id": "wizz-s1", "excerpt": "released an update"}]},
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-mol",
+      "name": "MOL Group",
+      "country": "Hungary",
+      "domains": ["molgroup.info"],
+      "case_tags": ["strong-match", "multi-service"],
+      "sources": [{"id": "mol-s1", "url": "https://molgroup.info/en/investor-relations/annual-reports", "source_type": "annual_report", "published_at": "2025-03-20", "language": "en", "company_attribution": "confirmed", "event_key": "mol-shape-tomorrow-2025", "normalized_text": "MOL Group continued its efficiency programme and modernization of customer digital channels."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "supported", "evidence": [{"source_id": "mol-s1", "excerpt": "continued its efficiency programme"}]},
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "mol-s1", "excerpt": "modernization of customer digital channels"}]},
+        {"profile": "Cybersecurity", "signal_id": "compliance-initiative", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Process automation", "signal_id": "incumbent-partner", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-otp",
+      "name": "OTP Bank",
+      "country": "Hungary",
+      "domains": ["otpbank.hu"],
+      "case_tags": ["stale-evidence", "native-language"],
+      "sources": [{"id": "otp-s1", "url": "https://www.otpbank.hu/portal/hu/IR_Jelentesek", "source_type": "annual_report", "published_at": "2021-05-10", "language": "hu", "company_attribution": "confirmed", "event_key": "otp-digital-program-2021", "normalized_text": "Az OTP Bank folytatta a digitális transzformációs programját."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "transformation-initiative", "expected_status": "contradicted", "evidence": [{"source_id": "otp-s1", "excerpt": "digitális transzformációs programját"}], "review_note": "Fact is attributable but outside the 730-day freshness window."},
+        {"profile": "Software development", "signal_id": "platform-modernization", "expected_status": "contradicted", "evidence": [{"source_id": "otp-s1", "excerpt": "digitális transzformációs programját"}], "review_note": "Stale material must not be treated as a current program."},
+        {"profile": "Cybersecurity", "signal_id": "cloud-migration", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-bitdefender",
+      "name": "Bitdefender",
+      "country": "Romania",
+      "domains": ["bitdefender.com"],
+      "case_tags": ["disqualifier", "multi-service"],
+      "sources": [{"id": "bitdefender-s1", "url": "https://www.bitdefender.com/company/news/", "source_type": "company_newsroom", "published_at": "2025-05-20", "language": "en", "company_attribution": "confirmed", "event_key": "bitdefender-internal-security-2025", "normalized_text": "Bitdefender develops and operates its own security platform with an established internal research team."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "internal-capability", "expected_status": "supported", "expected_effect": "penalty", "evidence": [{"source_id": "bitdefender-s1", "excerpt": "established internal research team"}]},
+        {"profile": "Cybersecurity", "signal_id": "security-hiring", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Software development", "signal_id": "platform-modernization", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-gen-digital",
+      "name": "Gen Digital",
+      "aliases": ["Avast", "NortonLifeLock"],
+      "country": "Czechia",
+      "domains": ["gendigital.com"],
+      "case_tags": ["ambiguous-name", "disqualifier"],
+      "identity_notes": "Legacy Avast coverage is attributable only when the event date and post-merger entity are explicit.",
+      "sources": [{"id": "gen-s1", "url": "https://www.gendigital.com/us/en/newsroom/", "source_type": "company_newsroom", "published_at": "2025-02-18", "language": "en", "company_attribution": "confirmed", "event_key": "gen-security-platform-2025", "normalized_text": "Gen Digital operates a global consumer cyber-safety platform through its internal product and threat-research teams."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "internal-capability", "expected_status": "supported", "expected_effect": "penalty", "evidence": [{"source_id": "gen-s1", "excerpt": "internal product and threat-research teams"}]},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "compliance-initiative", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-cd-projekt",
+      "name": "CD PROJEKT",
+      "country": "Poland",
+      "domains": ["cdprojekt.com"],
+      "case_tags": ["syndicated-coverage", "multi-service"],
+      "sources": [
+        {"id": "cdp-s1", "url": "https://www.cdprojekt.com/en/media/news/", "source_type": "company_newsroom", "published_at": "2025-04-03", "language": "en", "company_attribution": "confirmed", "event_key": "cdp-new-game-production-2025", "normalized_text": "CD PROJEKT confirmed that a new game entered full-scale production."},
+        {"id": "cdp-s2", "url": "https://example-news.test/cd-projekt-production", "source_type": "news", "published_at": "2025-04-03", "language": "en", "company_attribution": "confirmed", "event_key": "cdp-new-game-production-2025", "syndicated_from": "cdp-s1", "normalized_text": "CD PROJEKT confirmed that a new game entered full-scale production."}
+      ],
+      "labels": [
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "supported", "evidence": [{"source_id": "cdp-s1", "excerpt": "a new game entered full-scale production"}], "expected_unique_event_count": 1},
+        {"profile": "Software development", "signal_id": "engineering-hiring", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-nokia",
+      "name": "Nokia",
+      "country": "Finland",
+      "domains": ["nokia.com"],
+      "case_tags": ["syndicated-coverage", "strong-match"],
+      "sources": [
+        {"id": "nokia-s1", "url": "https://www.nokia.com/about-us/news/releases/", "source_type": "company_newsroom", "published_at": "2025-03-05", "language": "en", "company_attribution": "confirmed", "event_key": "nokia-cloud-modernization-2025", "normalized_text": "Nokia announced a cloud-native platform modernization programme."},
+        {"id": "nokia-s2", "url": "https://wire.example.test/nokia-cloud", "source_type": "news", "published_at": "2025-03-05", "language": "en", "company_attribution": "confirmed", "event_key": "nokia-cloud-modernization-2025", "syndicated_from": "nokia-s1", "normalized_text": "Nokia announced a cloud-native platform modernization programme."}
+      ],
+      "labels": [
+        {"profile": "Software development", "signal_id": "platform-modernization", "expected_status": "supported", "evidence": [{"source_id": "nokia-s1", "excerpt": "cloud-native platform modernization programme"}], "expected_unique_event_count": 1},
+        {"profile": "Cybersecurity", "signal_id": "cloud-migration", "expected_status": "supported", "evidence": [{"source_id": "nokia-s1", "excerpt": "cloud-native platform modernization programme"}], "expected_unique_event_count": 1},
+        {"profile": "Process automation", "signal_id": "process-consolidation", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-epam",
+      "name": "EPAM Systems",
+      "country": "United States",
+      "domains": ["epam.com"],
+      "case_tags": ["other-region", "disqualifier"],
+      "sources": [{"id": "epam-s1", "url": "https://www.epam.com/about/newsroom", "source_type": "company_newsroom", "published_at": "2025-05-01", "language": "en", "company_attribution": "confirmed", "event_key": "epam-internal-delivery-2025", "normalized_text": "EPAM provides software engineering through its established global delivery organization."}],
+      "labels": [
+        {"profile": "Process automation", "signal_id": "internal-capability", "expected_status": "supported", "expected_effect": "penalty", "evidence": [{"source_id": "epam-s1", "excerpt": "established global delivery organization"}]},
+        {"profile": "Software development", "signal_id": "engineering-hiring", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    },
+    {
+      "id": "eval-wise",
+      "name": "Wise plc",
+      "country": "United Kingdom",
+      "domains": ["wise.com"],
+      "case_tags": ["other-region", "weak-match"],
+      "sources": [{"id": "wise-s1", "url": "https://wise.com/newsroom", "source_type": "company_newsroom", "published_at": "2025-06-11", "language": "en", "company_attribution": "confirmed", "event_key": "wise-product-update-2025", "normalized_text": "Wise added a feature to an existing business account product."}],
+      "labels": [
+        {"profile": "Software development", "signal_id": "product-launch", "expected_status": "contradicted", "evidence": [{"source_id": "wise-s1", "excerpt": "added a feature to an existing business account product"}]},
+        {"profile": "Software development", "signal_id": "digital-expansion", "expected_status": "supported", "evidence": [{"source_id": "wise-s1", "excerpt": "added a feature"}]},
+        {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "insufficient_evidence", "evidence": []},
+        {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
+      ]
+    }
+  ]
+}

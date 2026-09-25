@@ -1,4 +1,4 @@
-export type ServiceKey = 'automation' | 'cybersecurity' | 'software-development'
+export type ServiceKey = string
 
 export type OpportunityStatus = 'new' | 'shortlisted' | 'dismissed'
 
@@ -24,6 +24,7 @@ export interface Opportunity {
   coverage: number
   strongestSignal: string | null
   signalCount: number
+  collectionCompletion?: number
   lastResearchedAt: string | null
 }
 
@@ -31,5 +32,9 @@ export interface OpportunityFilters {
   service: ServiceKey
   status: OpportunityStatus | 'all'
   query: string
+  eligibility?: Eligibility | 'all'
+  minScore?: number
+  sort?: 'score_desc' | 'score_asc' | 'updated_desc'
+  page?: number
 }
 

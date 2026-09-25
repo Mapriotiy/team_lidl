@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "corpus": "reviewed_corpus.json",
+  "corpus_version": "reviewed-labels-v1",
+  "run": {
+    "revision": null,
+    "started_at": null,
+    "finished_at": null,
+    "provider_model": null,
+    "prompt_version": null,
+    "accounts_attempted": 0,
+    "accounts_completed": 0,
+    "latency_ms_total": 0,
+    "provider_cost_usd": 0.0
+  },
+  "counts": {
+    "true_positive_supported": 0,
+    "false_positive_supported": 0,
+    "false_negative_supported": 0,
+    "reviewed_labels": 0,
+    "labels_with_usable_sources": 0,
+    "wrong_company_attributions": 0,
+    "inaccurate_excerpts": 0,
+    "duplicate_events_counted": 0
+  },
+  "metrics": {
+    "supported_finding_precision": null,
+    "missed_signal_rate": null,
+    "research_coverage": null,
+    "wrong_company_attribution_rate": null,
+    "excerpt_accuracy": null,
+    "mean_latency_ms_per_completed_account": null,
+    "mean_cost_usd_per_completed_account": null
+  },
+  "notes": []
+}

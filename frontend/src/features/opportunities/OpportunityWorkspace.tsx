@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { CompanyWorkspace } from '../companies/CompanyWorkspace'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
+import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
+import { ResearchLauncher } from '../activity/ResearchLauncher'
+import { listProfiles } from '../../api/profiles'
+import { downloadOpportunities } from '../../api/exports'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -15,6 +19,7 @@ const statusOptions: Array<{ label: string; value: OpportunityStatus | 'all' }> 
   { label: 'All', value: 'all' },
   { label: 'New', value: 'new' },
   { label: 'Shortlisted', value: 'shortlisted' },
+  { label: 'Dismissed', value: 'dismissed' },
 ]
 
 function formatRelativeTime(value: string | null) {
@@ -121,20 +126,38 @@ function EmptyState() {
 }
 
 export function OpportunityWorkspace() {
-  const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles'>('opportunities')
+  const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
+  const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
+  const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
+  const [profileOptions, setProfileOptions] = useState(serviceOptions)
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [eligibility, setEligibility] = useState<'all' | 'eligible' | 'needs_research' | 'excluded'>('all')
+  const [sort, setSort] = useState<'score_desc' | 'score_asc' | 'updated_desc'>('score_desc')
+  const [page, setPage] = useState(1)
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return
+    const controller = new AbortController()
+    void listProfiles(controller.signal).then((profiles) => {
+      const options = profiles.map((profile) => ({ key: profile.id, name: profile.name, shortName: profile.name }))
+      setProfileOptions(options)
+      if (options[0]) setService(options[0].key)
+    }).catch(() => setLoadError('Service profiles could not be loaded.'))
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     let active = true
     setIsLoading(true)
 
     setLoadError('')
-    void listOpportunities({ service, status, query })
+    void listOpportunities({ service, status, query, eligibility, sort, page })
       .then((result) => { if (active) setOpportunities(result) })
       .catch(() => { if (active) setLoadError('Opportunities could not be loaded. Try again.') })
       .finally(() => { if (active) setIsLoading(false) })
@@ -142,7 +165,7 @@ export function OpportunityWorkspace() {
     return () => {
       active = false
     }
-  }, [service, status, query])
+  }, [service, status, query, eligibility, sort, page])
 
   const eligibleCount = useMemo(
     () => opportunities.filter((item) => item.eligibility === 'eligible').length,
@@ -166,6 +189,7 @@ export function OpportunityWorkspace() {
             ['company', 'Companies'],
             ['activity', 'Research activity'],
             ['profiles', 'Service profiles'],
+            ['discovery', 'Discover companies'],
           ] as const).map(([id, label]) => (
             <button
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
@@ -197,10 +221,11 @@ export function OpportunityWorkspace() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : 'Configuration'}</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Configuration'}</h1>
             </div>
             <button
               className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
+              onClick={() => setView('discovery')}
               type="button"
             >
               Import companies
@@ -208,14 +233,11 @@ export function OpportunityWorkspace() {
           </div>
         </header>
 
-        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace /></div>}
+        {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace companyId={selectedCompanyId} opportunityId={selectedOpportunity?.id} opportunityNote={null} opportunityStatus={selectedOpportunity?.status} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
+        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
-          <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">
-            Demo fixture data · Example companies are not confirmed sales opportunities.
-          </div>
-
           <section aria-labelledby="service-heading" className="mt-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
@@ -225,10 +247,11 @@ export function OpportunityWorkspace() {
               <p className="text-sm text-slate-500">
                 <span className="font-semibold text-slate-200">{eligibleCount}</span> eligible accounts
               </p>
+              <button className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300" onClick={() => void downloadOpportunities({ profile_id: service, status: status === 'all' ? undefined : status, eligibility: eligibility === 'all' ? undefined : eligibility, search: query })}>Export filtered CSV</button>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {serviceOptions.map((option) => {
+              {profileOptions.map((option) => {
                 const selected = option.key === service
                 return (
                   <button
@@ -274,6 +297,8 @@ export function OpportunityWorkspace() {
                 ))}
               </div>
 
+              <div className="flex gap-2"><select aria-label="Eligibility" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300" value={eligibility} onChange={(event) => { setEligibility(event.target.value as typeof eligibility); setPage(1) }}><option value="all">All eligibility</option><option value="eligible">Eligible</option><option value="needs_research">Needs research</option><option value="excluded">Excluded</option></select><select aria-label="Sort opportunities" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="score_desc">Score high to low</option><option value="score_asc">Score low to high</option><option value="updated_desc">Recently updated</option></select></div>
+
               <label className="relative block lg:w-72">
                 <span className="sr-only">Search companies</span>
                 <span aria-hidden="true" className="absolute left-3 top-2.5 text-slate-500">⌕</span>
@@ -305,12 +330,13 @@ export function OpportunityWorkspace() {
             ) : opportunities.length > 0 ? (
               <div>
                 {opportunities.map((opportunity) => (
-                  <OpportunityRow key={opportunity.id} onOpen={() => setView('company')} opportunity={opportunity} />
+                  <OpportunityRow key={opportunity.id} onOpen={() => { setSelectedCompanyId(opportunity.companyId); setSelectedOpportunity(opportunity); setView('company') }} opportunity={opportunity} />
                 ))}
               </div>
             ) : (
               <EmptyState />
             )}
+            <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4"><button className="text-xs font-semibold text-slate-400 disabled:opacity-30" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span className="text-xs text-slate-500">Page {page}</span><button className="text-xs font-semibold text-slate-400 disabled:opacity-30" disabled={opportunities.length < 25} onClick={() => setPage((value) => value + 1)}>Next</button></div>
           </section>
         </div>}
       </main>

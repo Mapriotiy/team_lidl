@@ -19,4 +19,5 @@ export interface ProfileDraft {
   companySize: string
   operationalComplexity: string
   signals: SignalDraft[]
+  version?: number
 }
