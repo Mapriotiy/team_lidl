@@ -22,6 +22,9 @@ def test_import_submit_and_read() -> None:
     assert [c["created"] for c in body["accepted"]] == [True, False]
     assert len(body["rejected"]) == 2
     company_id = body["accepted"][0]["company"]["id"]
+    listed = client.get("/companies")
+    assert listed.status_code == 200
+    assert [company["id"] for company in listed.json()] == [company_id]
     profile = client.post("/service-profiles", json=profile_payload()).json()
     payload = {
         "company_id": company_id,
