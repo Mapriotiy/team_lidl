@@ -32,22 +32,19 @@ class UrlLibJsonTransport:
 
 def _sparql(request: DiscoveryRequest) -> str:
     country_values = " ".join(f'"{code}"' for code in request.country_codes)
-    unknown_filter = " || !BOUND(?employees)" if request.include_unknown_size else ""
     fetch_limit = min(request.limit * 4, 200)
     return f"""
 SELECT DISTINCT ?company ?companyLabel ?website ?countryCode ?countryLabel
                 ?industryLabel ?employees WHERE {{
-  ?company wdt:P31/wdt:P279* wd:Q783794;
-           wdt:P17 ?country;
-           wdt:P856 ?website.
+  ?company wdt:P17 ?country;
+           wdt:P856 ?website;
+           wdt:P1128 ?employees.
   ?country wdt:P297 ?countryCode.
   VALUES ?countryCode {{ {country_values} }}
   OPTIONAL {{ ?company wdt:P452 ?industry. }}
-  OPTIONAL {{ ?company wdt:P1128 ?employees. }}
-  FILTER(?employees >= {request.minimum_employees}{unknown_filter})
+  FILTER(?employees >= {request.minimum_employees})
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
-ORDER BY DESC(?employees)
 LIMIT {fetch_limit}
 """.strip()
 
