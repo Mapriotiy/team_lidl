@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.research_contracts import (
@@ -20,6 +21,12 @@ from app.models.profile import ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
 
 router = APIRouter(tags=["research"])
+
+
+@router.get("/companies", response_model=list[CompanySummary])
+def list_companies(session: Session = Depends(get_session)) -> list[CompanySummary]:
+    companies = session.scalars(select(Company).order_by(Company.display_name, Company.id)).all()
+    return [CompanySummary.model_validate(company) for company in companies]
 
 
 def api_error(status: int, code: str, message: str) -> HTTPException:
