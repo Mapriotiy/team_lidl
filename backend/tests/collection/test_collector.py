@@ -55,6 +55,28 @@ def test_metadata_normalization_and_duplicate_sources() -> None:
     assert source.company_id == COMPANY.id
 
 
+def test_homepage_planning_fetches_bounded_first_party_links() -> None:
+    homepage = FetchResponse(
+        200,
+        {"content-type": "text/html"},
+        b"<h1>Company</h1><a href='/careers'>Jobs</a><a href='/news'>Newsroom</a>",
+    )
+    transport = SavedTransport(
+        {
+            "https://example.com/": homepage,
+            "https://example.com/careers": FetchResponse(
+                200, {"content-type": "text/html"}, b"<h1>Open roles</h1>"
+            ),
+        }
+    )
+    result = PublicSourceCollector(transport, max_pages=2).collect(COMPANY)
+    assert transport.calls == ["https://example.com/", "https://example.com/careers"]
+    assert [item.source_type for item in result.documents] == [
+        SourceType.COMPANY,
+        SourceType.CAREERS,
+    ]
+
+
 def test_news_dates_remain_unknown_and_text_is_not_executed() -> None:
     transport = SavedTransport({"https://news.example.net/": html("news.html")})
     result = PublicSourceCollector(transport).collect(
