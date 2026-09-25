@@ -112,7 +112,7 @@ def test_falls_back_to_cheaper_verified_company_query_after_timeout() -> None:
 
     assert [candidate.domain for candidate in candidates] == ["fallback.example"]
     assert len(transport.queries) == 2
-    assert "wdt:P31/wdt:P279*" in transport.queries[0]
+    assert "wdt:P856 ?website" in transport.queries[0]
     assert "wdt:P1128 ?employees" in transport.queries[1]
 
 
