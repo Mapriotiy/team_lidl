@@ -1,0 +1,161 @@
+[
+  {
+    "name": "Process automation",
+    "configuration": {
+      "service_description": "Intelligent automation, workflow modernization and process improvement services.",
+      "icp": {
+        "geographies": [],
+        "industries": [],
+        "company_sizes": [],
+        "operational_complexity": "unknown"
+      },
+      "signals": [
+        {
+          "id": "efficiency-program",
+          "question": "Is there a current cost-reduction or operational-efficiency program?",
+          "positive_criteria": ["Dated, company-attributed efficiency or cost program"],
+          "exclusions": ["Generic undated marketing language"],
+          "weight": 20,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "transformation-initiative",
+          "question": "Is the company pursuing digital transformation, AI, RPA, Agentic AI or process mining?",
+          "positive_criteria": ["Named initiative, implementation or investment"],
+          "exclusions": ["Third-party speculation without company attribution"],
+          "weight": 25,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "talent-and-leadership",
+          "question": "Is relevant hiring or an executive appointment increasing automation focus?",
+          "positive_criteria": ["Relevant open role or newly appointed transformation leader"],
+          "exclusions": ["Expired role with no event date"],
+          "weight": 15,
+          "effect": "positive",
+          "freshness_window_days": 365
+        },
+        {
+          "id": "process-consolidation",
+          "question": "Is there a shared-service or process-consolidation initiative?",
+          "positive_criteria": ["Named consolidation, shared-service or operating-model program"],
+          "exclusions": [],
+          "weight": 20,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "internal-capability",
+          "question": "Does strong internal automation capability reduce the need for an external provider?",
+          "positive_criteria": ["Mature internal delivery team or explicit internal-only approach"],
+          "exclusions": ["Technology use without evidence of delivery capability"],
+          "weight": 15,
+          "effect": "penalty",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "incumbent-partner",
+          "question": "Is an incumbent technology or delivery partner a material barrier?",
+          "positive_criteria": ["Current named partner with overlapping scope"],
+          "exclusions": ["Historic partnership outside the freshness window"],
+          "weight": 10,
+          "effect": "penalty",
+          "freshness_window_days": 730
+        }
+      ]
+    }
+  },
+  {
+    "name": "Cybersecurity",
+    "configuration": {
+      "service_description": "Security engineering, risk reduction and compliance support.",
+      "icp": {"geographies": [], "industries": [], "company_sizes": []},
+      "signals": [
+        {
+          "id": "security-hiring",
+          "question": "Is the company hiring for security capabilities?",
+          "positive_criteria": ["Current security role tied to a named team or program"],
+          "exclusions": ["Hiring alone does not establish outsourcing intent"],
+          "weight": 20,
+          "effect": "positive",
+          "freshness_window_days": 365
+        },
+        {
+          "id": "compliance-initiative",
+          "question": "Is there a current compliance or risk-reduction initiative?",
+          "positive_criteria": ["Named regulatory, audit or risk program"],
+          "exclusions": [],
+          "weight": 30,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "cloud-migration",
+          "question": "Is a cloud or platform migration creating new security requirements?",
+          "positive_criteria": ["Dated migration or modernization program"],
+          "exclusions": [],
+          "weight": 25,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "confirmed-incident",
+          "question": "Has the company publicly confirmed a relevant security incident?",
+          "positive_criteria": ["Company or authority confirms the incident"],
+          "exclusions": ["Rumor or unattributed reporting"],
+          "weight": 25,
+          "effect": "positive",
+          "freshness_window_days": 365
+        }
+      ]
+    }
+  },
+  {
+    "name": "Software development",
+    "configuration": {
+      "service_description": "Product engineering, platform modernization and digital-channel delivery.",
+      "icp": {"geographies": [], "industries": [], "company_sizes": []},
+      "signals": [
+        {
+          "id": "product-launch",
+          "question": "Is the company launching a new digital product or service?",
+          "positive_criteria": ["Dated product launch or committed roadmap"],
+          "exclusions": ["Unverified product speculation"],
+          "weight": 30,
+          "effect": "positive",
+          "freshness_window_days": 545
+        },
+        {
+          "id": "platform-modernization",
+          "question": "Is there a platform modernization program?",
+          "positive_criteria": ["Named modernization, migration or replatforming effort"],
+          "exclusions": [],
+          "weight": 30,
+          "effect": "positive",
+          "freshness_window_days": 730
+        },
+        {
+          "id": "digital-expansion",
+          "question": "Is the company expanding customer-facing digital channels?",
+          "positive_criteria": ["New or substantially expanded digital channel"],
+          "exclusions": [],
+          "weight": 20,
+          "effect": "positive",
+          "freshness_window_days": 545
+        },
+        {
+          "id": "engineering-hiring",
+          "question": "Is relevant engineering hiring tied to a current delivery initiative?",
+          "positive_criteria": ["Current roles connected to a named product or platform"],
+          "exclusions": ["Growth alone does not prove external development demand"],
+          "weight": 20,
+          "effect": "positive",
+          "freshness_window_days": 365
+        }
+      ]
+    }
+  }
+]
+

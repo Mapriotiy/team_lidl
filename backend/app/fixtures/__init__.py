@@ -1,0 +1,1 @@
+"""Reviewed application fixtures."""
