@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "API and research worker for Team LIDL"
 requires-python = ">=3.12"
 dependencies = [
+  "alembic>=1.16,<2",
   "fastapi>=0.116,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.10,<3",
@@ -37,4 +38,10 @@ select = ["E", "F", "I", "UP"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[tool.setuptools.package-data]
+app = ["fixtures/*.json"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 

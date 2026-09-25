@@ -33,6 +33,8 @@ npm run dev
 
 Backend checks are `ruff check .`, `mypy app tests`, and `pytest`. Frontend checks are `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`.
 
+The API applies Alembic migrations and loads the three service-profile presets when it starts through Docker Compose. For a direct backend run, execute `alembic upgrade head` and `python -m app.seed` once before starting Uvicorn. Shared response examples live in `backend/app/fixtures/api_examples.json` and are validated by the backend test suite.
+
 ## Team documentation
 
 - [Execution plan](docs/execution-plan.md): ownership, milestones, ordered backlog, and delivery gates.

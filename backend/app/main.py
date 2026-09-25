@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.api.profiles import router as profiles_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -16,6 +17,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(profiles_router)
 
 
 class HealthResponse(BaseModel):
@@ -27,4 +29,3 @@ class HealthResponse(BaseModel):
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health() -> HealthResponse:
     return HealthResponse(service="api", status="ok", version=settings.app_version)
-
