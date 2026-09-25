@@ -23,6 +23,11 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://lidl:lidl@db:5432/lidl}
       API_HOST: 0.0.0.0
       API_PORT: 8000
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ASSESSMENT_MODEL: ${ASSESSMENT_MODEL:-}
+      ASSESSMENT_TIMEOUT_SECONDS: ${ASSESSMENT_TIMEOUT_SECONDS:-60}
+      RESEARCH_BUDGET_USD: ${RESEARCH_BUDGET_USD:-5}
+      SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
     command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
       db:
@@ -38,6 +43,11 @@ services:
       target: development
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://lidl:lidl@db:5432/lidl}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ASSESSMENT_MODEL: ${ASSESSMENT_MODEL:-}
+      ASSESSMENT_TIMEOUT_SECONDS: ${ASSESSMENT_TIMEOUT_SECONDS:-60}
+      RESEARCH_BUDGET_USD: ${RESEARCH_BUDGET_USD:-5}
+      SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
     command: python -m app.worker
     depends_on:
       db:
