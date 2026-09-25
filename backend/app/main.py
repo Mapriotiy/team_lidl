@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.api.profiles import router as profiles_router
+from app.api.research import router as research_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -18,6 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(profiles_router)
+app.include_router(research_router)
 
 
 class HealthResponse(BaseModel):
