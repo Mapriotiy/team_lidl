@@ -20,6 +20,20 @@ class FakeTransport:
         return self.payload
 
 
+class FallbackTransport(FakeTransport):
+    def __init__(self, payload: object) -> None:
+        super().__init__(payload)
+        self.queries: list[str] = []
+
+    def get_json(
+        self, url: str, *, params: Mapping[str, str], headers: Mapping[str, str], timeout: float
+    ) -> object:
+        self.queries.append(params["query"])
+        if len(self.queries) == 1:
+            raise TimeoutError("public endpoint timed out")
+        return super().get_json(url, params=params, headers=headers, timeout=timeout)
+
+
 def binding(
     *, name: str, website: str, employees: str | None, industry: str = "logistics"
 ) -> dict[str, dict[str, str]]:
@@ -77,6 +91,29 @@ def test_filters_unknown_size_when_disabled() -> None:
     candidates = WikidataDiscovery(transport).discover(DiscoveryRequest(include_unknown_size=False))
 
     assert candidates == []
+
+
+def test_falls_back_to_cheaper_verified_company_query_after_timeout() -> None:
+    transport = FallbackTransport(
+        {
+            "results": {
+                "bindings": [
+                    binding(
+                        name="Fallback SA",
+                        website="https://fallback.example",
+                        employees="5000",
+                    )
+                ]
+            }
+        }
+    )
+
+    candidates = WikidataDiscovery(transport).discover(DiscoveryRequest())
+
+    assert [candidate.domain for candidate in candidates] == ["fallback.example"]
+    assert len(transport.queries) == 2
+    assert "wdt:P31/wdt:P279*" in transport.queries[0]
+    assert "wdt:P1128 ?employees" in transport.queries[1]
 
 
 def test_rejects_invalid_country_codes() -> None:

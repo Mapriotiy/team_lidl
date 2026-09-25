@@ -52,6 +52,27 @@ LIMIT {fetch_limit}
 """.strip()
 
 
+def _verified_sparql(request: DiscoveryRequest) -> str:
+    """Build a cheaper fallback query for Wikidata's overloaded public endpoint."""
+    country_values = " ".join(f'"{code}"' for code in request.country_codes)
+    fetch_limit = min(request.limit * 4, 200)
+    return f"""
+SELECT DISTINCT ?company ?companyLabel ?website ?countryCode ?countryLabel
+                ?industryLabel ?employees WHERE {{
+  ?company wdt:P17 ?country;
+           wdt:P856 ?website;
+           wdt:P1128 ?employees.
+  ?country wdt:P297 ?countryCode.
+  VALUES ?countryCode {{ {country_values} }}
+  OPTIONAL {{ ?company wdt:P452 ?industry. }}
+  FILTER(?employees >= {request.minimum_employees})
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+}}
+ORDER BY DESC(?employees)
+LIMIT {fetch_limit}
+""".strip()
+
+
 def _value(binding: Mapping[str, object], key: str) -> str | None:
     item = binding.get(key)
     if not isinstance(item, dict):
@@ -74,20 +95,29 @@ class WikidataDiscovery:
         self.timeout = timeout
 
     def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+        headers = {
+            "Accept": "application/sparql-results+json",
+            "User-Agent": "TeamLIDLResearch/0.1 (public company discovery)",
+        }
         try:
             payload = self.transport.get_json(
                 WIKIDATA_ENDPOINT,
                 params={"query": _sparql(request), "format": "json"},
-                headers={
-                    "Accept": "application/sparql-results+json",
-                    "User-Agent": "TeamLIDLResearch/0.1 (public company discovery)",
-                },
+                headers=headers,
                 timeout=self.timeout,
             )
-        except WikidataError:
-            raise
-        except Exception as exc:
-            raise WikidataError("Wikidata discovery request failed") from exc
+        except Exception:
+            try:
+                payload = self.transport.get_json(
+                    WIKIDATA_ENDPOINT,
+                    params={"query": _verified_sparql(request), "format": "json"},
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+            except WikidataError:
+                raise
+            except Exception as exc:
+                raise WikidataError("Wikidata discovery request failed") from exc
 
         if not isinstance(payload, dict):
             raise WikidataError("Wikidata returned an invalid response")
