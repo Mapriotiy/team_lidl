@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import { getCompany } from '../companies/repository'
+import { getCompanyResult } from '../../api/companies'
+import { errorMessage } from '../../api/errors'
+import { listCompanies } from '../../api/research'
 import type { ResearchRun } from '../companies/types'
 
 const formatTime = (value: string) => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -13,7 +15,7 @@ export function ResearchActivity({ runs }: { runs: ResearchRun[] }) {
         {runs.map((run) => (
           <article className="relative border-l border-slate-700 pl-5" key={run.id}>
             <span className={`absolute -left-1.5 top-1 size-3 rounded-full ${run.status === 'completed' ? 'bg-emerald-300' : run.status === 'partial' ? 'bg-amber-300' : 'bg-red-300'}`} />
-            <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold capitalize text-slate-200">{run.status} run</p><time className="text-xs text-slate-500">{formatTime(run.finishedAt)}</time></div>
+            <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold capitalize text-slate-200">{run.companyName ? `${run.companyName} · ` : ''}{run.status} run</p><time className="text-xs text-slate-500">{formatTime(run.finishedAt)}</time></div>
             <p className="mt-1 text-xs text-slate-500">{run.collected} sources collected · {run.assessed} questions assessed</p>
             {run.warning && <p className="mt-2 rounded-lg bg-amber-300/5 px-3 py-2 text-xs leading-5 text-amber-100/70">{run.warning}</p>}
           </article>
@@ -26,14 +28,27 @@ export function ResearchActivity({ runs }: { runs: ResearchRun[] }) {
 export function ResearchActivityWorkspace() {
   const [runs, setRuns] = useState<ResearchRun[] | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => { void getCompany('company-lufthansa').then((company) => setRuns(company.researchRuns)).catch(() => setError('Research activity could not be loaded.')) }, [])
+  const [reload, setReload] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    setRuns(null); setError('')
+    void listCompanies(controller.signal).then(async (companies) => {
+      const details = await Promise.all(companies.map((company) => getCompanyResult(company.id, controller.signal)))
+      const history = details.flatMap((company) => company.research_history.map((run) => {
+        const collection = run.progress.find((item) => item.stage === 'collection')
+        const assessment = run.progress.find((item) => item.stage === 'assessment')
+        return { id: run.id, status: run.status as ResearchRun['status'], startedAt: run.started_at ?? run.queued_at, finishedAt: run.finished_at ?? run.queued_at, collected: Number(collection?.completed ?? 0), assessed: Number(assessment?.completed ?? 0), warning: run.partial_errors.map((item) => String(item.message ?? item.code ?? 'Partial failure')).join(' · ') || null, companyName: company.display_name }
+      })).sort((left, right) => right.startedAt.localeCompare(left.startedAt))
+      setRuns(history)
+    }).catch((reason) => { if (!controller.signal.aborted) setError(errorMessage(reason)) })
+    return () => controller.abort()
+  }, [reload])
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Background research</p>
       <h1 className="mt-1 text-2xl font-semibold text-white">Research activity</h1>
       <p className="mt-2 text-sm text-slate-500">Collection and assessment progress are reported separately; partial results remain available.</p>
-      <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">Demo fixture data · Statuses are illustrative and never simulated as live progress.</div>
-      <div className="mt-7 max-w-2xl">{error ? <div className="rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-red-200">{error}</div> : runs ? <ResearchActivity runs={runs} /> : <div className="rounded-2xl border border-slate-800 bg-[#0b111e] p-8 text-slate-400">Loading research history…</div>}</div>
+      <div className="mt-7 max-w-2xl">{error ? <div className="rounded-2xl border border-red-400/20 bg-red-400/5 p-8 text-red-200"><p>{error}</p><button className="mt-4 rounded-xl border border-red-300/40 px-4 py-2 text-sm font-semibold" onClick={() => setReload((value) => value + 1)}>Retry</button></div> : runs ? runs.length ? <ResearchActivity runs={runs} /> : <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-slate-400">No research runs yet. Confirm a company and start research first.</div> : <div className="rounded-2xl border border-slate-800 bg-[#0b111e] p-8 text-slate-400">Loading research history…</div>}</div>
     </div>
   )
 }
