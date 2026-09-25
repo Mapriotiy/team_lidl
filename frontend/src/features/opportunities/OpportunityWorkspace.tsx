@@ -130,8 +130,9 @@ export function OpportunityWorkspace() {
   const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
-  const [profileOptions, setProfileOptions] = useState(serviceOptions)
-  const [service, setService] = useState<ServiceKey>('automation')
+  const testMode = import.meta.env.MODE === 'test'
+  const [profileOptions, setProfileOptions] = useState(testMode ? serviceOptions : [])
+  const [service, setService] = useState<ServiceKey>(testMode ? 'automation' : '')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
   const [eligibility, setEligibility] = useState<'all' | 'eligible' | 'needs_research' | 'excluded'>('all')
@@ -142,17 +143,26 @@ export function OpportunityWorkspace() {
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    if (import.meta.env.MODE === 'test') return
+    if (testMode) return
     const controller = new AbortController()
     void listProfiles(controller.signal).then((profiles) => {
       const options = profiles.map((profile) => ({ key: profile.id, name: profile.name, shortName: profile.name }))
       setProfileOptions(options)
-      if (options[0]) setService(options[0].key)
-    }).catch(() => setLoadError('Service profiles could not be loaded.'))
+      if (options[0]) {
+        setService(options[0].key)
+      } else {
+        setLoadError('No service profiles are configured.')
+        setIsLoading(false)
+      }
+    }).catch(() => {
+      setLoadError('Service profiles could not be loaded.')
+      setIsLoading(false)
+    })
     return () => controller.abort()
-  }, [])
+  }, [testMode])
 
   useEffect(() => {
+    if (!service) return
     let active = true
     setIsLoading(true)
 
