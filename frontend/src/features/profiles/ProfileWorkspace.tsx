@@ -49,10 +49,9 @@ export function ProfileWorkspace() {
   return (
     <div>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Configuration · Version 1</p><h1 className="mt-1 text-2xl font-semibold text-white">Service profiles</h1><p className="mt-2 max-w-2xl text-sm text-slate-500">Define ICP fit and the evidence questions used by research. Saving creates a new immutable version when the API is connected.</p></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Configuration · Version {profile.version ?? 1}</p><h1 className="mt-1 text-2xl font-semibold text-white">Service profiles</h1><p className="mt-2 max-w-2xl text-sm text-slate-500">Define ICP fit and the evidence questions used by research. Every save creates a new immutable version.</p></div>
         <button className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-60" disabled={state === 'saving'} onClick={() => void persist()}>{state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : 'Save new version'}</button>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">Demo fixture data · Changes remain in this browser session until the profile API is connected.</div>
       <div className="mt-7 grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <div className="space-y-6">
           <section className="rounded-2xl border border-slate-800 bg-[#0b111e] p-5"><h2 className="font-semibold text-white">Profile basics</h2><div className="mt-5 space-y-4"><TextField label="Profile name" value={profile.name} onChange={(name) => setProfile({ ...profile, name })} /><TextField label="Service description" multiline value={profile.description} onChange={(description) => setProfile({ ...profile, description })} /></div></section>
