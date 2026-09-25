@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from test_profiles_api import TestingSession, setup_function, teardown_function  # noqa: F401
 
+from app.api.results import get_translation_provider
+from app.assessment.providers.openrouter import OpenRouterError
 from app.main import app
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
@@ -13,6 +15,28 @@ from app.models.results import (
     StoredSignalAssessment,
     StoredSourceDocument,
 )
+from app.translation.openrouter import TranslationBatch
+
+
+class FakeTranslationProvider:
+    model = "translation-test-model"
+
+    def __init__(self, *, fails: bool = False) -> None:
+        self.calls = 0
+        self.fails = fails
+
+    def translate(self, excerpt: str, target_language: str) -> TranslationBatch:
+        self.calls += 1
+        if self.fails:
+            raise OpenRouterError("provider unavailable")
+        return TranslationBatch(
+            translated_excerpt=f"{target_language}: {excerpt}",
+            model=self.model,
+            prompt_tokens=5,
+            completion_tokens=3,
+            total_tokens=8,
+            cost_usd=0.001,
+        )
 
 
 def seed_result(company_name: str = "Example Logistics") -> tuple[str, str]:
@@ -157,3 +181,52 @@ def test_csv_neutralizes_formula_prefixes() -> None:
     assert response.status_code == 200
     assert "'=HYPERLINK" in response.text
     assert "normalized_text" not in response.text
+
+
+def test_translation_is_cached_without_changing_original_evidence() -> None:
+    company_id, _ = seed_result()
+    with TestingSession() as session:
+        evidence = session.query(StoredEvidence).one()
+        evidence_id = evidence.id
+        original_excerpt = evidence.excerpt
+    provider = FakeTranslationProvider()
+    app.dependency_overrides[get_translation_provider] = lambda: provider
+    try:
+        client = TestClient(app)
+        first = client.post(
+            f"/evidence/{evidence_id}/translations", json={"target_language": "ro"}
+        )
+        second = client.post(
+            f"/evidence/{evidence_id}/translations", json={"target_language": "ro"}
+        )
+        detail = client.get(f"/companies/{company_id}")
+    finally:
+        app.dependency_overrides.pop(get_translation_provider, None)
+    assert first.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    assert provider.calls == 1
+    assert detail.json()["assessments"][0]["evidence"][0]["translations"][0][
+        "translated_excerpt"
+    ] == "ro: efficiency program"
+    with TestingSession() as session:
+        stored = session.get(StoredEvidence, evidence_id)
+        assert stored is not None and stored.excerpt == original_excerpt
+
+
+def test_translation_failure_preserves_evidence() -> None:
+    seed_result()
+    with TestingSession() as session:
+        evidence = session.query(StoredEvidence).one()
+        evidence_id = evidence.id
+        original_excerpt = evidence.excerpt
+    app.dependency_overrides[get_translation_provider] = lambda: FakeTranslationProvider(fails=True)
+    try:
+        response = TestClient(app).post(
+            f"/evidence/{evidence_id}/translations", json={"target_language": "en"}
+        )
+    finally:
+        app.dependency_overrides.pop(get_translation_provider, None)
+    assert response.status_code == 502
+    with TestingSession() as session:
+        stored = session.get(StoredEvidence, evidence_id)
+        assert stored is not None and stored.excerpt == original_excerpt

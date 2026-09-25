@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Literal, cast
+from typing import Literal, Protocol, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, or_, select
@@ -18,21 +18,44 @@ from app.api.result_contracts import (
     ResearchHistoryRead,
     ScoreRead,
     SourceRead,
+    TranslationRead,
+    TranslationRequest,
 )
+from app.assessment.providers.openrouter import OpenRouterError
+from app.config import get_settings
 from app.contracts.opportunity import OpportunityStatus
 from app.contracts.score import Eligibility
 from app.db import get_session
 from app.models.profile import ServiceProfile, utc_now
 from app.models.research import Company, ResearchRun
 from app.models.results import (
+    EvidenceTranslation,
     Opportunity,
     StoredEvidence,
     StoredScoreSnapshot,
     StoredSignalAssessment,
     StoredSourceDocument,
 )
+from app.translation.openrouter import OpenRouterTranslationProvider, TranslationBatch
 
 router = APIRouter(tags=["results"])
+
+
+class TranslationProvider(Protocol):
+    model: str
+
+    def translate(self, excerpt: str, target_language: str) -> TranslationBatch: ...
+
+
+def get_translation_provider() -> TranslationProvider:
+    settings = get_settings()
+    if not settings.openrouter_api_key or not settings.assessment_model:
+        raise HTTPException(status_code=503, detail="Translation provider is not configured")
+    return OpenRouterTranslationProvider(
+        api_key=settings.openrouter_api_key,
+        model=settings.assessment_model,
+        timeout=settings.assessment_timeout_seconds,
+    )
 
 
 def _collection_completion(run: ResearchRun | None) -> float:
@@ -214,6 +237,16 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
         else []
     )
     source_by_id = {item.id: item for item in sources}
+    translation_rows = (
+        session.scalars(
+            select(EvidenceTranslation).where(EvidenceTranslation.evidence_id.in_(evidence_ids))
+        ).all()
+        if evidence_ids
+        else []
+    )
+    translations_by_evidence: dict[str, list[EvidenceTranslation]] = {}
+    for translation in translation_rows:
+        translations_by_evidence.setdefault(translation.evidence_id, []).append(translation)
 
     def evidence_read(item: StoredEvidence) -> EvidenceRead:
         source = source_by_id[item.source_id]
@@ -226,7 +259,10 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
             factual_claim=item.factual_claim,
             event_group_key=item.event_group_key,
             source=SourceRead.model_validate(source),
-            translations=[],
+            translations=[
+                TranslationRead.model_validate(value)
+                for value in translations_by_evidence.get(item.id, [])
+            ],
         )
 
     scores = session.scalars(
@@ -264,6 +300,50 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
         created_at=company.created_at,
         updated_at=company.updated_at,
     )
+
+
+@router.post("/evidence/{evidence_id}/translations", response_model=TranslationRead)
+def translate_evidence(
+    evidence_id: str,
+    payload: TranslationRequest,
+    session: Session = Depends(get_session),
+    provider: TranslationProvider = Depends(get_translation_provider),
+) -> EvidenceTranslation:
+    evidence = session.get(StoredEvidence, evidence_id)
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    source = session.get(StoredSourceDocument, evidence.source_id)
+    if source is None:
+        raise HTTPException(status_code=409, detail="Evidence source is unavailable")
+    cached = session.scalar(
+        select(EvidenceTranslation).where(
+            EvidenceTranslation.evidence_id == evidence.id,
+            EvidenceTranslation.target_language == payload.target_language,
+            EvidenceTranslation.provider_model == provider.model,
+            EvidenceTranslation.source_text_hash == source.content_hash,
+        )
+    )
+    if cached is not None:
+        return cached
+    try:
+        result = provider.translate(evidence.excerpt, payload.target_language)
+    except OpenRouterError as exc:
+        raise HTTPException(status_code=502, detail="Translation provider failed") from exc
+    translation = EvidenceTranslation(
+        evidence_id=evidence.id,
+        target_language=payload.target_language,
+        provider_model=result.model,
+        source_text_hash=source.content_hash,
+        translated_excerpt=result.translated_excerpt,
+        prompt_tokens=result.prompt_tokens,
+        completion_tokens=result.completion_tokens,
+        total_tokens=result.total_tokens,
+        cost_usd=result.cost_usd,
+    )
+    session.add(translation)
+    session.commit()
+    session.refresh(translation)
+    return translation
 
 
 def _csv_safe(value: object) -> str:

@@ -58,6 +58,31 @@ class StoredEvidence(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class EvidenceTranslation(Base):
+    __tablename__ = "evidence_translations"
+    __table_args__ = (
+        UniqueConstraint(
+            "evidence_id",
+            "target_language",
+            "provider_model",
+            "source_text_hash",
+            name="uq_evidence_translation_cache",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    evidence_id: Mapped[str] = mapped_column(ForeignKey("evidence.id"), index=True)
+    target_language: Mapped[str] = mapped_column(String(8))
+    provider_model: Mapped[str] = mapped_column(String(160))
+    source_text_hash: Mapped[str] = mapped_column(String(128))
+    translated_excerpt: Mapped[str] = mapped_column(Text)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class StoredSignalAssessment(Base):
     __tablename__ = "signal_assessments"
     __table_args__ = (
