@@ -91,6 +91,15 @@ def test_insufficient_evidence_remains_unknown_without_citations() -> None:
     assert assessment.evidence == []
 
 
+def test_rejects_hidden_support_on_insufficient_evidence() -> None:
+    with pytest.raises(AssessmentValidationError, match="must not include"):
+        validate_assessment(
+            proposal(status=AssessmentStatus.INSUFFICIENT_EVIDENCE),
+            company_id="company-1",
+            sources=sources(),
+        )
+
+
 def test_deduplicates_repeated_evidence_for_one_event() -> None:
     repeated = proposal()
     duplicate = repeated.evidence[0].model_copy(update={"source_id": "source-2"})

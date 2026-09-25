@@ -77,7 +77,13 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
     for signal in scoring_input.signals:
         assessment = signal.assessment
-        if assessment is None or assessment.status != AssessmentStatus.SUPPORTED:
+        if assessment is None:
+            continue
+        if assessment.signal_id != signal.definition.id:
+            raise ScoringConfigurationError(
+                f"assessment {assessment.signal_id} does not match signal {signal.definition.id}"
+            )
+        if assessment.status != AssessmentStatus.SUPPORTED:
             continue
 
         has_supported_evidence = True

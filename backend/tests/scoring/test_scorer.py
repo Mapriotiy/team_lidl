@@ -216,3 +216,17 @@ def test_rejects_duplicate_signal_definitions() -> None:
 
     with pytest.raises(ScoringConfigurationError, match="unique IDs"):
         calculate_score(scoring_input([duplicate, duplicate]))
+
+
+def test_rejects_assessment_attached_to_another_signal() -> None:
+    with pytest.raises(ScoringConfigurationError, match="does not match"):
+        calculate_score(
+            scoring_input(
+                [
+                    SignalScoringInput(
+                        definition=definition("expected"),
+                        assessment=assessment("different"),
+                    )
+                ]
+            )
+        )

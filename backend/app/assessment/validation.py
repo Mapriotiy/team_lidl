@@ -26,6 +26,10 @@ def validate_assessment(
     sources: dict[str, SourceText],
 ) -> SignalAssessment:
     if proposal.status == AssessmentStatus.INSUFFICIENT_EVIDENCE:
+        if proposal.evidence or proposal.evidence_strength is not None:
+            raise AssessmentValidationError(
+                "insufficient evidence must not include citations or evidence strength"
+            )
         return SignalAssessment(
             signal_id=proposal.signal_id,
             status=proposal.status,
