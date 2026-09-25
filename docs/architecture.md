@@ -39,7 +39,7 @@ Suggested initial limits, to tune after the source spike: 10 companies per inter
 
 | Entity | Minimum fields / rule |
 | --- | --- |
-| Company | ID, canonical domain, display name, aliases, industry/geography/size facts with provenance and unknown values |
+| Company | ID, canonical domain, display name, aliases, industry/geography/size/operational-complexity facts with provenance and unknown values; extensible profile-specific ICP facts |
 | ServiceProfile / ProfileVersion | Stable profile ID; immutable version containing service description, ICP and signal definitions |
 | SignalDefinition | Stable question ID, criteria, exclusions, weight, effect, freshness window |
 | ResearchRun | Company, profile version, stage/status, progress, timestamps, errors, usage, idempotency key |

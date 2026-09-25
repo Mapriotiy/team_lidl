@@ -21,7 +21,7 @@ Delivery constraint: 48 hours, five contributors. Presentation quality matters, 
 
 | Preset | Initial signal questions | Important limitation |
 | --- | --- | --- |
-| Process automation | Efficiency initiative? RPA or process-excellence hiring? Workflow modernization? | Hiring alone does not establish outsourcing intent. |
+| Process automation | Efficiency or cost program? Digital transformation? AI, RPA, Agentic AI or process-mining initiative? Relevant hiring or executive change? Shared-service consolidation? Technology or partner signal? | Internal capability and incumbent partners can be negative signals; hiring alone does not establish outsourcing intent. |
 | Cybersecurity | Security hiring? Compliance initiative? Cloud migration? Publicly confirmed incident? | An incident alone does not establish present demand or budget. |
 | Software development | Product launch? Platform modernization? Digital-channel expansion? Engineering hiring? | Growth alone does not prove external development demand. |
 
@@ -53,6 +53,8 @@ The schema must support custom profiles from the start even if the create-profil
 Separate observed fact, interpretation, and unknown. For example, an automation vacancy is an observed fact; possible investment in automation is an interpretation; intention to hire a vendor remains unknown.
 
 An account has a separate assessment per service. Scores are priorities within a profile version, not probabilities of purchase. Do not add scores across services. An all-services view may show each account's strongest match, labeled with the corresponding service.
+
+The Participant Reference Pack is an input to the product definition, not a source of verified account data. Its Lufthansa and DHL examples illustrate how the same public facts can support both positive and negative interpretations. Production assessments must retrieve and cite their own public sources rather than copying those example claims.
 
 ## Open decisions
 

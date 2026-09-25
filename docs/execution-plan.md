@@ -65,6 +65,7 @@ Frontend work can begin against agreed fixtures while dependent endpoints are im
 2. Confirm kickoff decisions and assign R1–R5 to people.
 3. Start E01 on `chore/project-scaffold` from current `main`.
 4. Define the company, evidence, score and research-run fixtures with R4/R5 before building screens.
+   Use [parallel workstreams](parallel-workstreams.md) for directory ownership, branch boundaries, and agent-ready assignments.
 5. Merge the scaffold and deployment path, then branch dependent work from updated `main`.
 6. Prioritize E03–E09 toward the hour-12 complete flow. Integrate daily work continuously, not in a final-hour batch.
 7. After P0 works in the deployed environment, pull P1 items in listed order according to remaining capacity.
