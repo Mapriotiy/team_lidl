@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -117,22 +118,23 @@ function EmptyState() {
 }
 
 export function OpportunityWorkspace() {
+  const [view, setView] = useState<'opportunities' | 'profiles'>('opportunities')
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     let active = true
     setIsLoading(true)
 
-    void listOpportunities({ service, status, query }).then((result) => {
-      if (active) {
-        setOpportunities(result)
-        setIsLoading(false)
-      }
-    })
+    setLoadError('')
+    void listOpportunities({ service, status, query })
+      .then((result) => { if (active) setOpportunities(result) })
+      .catch(() => { if (active) setLoadError('Opportunities could not be loaded. Try again.') })
+      .finally(() => { if (active) setIsLoading(false) })
 
     return () => {
       active = false
@@ -159,14 +161,15 @@ export function OpportunityWorkspace() {
           {['Opportunities', 'Companies', 'Research activity', 'Service profiles'].map((item, index) => (
             <button
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
-                index === 0
+                (view === 'opportunities' && index === 0) || (view === 'profiles' && index === 3)
                   ? 'bg-cyan-300/10 text-cyan-200'
                   : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
               }`}
               key={item}
+              onClick={() => { if (index === 0) setView('opportunities'); if (index === 3) setView('profiles') }}
               type="button"
             >
-              <span className={`size-1.5 rounded-full ${index === 0 ? 'bg-cyan-300' : 'bg-slate-600'}`} />
+              <span className={`size-1.5 rounded-full ${(view === 'opportunities' && index === 0) || (view === 'profiles' && index === 3) ? 'bg-cyan-300' : 'bg-slate-600'}`} />
               {item}
             </button>
           ))}
@@ -186,7 +189,7 @@ export function OpportunityWorkspace() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">Opportunities</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : 'Configuration'}</h1>
             </div>
             <button
               className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -197,7 +200,8 @@ export function OpportunityWorkspace() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
+        {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
+        {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">
             Demo fixture data · Example companies are not confirmed sales opportunities.
           </div>
@@ -286,6 +290,8 @@ export function OpportunityWorkspace() {
                   <div className="h-24 animate-pulse rounded-xl bg-slate-900" key={item} />
                 ))}
               </div>
+            ) : loadError ? (
+              <div className="px-6 py-20 text-center"><h3 className="font-semibold text-red-200">Research data unavailable</h3><p className="mt-2 text-sm text-slate-500">{loadError}</p></div>
             ) : opportunities.length > 0 ? (
               <div>
                 {opportunities.map((opportunity) => (
@@ -296,9 +302,8 @@ export function OpportunityWorkspace() {
               <EmptyState />
             )}
           </section>
-        </div>
+        </div>}
       </main>
     </div>
   )
 }
-

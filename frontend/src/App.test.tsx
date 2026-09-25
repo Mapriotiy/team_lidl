@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, test } from 'vitest'
 
 import { App } from './App'
@@ -14,3 +14,9 @@ test('shows the opportunity workspace with fixture disclosure', async () => {
   expect(await screen.findByText('Lufthansa Group')).toBeInTheDocument()
 })
 
+test('opens profile configuration from primary navigation', async () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: /Service profiles/ }))
+  expect(await screen.findByText('Ideal customer profile')).toBeInTheDocument()
+  expect(screen.getByText('Signal questions')).toBeInTheDocument()
+})
