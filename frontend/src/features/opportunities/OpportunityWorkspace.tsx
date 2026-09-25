@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CompanyWorkspace } from '../companies/CompanyWorkspace'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
+import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
 import { serviceOptions } from './fixtures'
 import { listOpportunities } from './repository'
 import type {
@@ -121,7 +122,8 @@ function EmptyState() {
 }
 
 export function OpportunityWorkspace() {
-  const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles'>('opportunities')
+  const [view, setView] = useState<'opportunities' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
+  const [, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [service, setService] = useState<ServiceKey>('automation')
   const [status, setStatus] = useState<OpportunityStatus | 'all'>('all')
   const [query, setQuery] = useState('')
@@ -166,6 +168,7 @@ export function OpportunityWorkspace() {
             ['company', 'Companies'],
             ['activity', 'Research activity'],
             ['profiles', 'Service profiles'],
+            ['discovery', 'Discover companies'],
           ] as const).map(([id, label]) => (
             <button
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
@@ -197,10 +200,11 @@ export function OpportunityWorkspace() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : 'Configuration'}</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Configuration'}</h1>
             </div>
             <button
               className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
+              onClick={() => setView('discovery')}
               type="button"
             >
               Import companies
@@ -211,6 +215,7 @@ export function OpportunityWorkspace() {
         {view === 'company' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyWorkspace /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
+        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100/80">
             Demo fixture data · Example companies are not confirmed sales opportunities.
