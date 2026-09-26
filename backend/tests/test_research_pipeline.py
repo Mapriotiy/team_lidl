@@ -18,7 +18,7 @@ from app.research import IntegratedResearchPipeline
 
 
 class FakeNews:
-    def discover(self, company_name: str) -> list[object]:
+    def discover(self, company_name: str, *, limit: int = 5) -> list[object]:
         return []
 
 

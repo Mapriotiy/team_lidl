@@ -58,7 +58,7 @@ class IntegratedResearchPipeline:
     ) -> None:
         self.sessions = sessions
         self.assessment_provider = assessment_provider
-        self.collector = collector or PublicSourceCollector(max_pages=6)
+        self.collector = collector or PublicSourceCollector(max_pages=10)
         self.news = news or GdeltNewsDiscovery()
         self.retention_days = retention_days
         self.budget_usd = budget_usd
@@ -68,7 +68,7 @@ class IntegratedResearchPipeline:
         partial_errors: list[PartialError] = []
         try:
             targets.extend(
-                candidate.target for candidate in self.news.discover(company.display_name)
+                candidate.target for candidate in self.news.discover(company.display_name, limit=4)
             )
         except GdeltError as exc:
             partial_errors.append(
