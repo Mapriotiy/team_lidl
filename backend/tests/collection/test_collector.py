@@ -313,3 +313,43 @@ def test_html_parser_failure_preserves_batch_successes(monkeypatch: pytest.Monke
     )
     assert len(result.documents) == 1
     assert [error.code for error in result.errors] == ["invalid_html"]
+
+
+def test_parallel_fetch_is_bounded_and_deduplicates_content() -> None:
+    from threading import Barrier, Lock
+
+    barrier = Barrier(4)
+    lock = Lock()
+    calls: list[str] = []
+
+    class ParallelTransport:
+        def fetch(self, url: str, *, timeout: float, max_bytes: int) -> FetchResponse:
+            with lock:
+                calls.append(url)
+            barrier.wait(timeout=3)  # Fails if requests are serialized.
+            return html()
+
+    result = PublicSourceCollector(ParallelTransport(), concurrency=4, max_pages=4).collect(
+        COMPANY, [SourceTarget(f"https://example.com/{index}") for index in range(10)]
+    )
+    assert len(calls) == 4
+    assert result.total == 4
+    assert len(result.documents) == 1
+    assert [error.code for error in result.errors] == ["page_limit"]
+
+
+def test_parallel_planning_keeps_global_page_budget() -> None:
+    transport = SavedTransport(
+        {
+            "https://example.com/": FetchResponse(
+                200,
+                {"content-type": "text/html"},
+                b'<p>Home</p><a href="/news">News</a><a href="/news#duplicate">News</a>',
+            ),
+            "https://example.com/news": html(),
+        }
+    )
+    result = PublicSourceCollector(transport, concurrency=4, max_pages=2).collect(COMPANY)
+    assert transport.calls == ["https://example.com/", "https://example.com/news"]
+    assert result.total == 2
+    assert len(result.documents) == 2
