@@ -15,7 +15,13 @@ from app.collection import CanonicalCompany, CollectedDocument, PublicSourceColl
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.contracts.research import PartialError
-from app.discovery import GdeltError, GdeltNewsDiscovery
+from app.discovery import (
+    GdeltError,
+    GdeltNewsDiscovery,
+    NewsApiDiscovery,
+    NewsApiError,
+    NewsCandidate,
+)
 from app.icp.evaluation import evaluate_criteria
 from app.jobs.runner import RetryableResearchError, StageResult
 from app.models.profile import ServiceProfileVersion, utc_now
@@ -101,6 +107,7 @@ class IntegratedResearchPipeline:
         *,
         collector: PublicSourceCollector | None = None,
         news: GdeltNewsDiscovery | None = None,
+        newsapi: NewsApiDiscovery | None = None,
         retention_days: int = 30,
         budget_usd: float = 5,
     ) -> None:
@@ -108,6 +115,7 @@ class IntegratedResearchPipeline:
         self.assessment_provider = assessment_provider
         self.collector = collector or PublicSourceCollector(max_pages=16, timeout=6, concurrency=4)
         self.news = news or GdeltNewsDiscovery(timeout=8)
+        self.newsapi = newsapi
         self.retention_days = retention_days
         self.budget_usd = budget_usd
 
@@ -130,27 +138,53 @@ class IntegratedResearchPipeline:
                 if profile is not None
                 else None
             )
+        queries = (
+            _research_queries(company.display_name, configuration)
+            if configuration is not None
+            else [f'"{company.display_name.strip()}"']
+        )
+        news_candidates: list[NewsCandidate] = []
+        seen_news_urls: set[str] = set()
+
         try:
-            queries = (
-                _research_queries(company.display_name, configuration)
-                if configuration is not None
-                else [f'"{company.display_name.strip()}"']
-            )
             if hasattr(self.news, "discover_queries"):
-                candidates = self.news.discover_queries(
+                gdelt_candidates = self.news.discover_queries(
                     queries[:2], limit_per_query=4, max_results=8
                 )
             else:
-                candidates = self.news.discover(company.display_name, limit=8)
-            targets.extend(candidate.target for candidate in candidates)
+                gdelt_candidates = self.news.discover(company.display_name, limit=8)
+            for c in gdelt_candidates:
+                if c.target.url not in seen_news_urls:
+                    news_candidates.append(c)
+                    seen_news_urls.add(c.target.url)
         except GdeltError as exc:
             partial_errors.append(
                 PartialError(
                     stage="collection",
                     code="news_discovery_failed",
-                    message=f"{exc}; first-party collection continued",
+                    message=f"GDELT: {exc}; continuing with other sources",
                 )
             )
+
+        if self.newsapi is not None:
+            try:
+                newsapi_candidates = self.newsapi.discover_queries(
+                    queries[:3], limit_per_query=5, max_results=10
+                )
+                for c in newsapi_candidates:
+                    if c.target.url not in seen_news_urls:
+                        news_candidates.append(c)
+                        seen_news_urls.add(c.target.url)
+            except NewsApiError as exc:
+                partial_errors.append(
+                    PartialError(
+                        stage="collection",
+                        code="newsapi_discovery_failed",
+                        message=f"NewsAPI: {exc}; continuing with other sources",
+                    )
+                )
+
+        targets.extend(c.target for c in news_candidates)
         result = self.collector.collect(
             CanonicalCompany(
                 id=company.id,
