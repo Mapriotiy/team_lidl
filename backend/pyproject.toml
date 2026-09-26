@@ -18,8 +18,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+browser = [
+  "playwright>=1.47,<2",
+]
 dev = [
   "httpx>=0.28,<1",
+  "lidl-api[browser]",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",

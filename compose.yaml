@@ -55,6 +55,7 @@ services:
       RESEARCH_BUDGET_USD: ${RESEARCH_BUDGET_USD:-5}
       SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      BROWSER_RENDERING_ENABLED: ${BROWSER_RENDERING_ENABLED:-false}
     command: python -m app.worker
     restart: unless-stopped
     depends_on:

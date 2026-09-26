@@ -9,7 +9,8 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 FROM base AS development
-RUN pip install --no-cache-dir ".[dev]"
+RUN pip install --no-cache-dir ".[dev]" \
+    && python -m playwright install --with-deps chromium
 COPY . .
 
 FROM base AS production

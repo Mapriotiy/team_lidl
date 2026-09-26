@@ -65,9 +65,12 @@ ASSESSMENT_MODEL=
 ASSESSMENT_TIMEOUT_SECONDS=60
 RESEARCH_BUDGET_USD=5
 SOURCE_TEXT_RETENTION_DAYS=30
+BROWSER_RENDERING_ENABLED=false
 ```
 
 Choose an OpenRouter model that supports `response_format=json_schema`. Do not silently fall back to unstructured output.
+
+`BROWSER_RENDERING_ENABLED=true` makes the worker render JavaScript shells in headless Chromium through the validated transport (see `backend/app/collection/README.md`). The `browser` extra and Chromium must be installed; the development Docker target includes them.
 
 ## Remaining work in priority order
 

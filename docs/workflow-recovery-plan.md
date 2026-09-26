@@ -21,7 +21,7 @@ Code-level issues:
 - ICP fields and matching need one contract: singular/plural keys and free-text size descriptions cannot be compared using literal string equality.
 - Source collection starts from the homepage and GDELT. A shared six-page budget can leave no room for useful first-party links when news fills the queue.
 - First-party planning only explores links on the homepage. Reports and news index pages are not equivalent to individual reports and articles.
-- Extraction supports HTML/plain text, not PDF. The documented browser fallback is not an implemented collection adapter.
+- Extraction supports HTML/plain text, not PDF. Browser rendering for JavaScript shells exists as an opt-in transport (`BROWSER_RENDERING_ENABLED`) and is not yet measured on the benchmark.
 - Assessment asks the model to supply exact character offsets across long documents. One invalid assessment can prevent the entire batch from being stored.
 - The current research screen fetches full company detail for every list row, does not expose enough failure context, and hides collected documents when no evidence exists.
 - The active profile is implicitly the first profile in some flows. Manual import still mentions the deleted Companies page and does not provide a complete research handoff.

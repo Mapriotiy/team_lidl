@@ -6,8 +6,10 @@ from app.collection.models import (
     CollectionResult,
     SourceTarget,
 )
+from app.collection.rendering import BrowserRenderingTransport
 
 __all__ = [
+    "BrowserRenderingTransport",
     "CanonicalCompany",
     "CollectedDocument",
     "CollectionError",
