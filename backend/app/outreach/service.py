@@ -72,12 +72,12 @@ def _curated_email(
                 "PKO Bank Polski’s 2025–2027 strategy stood out for its explicit focus on "
                 "hyperautomation, process mining and artificial intelligence. Processing nearly "
                 "27 million cases automatically in Q1 2025 shows that this is already operating "
-                "at meaningful scale—not at pilot level.\n\n"
+                "at meaningful scale—not at pilot level. "
                 "At that level of maturity, the next gains often come from finding "
                 "cross-functional processes with high exception volumes, then improving "
                 "orchestration and governance without slowing the internal automation team. "
                 "That is where our process automation "
-                "work is most useful.\n\n"
+                "work is most useful. "
                 "Would a focused 20-minute conversation be worthwhile to compare how you are "
                 "prioritising the next wave of automation opportunities?\n\n"
                 "Best regards,"
@@ -96,11 +96,11 @@ def _curated_email(
                 "I was interested to see ČEZ building a group-wide BPM platform for process "
                 "management and automation, alongside the use of AI to reduce customer-service "
                 "handling time. Together, those initiatives point to a strong foundation and "
-                "measurable operational value.\n\n"
+                "measurable operational value. "
                 "The next challenge is usually scaling that foundation across business units while "
                 "keeping process ownership, exceptions and delivery standards consistent. We help "
                 "enterprise teams identify high-value candidates and accelerate implementation "
-                "around an existing automation platform.\n\n"
+                "around an existing automation platform. "
                 "Would you be open to a brief conversation about the processes ČEZ is considering "
                 "for the next stage of group-wide automation?\n\n"
                 "Best regards,"
@@ -142,7 +142,7 @@ def generate_fallback(
                     channel=channel,
                     subject=f"Process automation at {company_name}",
                     body=(
-                        f"Hello,\n\n{context}\n\n{offer}.\n\nWould a short conversation about the "
+                        f"Hello,\n\n{context} {offer}. Would a short conversation about the "
                         "processes currently creating the most operational friction be useful?\n\n"
                         "Best regards,"
                     ),

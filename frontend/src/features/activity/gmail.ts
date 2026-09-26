@@ -19,7 +19,6 @@ export function normalizeLetterSpacing(value: string) {
 
 export function ensureLetterParagraphs(value: string) {
   const normalized = normalizeLetterSpacing(value)
-  if (normalized.includes('\n\n')) return normalized
   const greeting = normalized.match(/^(Hello[^,]*,|Hi[^,]*,|Dear[^,]*,)\s*/i)?.[1]
   const withoutGreeting = greeting ? normalized.slice(greeting.length).trim() : normalized
   const signoffMatch = withoutGreeting.match(
@@ -29,11 +28,8 @@ export function ensureLetterParagraphs(value: string) {
   const message = signoff
     ? withoutGreeting.slice(0, signoffMatch.index).trim()
     : withoutGreeting
-  const paragraphs = message
-    .split(/(?<=[.!?])\s+(?=[A-ZÀ-Ž])/u)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-  return [greeting, ...paragraphs, signoff].filter(Boolean).join('\n\n')
+  const mainParagraph = message.replace(/\s+/g, ' ').trim()
+  return [greeting, mainParagraph, signoff].filter(Boolean).join('\n\n')
 }
 
 export function gmailComposeUrl(draft: OutreachDraft, details: GmailDraftDetails) {

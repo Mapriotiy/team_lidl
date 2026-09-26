@@ -124,5 +124,5 @@ def test_generates_curated_email_for_reference_companies(
     draft = result.drafts[0]
     assert subject_phrase in (draft.subject or "")
     assert body_phrase in draft.body
-    assert draft.body.count("\n\n") == 4
+    assert draft.body.count("\n\n") == 2
     assert draft.evidence_ids == ["evidence-0", "evidence-1"]

@@ -35,11 +35,11 @@ describe('Gmail compose integration', () => {
     )
   })
 
-  it('turns a single-line model response into readable letter paragraphs', () => {
+  it('keeps one body paragraph between greeting and sign-off', () => {
     expect(ensureLetterParagraphs(
       'Hello, I noticed your automation programme. We support process teams. Would a short call be useful? Best regards,',
     )).toBe(
-      'Hello,\n\nI noticed your automation programme.\n\nWe support process teams.\n\nWould a short call be useful?\n\nBest regards,',
+      'Hello,\n\nI noticed your automation programme. We support process teams. Would a short call be useful?\n\nBest regards,',
     )
   })
 })
