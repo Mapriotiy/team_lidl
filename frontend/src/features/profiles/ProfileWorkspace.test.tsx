@@ -3,38 +3,34 @@ import { expect, test } from 'vitest'
 
 import { ProfileWorkspace } from './ProfileWorkspace'
 
-test('guides a business user through criteria and signals', async () => {
+test('guides a business user through a three-step profile', async () => {
   render(<ProfileWorkspace />)
-  const name = await screen.findByRole('combobox', { name: /Service name/ })
-  fireEvent.change(name, { target: { value: 'AI specialists' } })
-  expect(name).toHaveValue('AI specialists')
-  const description = screen.getByRole('textbox', { name: /Service description/ })
-  expect((description as HTMLTextAreaElement).value).toContain('responsible AI solutions')
-  fireEvent.change(description, { target: { value: 'Edited AI service description.' } })
-  expect(description).toHaveValue('Edited AI service description.')
-  expect(screen.getByRole('button', { name: 'Restore suggested description' })).toBeInTheDocument()
+  const ai = await screen.findByRole('button', { name: /Applied AI/ })
+  fireEvent.click(ai)
+  expect(ai).toHaveAttribute('aria-pressed', 'true')
+  expect((screen.getByRole('textbox', { name: /How we help/ }) as HTMLTextAreaElement).value).toContain('responsible AI solutions')
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Financial services' }))
+  expect(screen.getByRole('button', { name: /Financial services/ })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Add buying signal' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add signal' }))
   expect(screen.getByText('Buying signal 2')).toBeInTheDocument()
 })
 
-test('prevents progress until a service role is selected', async () => {
+test('prevents progress until a service is selected', async () => {
   render(<ProfileWorkspace />)
-  const service = await screen.findByRole('combobox', { name: /Service name/ })
-  expect(service).toHaveValue('')
+  await screen.findByRole('heading', { name: 'Tell us what a good opportunity looks like' })
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: /Ideal customer/ })).toBeDisabled()
-  fireEvent.change(service, { target: { value: 'RPA developers' } })
+  expect(screen.getByRole('button', { name: /Who we target/ })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: /RPA & automation/ }))
   expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
 })
 
 test('saves through the profile repository boundary', async () => {
   render(<ProfileWorkspace />)
-  await screen.findByRole('heading', { name: 'Define who your service is for' })
-  fireEvent.change(screen.getByRole('combobox', { name: /Service name/ }), { target: { value: 'RPA developers' } })
-  for (let step = 0; step < 4; step += 1) fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-  const save = screen.getByRole('button', { name: 'Save and activate profile' })
-  fireEvent.click(save)
-  expect(await screen.findByText('Profile version saved')).toBeInTheDocument()
+  fireEvent.click(await screen.findByRole('button', { name: /RPA & automation/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save profile and discover companies' }))
+  expect(await screen.findByText('Profile saved')).toBeInTheDocument()
 })
