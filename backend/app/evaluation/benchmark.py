@@ -206,6 +206,8 @@ def evaluate_predictions(
         )
     if precision is None or precision < 0.9:
         failures.append("Supported-finding precision is below 90% or unavailable")
+    if missed_rate is None or missed_rate > 0.2:
+        failures.append("Missed-signal rate is above 20% or unavailable")
     if wrong_company:
         failures.append("At least one supported finding cites another or unknown company")
     if inaccurate_excerpts:

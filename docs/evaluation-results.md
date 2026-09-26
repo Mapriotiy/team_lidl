@@ -60,9 +60,11 @@ credentials or source text beyond the reviewed fixture into the report.
 If a denominator is zero, report the metric as `null`, not `0`. The supported-finding precision target is at least 90%, with the numerator and denominator disclosed. A supported assessment is correct only when its fact, company attribution, source attribution, excerpt, freshness treatment, and event deduplication are all correct.
 
 The automated gate requires complete predictions, at least 90% supported-finding precision,
-and zero wrong-company citations, inaccurate excerpts, duplicate events, or supported findings
-whose reviewed source is marked `headline_only`. This is an evidence-quality gate, not a second
-lead score and not a calibrated probability of purchase.
+no more than 20% missed known signals, and zero wrong-company citations, inaccurate excerpts,
+duplicate events, or supported findings whose reviewed source is marked `headline_only`. This is
+an evidence-quality gate, not a second lead score and not a calibrated probability of purchase.
+The monetary cap is enforced only when the provider reports cost; `--max-calls` remains the hard
+bound when it does not.
 
 ## Pending baseline
 

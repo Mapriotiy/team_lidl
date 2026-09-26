@@ -126,3 +126,27 @@ def test_missing_or_unreviewed_evidence_cannot_pass_as_precise() -> None:
     assert report.counts.false_positive_supported == 1
     assert report.counts.false_negative_supported == 1
     assert report.counts.wrong_company_attributions == 1
+
+
+def test_high_precision_does_not_hide_an_unacceptable_missed_signal_rate() -> None:
+    reviewed = corpus()
+    second_company = reviewed.companies[0].model_copy(
+        update={"id": "company-2", "name": "Second Example"}
+    )
+    reviewed = reviewed.model_copy(update={"companies": [*reviewed.companies, second_company]})
+    predictions = [
+        supported_prediction(),
+        BenchmarkPrediction(
+            company_id="company-2",
+            profile="Process automation",
+            signal_id="transformation-initiative",
+            status=AssessmentStatus.INSUFFICIENT_EVIDENCE,
+        ),
+    ]
+
+    report = evaluate_predictions(reviewed, predictions, run())
+
+    assert report.metrics.supported_finding_precision == 1
+    assert report.metrics.missed_signal_rate == 0.5
+    assert report.passed_quality_gate is False
+    assert any("Missed-signal" in failure for failure in report.gate_failures)
