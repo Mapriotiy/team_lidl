@@ -75,6 +75,8 @@ def test_homepage_planning_fetches_bounded_first_party_links() -> None:
         SourceType.COMPANY,
         SourceType.CAREERS,
     ]
+    assert result.total == 2
+    assert len(result.documents) <= result.total
 
 
 def test_news_dates_remain_unknown_and_text_is_not_executed() -> None:

@@ -1,7 +1,8 @@
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import NoReturn, Protocol
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict
@@ -12,10 +13,22 @@ from app.contracts.profile import ProfileConfiguration
 
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_DOCUMENT_CHARACTERS = 80_000
+TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
+TRANSIENT_ERROR_TYPES = {
+    "provider_overloaded",
+    "rate_limit",
+    "timeout",
+    "no_credentials",
+    "upstream_error",
+}
 
 
 class OpenRouterError(RuntimeError):
     pass
+
+
+class OpenRouterTransientError(OpenRouterError):
+    """The provider was temporarily unavailable; the worker may retry."""
 
 
 class JsonPostTransport(Protocol):
@@ -27,6 +40,58 @@ class JsonPostTransport(Protocol):
         headers: Mapping[str, str],
         timeout: float,
     ) -> object: ...
+
+
+def _raise_error(status: int, body: bytes) -> NoReturn:
+    """Raise OpenRouterError (or a transient subclass) from a non-success body."""
+    message = body.decode("utf-8", errors="replace").strip()[:500] or "empty response"
+    error_type: str | None = None
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        data = None
+    if isinstance(data, dict):
+        error = data.get("error")
+        if isinstance(error, dict):
+            code = error.get("code")
+            if isinstance(code, int):
+                status = code
+            message = str(error.get("message") or message)
+            metadata = error.get("metadata")
+            if isinstance(metadata, dict) and isinstance(metadata.get("error_type"), str):
+                error_type = metadata["error_type"]
+        elif isinstance(error, str) and error:
+            message = error
+        elif isinstance(data.get("message"), str) and data["message"]:
+            message = data["message"]
+    transient = status in TRANSIENT_STATUS_CODES or error_type in TRANSIENT_ERROR_TYPES
+    text = f"OpenRouter returned HTTP {status}: {message}"
+    if transient:
+        raise OpenRouterTransientError(text)
+    raise OpenRouterError(text)
+
+
+def _raise_error_field(data: object) -> None:
+    """Raise OpenRouterError from an HTTP 200 body that still carries an error field."""
+    if not isinstance(data, dict):
+        return
+    error = data.get("error")
+    if not isinstance(error, dict):
+        return
+    code = error.get("code")
+    status = code if isinstance(code, int) else 0
+    message = str(error.get("message") or "OpenRouter returned an error")
+    metadata = error.get("metadata")
+    error_type = (
+        metadata.get("error_type")
+        if isinstance(metadata, dict) and isinstance(metadata.get("error_type"), str)
+        else None
+    )
+    transient = status in TRANSIENT_STATUS_CODES or error_type in TRANSIENT_ERROR_TYPES
+    text = f"OpenRouter error: {message}"
+    if transient:
+        raise OpenRouterTransientError(text)
+    raise OpenRouterError(text)
 
 
 class UrlLibJsonPostTransport:
@@ -44,10 +109,16 @@ class UrlLibJsonPostTransport:
             headers=dict(headers),
             method="POST",
         )
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed HTTPS endpoint
-            if response.status != 200:
-                raise OpenRouterError(f"OpenRouter returned HTTP {response.status}")
-            return json.loads(response.read().decode("utf-8"))
+        try:
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed HTTPS endpoint
+                body = response.read()
+                if response.status != 200:
+                    _raise_error(response.status, body)
+                return json.loads(body.decode("utf-8"))
+        except HTTPError as exc:
+            _raise_error(exc.code, exc.read())
+        except URLError as exc:
+            raise OpenRouterTransientError(f"OpenRouter request failed: {exc.reason}") from exc
 
 
 class AssessmentResponse(BaseModel):
@@ -165,12 +236,13 @@ class OpenRouterAssessmentProvider:
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json",
-                    "X-OpenRouter-Title": "Team LIDL Sales Intelligence",
+                    "X-OpenRouter-Title": "LeadRadar Sales Intelligence",
                 },
                 timeout=self.timeout,
             )
             if not isinstance(response, dict):
                 raise OpenRouterError("OpenRouter returned an invalid response")
+            _raise_error_field(response)
             choices = response.get("choices")
             if not isinstance(choices, list) or not choices:
                 raise OpenRouterError("OpenRouter returned no choices")

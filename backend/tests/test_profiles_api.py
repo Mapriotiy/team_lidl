@@ -65,9 +65,13 @@ def test_create_list_and_version_profile() -> None:
     assert [item["name"] for item in listed.json()] == ["Process automation"]
 
     update = profile_payload(weight=35)["configuration"]
-    changed = client.patch(f"/service-profiles/{profile['id']}", json={"configuration": update})
+    changed = client.patch(
+        f"/service-profiles/{profile['id']}",
+        json={"name": "Operational automation", "configuration": update},
+    )
 
     assert changed.status_code == 200
+    assert changed.json()["name"] == "Operational automation"
     assert changed.json()["current_version"]["version"] == 2
     assert changed.json()["current_version"]["configuration"]["signals"][0]["weight"] == 35
 
@@ -76,3 +80,21 @@ def test_rejects_profile_without_positive_weight() -> None:
     response = TestClient(app).post("/service-profiles", json=profile_payload(weight=0))
 
     assert response.status_code == 422
+
+
+def test_rejects_rename_to_an_existing_profile_name() -> None:
+    client = TestClient(app)
+    first = client.post("/service-profiles", json=profile_payload()).json()
+    second_payload = profile_payload()
+    second_payload["name"] = "Transformation advisory"
+    client.post("/service-profiles", json=second_payload)
+
+    response = client.patch(
+        f"/service-profiles/{first['id']}",
+        json={
+            "name": "Transformation advisory",
+            "configuration": profile_payload()["configuration"],
+        },
+    )
+
+    assert response.status_code == 409

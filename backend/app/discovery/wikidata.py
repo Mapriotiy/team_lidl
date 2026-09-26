@@ -8,8 +8,20 @@ from app.discovery.models import DiscoveryCandidate, DiscoveryRequest, SizeVerif
 
 WIKIDATA_ENDPOINT = "https://qlever.dev/api/wikidata"
 WIKIDATA_ENTITY_API = "https://www.wikidata.org/w/api.php"
-USER_AGENT = "TeamLIDLResearch/0.1 (public company discovery)"
+USER_AGENT = "LeadRadarResearch/0.1 (public company discovery)"
 LABEL_LANGUAGES = "en|uk|pl|cs|sk|hu|ro|bg|et|lv|lt|ru"
+
+# Employee totals on Wikidata are sourced facts, not values this pipeline has
+# verified against a primary source, and some entries record consolidated or
+# plainly wrong figures (see docs/research-pipeline-handoff.md). A total above
+# this bound cannot be a single company's headcount in the product's target
+# market and is presented as unknown company size instead of an asserted fact.
+MAX_PLAUSIBLE_EMPLOYEES = 500_000
+
+# Company size is instead stamped needs_verification until our pipeline confirms
+# it from primary sources; reduced discovery confidence signals that the size
+# fact has not been verified (docs/research-pipeline-handoff.md).
+UNVERIFIED_CONFIDENCE = 0.55
 
 
 class WikidataError(RuntimeError):
@@ -76,18 +88,27 @@ class WikidataLabelResolver:
 def _sparql(request: DiscoveryRequest) -> str:
     country_values = " ".join(f'"{code}"' for code in request.country_codes)
     fetch_limit = min(request.limit * 4, 200)
+    countries = f"VALUES ?countryCode {{ {country_values} }}" if country_values else ""
+    employees = (
+        "OPTIONAL { ?company wdt:P1128 ?employees. }"
+        if request.include_unknown_size else "?company wdt:P1128 ?employees."
+    )
+    employee_filter = (
+        f"!BOUND(?employees) || ?employees >= {request.minimum_employees}"
+        if request.include_unknown_size else f"?employees >= {request.minimum_employees}"
+    )
     return f"""
 PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees WHERE {{
   ?company wdt:P31/wdt:P279* wd:Q783794;
            wdt:P17 ?country;
-           wdt:P856 ?website;
-           wdt:P1128 ?employees.
+           wdt:P856 ?website.
+  {employees}
   ?country wdt:P297 ?countryCode.
-  VALUES ?countryCode {{ {country_values} }}
+  {countries}
   OPTIONAL {{ ?company wdt:P452 ?industry. }}
-  FILTER(?employees >= {request.minimum_employees})
+  FILTER({employee_filter})
   FILTER NOT EXISTS {{
     VALUES ?excludedType {{
       wd:Q327333 wd:Q192350 wd:Q732717 wd:Q8473 wd:Q163740 wd:Q708676
@@ -195,10 +216,20 @@ class WikidataDiscovery:
                 employee_count = int(float(employee_text)) if employee_text is not None else None
             except ValueError:
                 employee_count = None
-            if employee_count is None or employee_count < request.minimum_employees:
+            if employee_count is not None and employee_count > MAX_PLAUSIBLE_EMPLOYEES:
+                employee_count = None
+
+            if employee_count is None:
+                if not request.include_unknown_size:
+                    continue
+            elif employee_count < request.minimum_employees:
                 continue
 
             industry = labels.get(_entity_id(_value(binding, "industry")) or "")
+            if request.industries and industry and not any(
+                term.casefold() in industry.casefold() for term in request.industries
+            ):
+                continue
             if request.industry and (
                 industry is None or request.industry.casefold() not in industry.casefold()
             ):
@@ -215,8 +246,8 @@ class WikidataDiscovery:
                     country_name=country_name,
                     industry=industry,
                     employee_count=employee_count,
-                    size_verification=SizeVerification.VERIFIED,
-                    discovery_confidence=0.9,
+                    size_verification=SizeVerification.NEEDS_VERIFICATION,
+                    discovery_confidence=UNVERIFIED_CONFIDENCE,
                     source_url=entity_url,
                 )
             )

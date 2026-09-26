@@ -3,18 +3,24 @@ import { expect, test } from 'vitest'
 
 import { ProfileWorkspace } from './ProfileWorkspace'
 
-test('edits profile criteria and adds a signal', async () => {
+test('guides a business user through criteria and signals', async () => {
   render(<ProfileWorkspace />)
-  const name = await screen.findByLabelText('Profile name')
-  fireEvent.change(name, { target: { value: 'Automation advisory' } })
-  expect(name).toHaveValue('Automation advisory')
-  fireEvent.click(screen.getByRole('button', { name: '+ Add signal' }))
-  expect(screen.getByText('Signal 3')).toBeInTheDocument()
+  const name = await screen.findByRole('textbox', { name: /Service name/ })
+  fireEvent.change(name, { target: { value: 'Operations transformation' } })
+  expect(name).toHaveValue('Operations transformation')
+  const description = screen.getByRole('textbox', { name: /Service description/ })
+  fireEvent.change(description, { target: { value: 'Automation advisory for complex operations.' } })
+  expect(description).toHaveValue('Automation advisory for complex operations.')
+  fireEvent.click(screen.getByRole('button', { name: /Buying signals/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add buying signal' }))
+  expect(screen.getByText('Buying signal 2')).toBeInTheDocument()
 })
 
 test('saves through the profile repository boundary', async () => {
   render(<ProfileWorkspace />)
-  const save = await screen.findByRole('button', { name: 'Save new version' })
+  await screen.findByRole('heading', { name: 'Define who your service is for' })
+  fireEvent.click(screen.getByRole('button', { name: /Review/ }))
+  const save = screen.getByRole('button', { name: 'Save and activate profile' })
   fireEvent.click(save)
-  expect(await screen.findByRole('button', { name: 'Saved ✓' })).toBeInTheDocument()
+  expect(await screen.findByText('Profile version saved')).toBeInTheDocument()
 })

@@ -216,9 +216,18 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
     company = session.get(Company, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="Company not found")
+    scores = session.scalars(
+        select(StoredScoreSnapshot)
+        .where(StoredScoreSnapshot.company_id == company_id)
+        .order_by(StoredScoreSnapshot.created_at.desc())
+    ).all()
+    latest_run_id = scores[0].research_run_id if scores else None
     assessments = session.scalars(
         select(StoredSignalAssessment)
-        .where(StoredSignalAssessment.company_id == company_id)
+        .where(
+            StoredSignalAssessment.company_id == company_id,
+            StoredSignalAssessment.research_run_id == latest_run_id,
+        )
         .order_by(StoredSignalAssessment.created_at.desc())
     ).all()
     evidence_ids = {value for item in assessments for value in item.evidence_ids}
@@ -265,11 +274,6 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
             ],
         )
 
-    scores = session.scalars(
-        select(StoredScoreSnapshot)
-        .where(StoredScoreSnapshot.company_id == company_id)
-        .order_by(StoredScoreSnapshot.created_at.desc())
-    ).all()
     runs = session.scalars(
         select(ResearchRun)
         .where(ResearchRun.company_id == company_id)

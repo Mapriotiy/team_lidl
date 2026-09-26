@@ -1,67 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { getProfile, saveProfile } from './repository'
 import type { ProfileDraft, SignalDraft, SignalEffect } from './types'
 
-function TextField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
-  const classes = 'mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300 focus:ring-1 focus:ring-cyan-300'
-  return (
-    <label className="block text-xs font-semibold text-slate-400">
-      {label}
-      {multiline ? <textarea className={`${classes} min-h-20 resize-y`} value={value} onChange={(event) => onChange(event.target.value)} /> : <input className={classes} value={value} onChange={(event) => onChange(event.target.value)} />}
-    </label>
-  )
+const steps = ['Your service', 'Ideal customer', 'Buying signals', 'Negative signals', 'Review']
+const importance = [{ label: 'High', value: 20 }, { label: 'Medium', value: 10 }, { label: 'Low', value: 5 }]
+const ages = [{ label: 'Very recent', value: 180 }, { label: 'Recent', value: 365 }, { label: 'Established', value: 730 }]
+const input = 'mt-2 w-full rounded-lg border border-[#D8D3CB] bg-white px-3.5 py-3 text-sm text-[#20242A] outline-none placeholder:text-[#9A948B] focus:border-[#E86722] focus:ring-2 focus:ring-[#E86722]/15'
+
+function Field({ label, help, value, onChange, multiline = false, placeholder }: { label: string; help: string; value: string; onChange: (value: string) => void; multiline?: boolean; placeholder?: string }) {
+  return <label className="block text-sm font-semibold text-[#353A40]">{label}<span className="mt-1 block text-xs font-normal leading-5 text-[#73706A]">{help}</span>{multiline ? <textarea className={`${input} min-h-28 resize-y`} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} /> : <input className={input} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} />}</label>
 }
 
-function SignalEditor({ signal, index, onChange }: { signal: SignalDraft; index: number; onChange: (signal: SignalDraft) => void }) {
-  return (
-    <article className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Signal {index + 1}</p>
-        <select aria-label={`Effect for signal ${index + 1}`} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200" value={signal.effect} onChange={(event) => onChange({ ...signal, effect: event.target.value as SignalEffect })}>
-          <option value="positive">Positive</option><option value="penalty">Penalty</option><option value="disqualifier">Disqualifier</option>
-        </select>
-      </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <TextField label="Question" multiline value={signal.question} onChange={(question) => onChange({ ...signal, question })} />
-        <TextField label="Positive criteria" multiline value={signal.positiveCriteria} onChange={(positiveCriteria) => onChange({ ...signal, positiveCriteria })} />
-        <TextField label="Exclusions" value={signal.exclusions} onChange={(exclusions) => onChange({ ...signal, exclusions })} />
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs font-semibold text-slate-400">Weight<input className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white" min="0" type="number" value={signal.weight} onChange={(event) => onChange({ ...signal, weight: Number(event.target.value) })} /></label>
-          <label className="text-xs font-semibold text-slate-400">Freshness days<input className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white" min="1" type="number" value={signal.freshnessWindowDays} onChange={(event) => onChange({ ...signal, freshnessWindowDays: Number(event.target.value) })} /></label>
-        </div>
-      </div>
-    </article>
-  )
+function SignalCard({ signal, index, onChange, onRemove, negative }: { signal: SignalDraft; index: number; onChange: (signal: SignalDraft) => void; onRemove: () => void; negative?: boolean }) {
+  return <article className="rounded-xl border border-[#DED9D1] bg-white p-5 shadow-sm">
+    <div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-[#B64B16]">{negative ? `Rule ${index + 1}` : `Buying signal ${index + 1}`}</p><p className="mt-1 text-xs text-[#77716A]">This only affects a company when public evidence supports it.</p></div><button className="text-xs font-semibold text-[#8A4030]" onClick={onRemove}>Remove</button></div>
+    <div className="mt-5 grid gap-5 lg:grid-cols-2"><Field help={negative ? 'What condition should lower priority or exclude a company?' : 'What business question should research answer?'} label="Research question" multiline placeholder="Has the company announced an operational-efficiency programme?" value={signal.question} onChange={(question) => onChange({ ...signal, question })} /><Field help="Describe the specific facts that count as evidence." label="Evidence that counts" multiline placeholder="A named initiative with a recent date and clear operational scope." value={signal.positiveCriteria} onChange={(positiveCriteria) => onChange({ ...signal, positiveCriteria })} /></div>
+    <div className="mt-5 grid gap-5 md:grid-cols-3">{negative && <label className="text-sm font-semibold text-[#353A40]">Consequence<span className="mt-1 block text-xs font-normal text-[#73706A]">Warning or firm exclusion.</span><select className={input} value={signal.effect} onChange={(event) => onChange({ ...signal, effect: event.target.value as SignalEffect })}><option value="penalty">Lower priority</option><option value="disqualifier">Exclude company</option></select></label>}<label className="text-sm font-semibold text-[#353A40]">Importance<span className="mt-1 block text-xs font-normal text-[#73706A]">Scoring stays internal.</span><select className={input} value={signal.weight >= 15 ? 20 : signal.weight >= 8 ? 10 : 5} onChange={(event) => onChange({ ...signal, weight: Number(event.target.value) })}>{importance.map((item) => <option key={item.label} value={item.value}>{item.label}</option>)}</select></label><label className="text-sm font-semibold text-[#353A40]">Evidence age<span className="mt-1 block text-xs font-normal text-[#73706A]">Older evidence is treated cautiously.</span><select className={input} value={signal.freshnessWindowDays <= 180 ? 180 : signal.freshnessWindowDays <= 365 ? 365 : 730} onChange={(event) => onChange({ ...signal, freshnessWindowDays: Number(event.target.value) })}>{ages.map((item) => <option key={item.label} value={item.value}>{item.label}</option>)}</select></label></div>
+  </article>
+}
+
+function Review({ profile }: { profile: ProfileDraft }) {
+  const positives = profile.signals.filter((item) => item.effect === 'positive'); const negatives = profile.signals.filter((item) => item.effect !== 'positive')
+  return <div className="grid gap-5 lg:grid-cols-2"><section className="rounded-xl border border-[#DED9D1] bg-white p-5"><h3 className="font-semibold">Service and ideal customer</h3><dl className="mt-4 space-y-4 text-sm">{[['Service', profile.name], ['Description', profile.description], ['Industries', profile.industries || 'Not restricted'], ['Markets and geography', profile.geographies || 'Not restricted'], ['Company size', profile.companySize || 'Not restricted']].map(([label, value]) => <div key={label}><dt className="text-xs font-semibold uppercase tracking-wide text-[#817A72]">{label}</dt><dd className="mt-1 leading-6 text-[#4F545A]">{value || 'Not provided'}</dd></div>)}</dl></section><section className="rounded-xl border border-[#DED9D1] bg-white p-5"><h3 className="font-semibold">Research rules</h3><p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[#817A72]">Buying signals</p>{positives.map((item) => <p className="mt-2 text-sm" key={item.id}>{item.question || 'Incomplete question'} · <span className="text-[#A44818]">{importance.find((level) => level.value === item.weight)?.label ?? 'Medium'}</span></p>)}<p className="mt-5 text-xs font-semibold uppercase tracking-wide text-[#817A72]">Negative rules</p>{negatives.length ? negatives.map((item) => <p className="mt-2 text-sm" key={item.id}>{item.question || 'Incomplete rule'} · <span className="text-[#A44818]">{item.effect === 'disqualifier' ? 'Exclude' : 'Lower priority'}</span></p>) : <p className="mt-2 text-sm text-[#817A72]">None added</p>}</section></div>
 }
 
 export function ProfileWorkspace() {
-  const [profile, setProfile] = useState<ProfileDraft | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'saved' | 'error'>('loading')
-
-  useEffect(() => { void getProfile().then((result) => { setProfile(result); setState('ready') }).catch(() => setState('error')) }, [])
-  if (state === 'loading') return <div className="rounded-2xl border border-slate-800 bg-[#0b111e] p-10 text-slate-400">Loading profile configuration…</div>
-  if (state === 'error' || profile === null) return <div className="rounded-2xl border border-red-400/20 bg-red-400/5 p-10 text-red-200">Profile configuration could not be loaded.</div>
-
-  const replaceSignal = (next: SignalDraft) => setProfile({ ...profile, signals: profile.signals.map((signal) => signal.id === next.id ? next : signal) })
+  const [profile, setProfile] = useState<ProfileDraft | null>(null); const [step, setStep] = useState(0); const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'saved' | 'error'>('loading')
+  useEffect(() => { void getProfile().then((value) => { setProfile(value); setState('ready') }).catch(() => setState('error')) }, [])
+  const groups = useMemo(() => ({ buying: profile?.signals.filter((item) => item.effect === 'positive') ?? [], negative: profile?.signals.filter((item) => item.effect !== 'positive') ?? [] }), [profile])
+  if (state === 'loading') return <div className="rounded-xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading service profile…</div>
+  if (!profile || state === 'error') return <div className="rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-10 text-[#8A2F20]">The service profile could not be loaded.</div>
+  const replace = (next: SignalDraft) => setProfile({ ...profile, signals: profile.signals.map((item) => item.id === next.id ? next : item) }); const remove = (id: string) => setProfile({ ...profile, signals: profile.signals.filter((item) => item.id !== id) })
+  const add = (effect: SignalEffect) => setProfile({ ...profile, signals: [...profile.signals, { id: crypto.randomUUID(), question: '', positiveCriteria: '', exclusions: '', effect, weight: effect === 'positive' ? 20 : 10, freshnessWindowDays: 365 }] })
   const persist = async () => { setState('saving'); try { setProfile(await saveProfile(profile)); setState('saved') } catch { setState('error') } }
-
-  return (
-    <div>
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Configuration · Version {profile.version ?? 1}</p><h1 className="mt-1 text-2xl font-semibold text-white">Service profiles</h1><p className="mt-2 max-w-2xl text-sm text-slate-500">Define ICP fit and the evidence questions used by research. Every save creates a new immutable version.</p></div>
-        <button className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-60" disabled={state === 'saving'} onClick={() => void persist()}>{state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : 'Save new version'}</button>
-      </div>
-      <div className="mt-7 grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-slate-800 bg-[#0b111e] p-5"><h2 className="font-semibold text-white">Profile basics</h2><div className="mt-5 space-y-4"><TextField label="Profile name" value={profile.name} onChange={(name) => setProfile({ ...profile, name })} /><TextField label="Service description" multiline value={profile.description} onChange={(description) => setProfile({ ...profile, description })} /></div></section>
-          <section className="rounded-2xl border border-slate-800 bg-[#0b111e] p-5"><h2 className="font-semibold text-white">Ideal customer profile</h2><p className="mt-1 text-xs text-slate-500">Unknown facts remain visible and do not count as matches.</p><div className="mt-5 space-y-4"><TextField label="Industries" value={profile.industries} onChange={(industries) => setProfile({ ...profile, industries })} /><TextField label="Geographies" value={profile.geographies} onChange={(geographies) => setProfile({ ...profile, geographies })} /><TextField label="Company size" value={profile.companySize} onChange={(companySize) => setProfile({ ...profile, companySize })} /><TextField label="Operational complexity" value={profile.operationalComplexity} onChange={(operationalComplexity) => setProfile({ ...profile, operationalComplexity })} /></div></section>
-        </div>
-        <section className="rounded-2xl border border-slate-800 bg-[#0b111e] p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-4"><div><h2 className="font-semibold text-white">Signal questions</h2><p className="mt-1 text-sm text-slate-500">Direction, weight, freshness, criteria and exclusions remain explicit.</p></div><button className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300" onClick={() => setProfile({ ...profile, signals: [...profile.signals, { id: crypto.randomUUID(), question: 'New research question', positiveCriteria: '', exclusions: '', effect: 'positive', weight: 10, freshnessWindowDays: 365 }] })}>+ Add signal</button></div>
-          <div className="mt-5 space-y-4">{profile.signals.map((signal, index) => <SignalEditor index={index} key={signal.id} onChange={replaceSignal} signal={signal} />)}</div>
-        </section>
-      </div>
-    </div>
-  )
+  return <div className="text-[#20242A]"><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-wider text-[#C65318]">Service Profile · Version {profile.version ?? 1}</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Define who your service is for</h1><p className="mt-3 text-sm leading-6 text-[#68645F]">Describe the customers you want to find and the public signals that matter. Research will use this profile consistently.</p></div>
+    <ol className="mt-8 grid gap-2 md:grid-cols-5">{steps.map((label, index) => <li key={label}><button aria-current={step === index ? 'step' : undefined} className={`flex w-full items-center gap-2 rounded-lg border px-3 py-3 text-left text-xs font-semibold ${step === index ? 'border-[#E86722] bg-[#FFF1E8] text-[#9F3E0E]' : 'border-[#E2DED7] bg-white text-[#716C65]'}`} onClick={() => setStep(index)}><span className={`grid size-5 place-items-center rounded-full text-[11px] ${step === index ? 'bg-[#E86722] text-white' : index < step ? 'bg-[#3F7054] text-white' : 'bg-[#E5E1DA]'}`}>{index < step ? '✓' : index + 1}</span>{label}</button></li>)}</ol>
+    <section className="mt-6 rounded-2xl border border-[#DCD7CF] bg-[#FCFBF8] p-6 shadow-[0_8px_28px_rgba(58,45,31,0.06)] sm:p-8">
+      {step === 0 && <div><h2 className="text-xl font-semibold">Your service</h2><p className="mt-2 text-sm text-[#6F6A64]">Give research business context. This is internal guidance, not marketing copy.</p><div className="mt-6 space-y-6"><Field help="Use the name your commercial team uses for this offer." label="Service name" placeholder="Process automation advisory" value={profile.name} onChange={(name) => setProfile({ ...profile, name })} /><Field help="Explain what you deliver, the problems it solves, and the expected customer outcomes." label="Service description" multiline placeholder="We help complex organisations reduce manual work and improve operational control." value={profile.description} onChange={(description) => setProfile({ ...profile, description })} /></div></div>}
+      {step === 1 && <div><h2 className="text-xl font-semibold">Ideal customer</h2><p className="mt-2 text-sm text-[#6F6A64]">Leave a field blank when it should not restrict discovery.</p><div className="mt-6 grid gap-6 md:grid-cols-2"><Field help="Business sectors your team serves." label="Industries" placeholder="Logistics, manufacturing, financial services" value={profile.industries} onChange={(industries) => setProfile({ ...profile, industries })} /><Field help="Supported countries, regions, or markets." label="Markets and geography" placeholder="Central and Eastern Europe" value={profile.geographies} onChange={(geographies) => setProfile({ ...profile, geographies })} /><Field help="Describe size in normal business language." label="Company size" placeholder="Large organisations with more than one thousand employees" value={profile.companySize} onChange={(companySize) => setProfile({ ...profile, companySize })} /><Field help="Characteristics that make delivery valuable." label="Operational characteristics" placeholder="Multiple sites, shared services, regulated processes" value={profile.operationalComplexity} onChange={(operationalComplexity) => setProfile({ ...profile, operationalComplexity })} /></div></div>}
+      {step === 2 && <div><div className="flex justify-between gap-4"><div><h2 className="text-xl font-semibold">Buying signals</h2><p className="mt-2 text-sm text-[#6F6A64]">Public facts that may indicate a genuine need for your service.</p></div><button className="h-fit rounded-lg bg-[#E86722] px-4 py-2.5 text-sm font-semibold text-white" onClick={() => add('positive')}>Add buying signal</button></div><div className="mt-6 space-y-4">{groups.buying.map((item, index) => <SignalCard index={index} key={item.id} onChange={replace} onRemove={() => remove(item.id)} signal={item} />)}</div></div>}
+      {step === 3 && <div><div className="flex justify-between gap-4"><div><h2 className="text-xl font-semibold">Negative signals and disqualifiers</h2><p className="mt-2 text-sm text-[#6F6A64]">Warnings lower priority. Disqualifiers exclude a company.</p></div><button className="h-fit rounded-lg border border-[#D55A1C] bg-white px-4 py-2.5 text-sm font-semibold text-[#B44712]" onClick={() => add('penalty')}>Add rule</button></div><div className="mt-6 space-y-4">{groups.negative.map((item, index) => <SignalCard index={index} key={item.id} negative onChange={replace} onRemove={() => remove(item.id)} signal={item} />)}{!groups.negative.length && <p className="rounded-xl border border-dashed border-[#CFC8BE] bg-white p-8 text-center text-sm text-[#77716A]">No negative rules added. Continue if your team does not need them.</p>}</div></div>}
+      {step === 4 && <div><h2 className="text-xl font-semibold">Review and activate</h2><p className="mt-2 text-sm text-[#6F6A64]">Saving creates a new version. Previous research keeps the criteria it originally used.</p><div className="mt-6"><Review profile={profile} /></div></div>}
+      <div className="mt-8 flex items-center justify-between border-t border-[#E3DED6] pt-5"><button className="rounded-lg border border-[#D5D0C8] bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-40" disabled={step === 0} onClick={() => setStep((value) => value - 1)}>Back</button><div className="flex items-center gap-3">{state === 'saved' && <span className="text-sm font-medium text-[#31704E]">Profile version saved</span>}{step < 4 ? <button className="rounded-lg bg-[#E86722] px-5 py-2.5 text-sm font-semibold text-white" onClick={() => { setState('ready'); setStep((value) => value + 1) }}>Continue</button> : <button className="rounded-lg bg-[#E86722] px-5 py-2.5 text-sm font-semibold text-white" disabled={state === 'saving'} onClick={() => void persist()}>{state === 'saving' ? 'Saving…' : 'Save and activate profile'}</button>}</div></div>
+    </section></div>
 }

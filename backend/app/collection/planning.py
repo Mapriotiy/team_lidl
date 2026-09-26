@@ -38,9 +38,57 @@ class LinkParser(HTMLParser):
 
 
 _CLASSIFIERS: tuple[tuple[SourceType, tuple[str, ...]], ...] = (
-    (SourceType.REPORT, ("annual-report", "annual report", "investor", "strategy")),
-    (SourceType.CAREERS, ("career", "careers", "jobs", "vacancies", "work-with-us")),
-    (SourceType.COMPANY, ("news", "newsroom", "press", "media", "about")),
+    (
+        SourceType.REPORT,
+        (
+            "annual-report",
+            "annual report",
+            "investor",
+            "strategy",
+            "звіт",
+            "звітність",
+            "інвестор",
+            "стратегія",
+            "raport",
+            "inwestor",
+            "strategie",
+        ),
+    ),
+    (
+        SourceType.CAREERS,
+        (
+            "career",
+            "careers",
+            "jobs",
+            "vacancies",
+            "work-with-us",
+            "кар'єр",
+            "ваканс",
+            "робот",
+            "praca",
+            "kariera",
+            "cariere",
+            "locuri-de-munca",
+        ),
+    ),
+    (
+        SourceType.COMPANY,
+        (
+            "news",
+            "newsroom",
+            "press",
+            "media",
+            "about",
+            "новин",
+            "прес",
+            "про нас",
+            "aktualności",
+            "wiadomości",
+            "știri",
+            "noutăți",
+            "despre noi",
+        ),
+    ),
 )
 
 

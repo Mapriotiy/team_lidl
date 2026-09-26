@@ -33,6 +33,9 @@ class CollectionError:
 class CollectionResult:
     documents: tuple[CollectedDocument, ...]
     errors: tuple[CollectionError, ...]
+    # Number of sources considered, including bounded first-party links that
+    # are planned while a homepage is fetched; documents can never exceed it.
+    total: int = 0
 
 
 class CollectionFailure(Exception):

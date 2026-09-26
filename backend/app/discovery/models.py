@@ -28,11 +28,12 @@ class SizeVerification(StrEnum):
 
 class DiscoveryRequest(DiscoveryModel):
     country_codes: list[str] = Field(
-        default_factory=lambda: list(EASTERN_EUROPE_DEFAULT), min_length=1, max_length=50
+        default_factory=lambda: list(EASTERN_EUROPE_DEFAULT), max_length=50
     )
     minimum_employees: int = Field(default=1000, ge=1, le=10_000_000)
     include_unknown_size: bool = True
     industry: str | None = Field(default=None, max_length=120)
+    industries: list[str] = Field(default_factory=list, max_length=50)
     limit: int = Field(default=25, ge=1, le=50)
 
     @field_validator("country_codes")

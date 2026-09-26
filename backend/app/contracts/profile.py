@@ -43,6 +43,7 @@ class ProfileCreate(ContractModel):
 
 
 class ProfileUpdate(ContractModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
     configuration: ProfileConfiguration
 
 

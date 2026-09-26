@@ -14,7 +14,7 @@ export async function getProfile(): Promise<ProfileDraft> {
 
 export async function saveProfile(profile: ProfileDraft): Promise<ProfileDraft> {
   if (import.meta.env.MODE === 'test') { await delay(180); return structuredClone(profile) }
-  return fromApi(await updateProfile(profile.id, toConfiguration(profile)))
+  return fromApi(await updateProfile(profile.id, profile.name, toConfiguration(profile)))
 }
 
 function fromApi(profile: Profile): ProfileDraft {

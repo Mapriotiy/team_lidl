@@ -1,21 +1,67 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
-
+import { beforeEach, expect, test, vi } from 'vitest'
 import { DiscoveryWorkspace } from './DiscoveryWorkspace'
+import { listProfiles } from '../../api/profiles'
+import { createDiscoveryRun, confirmDiscoveryRun } from '../../api/discovery'
+import { submitResearch } from '../../api/research'
 
-test('requires candidate selection before confirmation', async () => {
-  const onConfirmed = vi.fn()
-  const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'verified', discovery_confidence: 0.92, source_url: 'https://www.wikidata.org/wiki/Q1' }
-  vi.stubGlobal('fetch', vi.fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'discovery-1', status: 'completed', request: {}, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }) })
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ run: { id: 'discovery-1' }, company_ids: ['company-1'] }) }))
+vi.mock('../../api/profiles', () => ({ listProfiles: vi.fn() }))
+vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn() }))
+vi.mock('../../api/research', () => ({ submitResearch: vi.fn(), importCompanies: vi.fn() }))
+let version = 0
+const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1' }
+const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], minimum_employees: 1000, include_unknown_size: true, industry: null, limit: 50 }, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }
+beforeEach(() => {
+  vi.clearAllMocks(); sessionStorage.clear(); version++
+  vi.mocked(listProfiles).mockResolvedValue([{ id: 'profile', name: 'Automation', current_version: { id: `version-${version}`, version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'], company_size: '1,000+ employees' }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' }])
+  vi.mocked(createDiscoveryRun).mockResolvedValue(run)
+  vi.mocked(confirmDiscoveryRun).mockResolvedValue({ run, company_ids: ['company'] })
+  vi.mocked(submitResearch).mockResolvedValue({ id: 'research' } as never)
+})
 
-  render(<DiscoveryWorkspace onConfirmed={onConfirmed} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Find companies' }))
-  expect(await screen.findByText('Example SA')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Confirm selection' })).toBeDisabled()
+test('automatically uses the saved profile and queues selected research', async () => {
+  render(<DiscoveryWorkspace />)
+  expect(await screen.findByRole('button', { name: 'Example SA' })).toBeInTheDocument()
+  expect(createDiscoveryRun).toHaveBeenCalledWith(expect.objectContaining({ country_codes: ['RO'], minimum_employees: 1000 }), expect.any(AbortSignal))
+  expect(screen.getByText('2,500 · Unconfirmed')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Research selected' })).toBeDisabled()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Example SA' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm selection' }))
-  expect(await screen.findByText(/1 selected compan(?:y|ies) confirmed/i)).toBeInTheDocument()
-  expect(onConfirmed).toHaveBeenCalledWith([{ id: 'company-1', name: 'Example SA', domain: 'example.ro' }])
+  fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
+  expect(await screen.findByText(/1 company queued/)).toBeInTheDocument()
+  expect(submitResearch).toHaveBeenCalledWith('company', `version-${version}`, `discovery-run-version-${version}-company`)
+})
+
+test('keeps results and selections when returning, and opens source details', async () => {
+  const first = render(<DiscoveryWorkspace />)
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Example SA' }))
+  first.unmount()
+  render(<DiscoveryWorkspace />)
+  expect(await screen.findByRole('checkbox', { name: 'Select Example SA' })).toBeChecked()
+  expect(createDiscoveryRun).toHaveBeenCalledTimes(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Example SA' }))
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /View company information/ })).toHaveAttribute('href', candidate.source_url)
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('keeps failed research selected for retry', async () => {
+  vi.mocked(submitResearch).mockRejectedValue(new Error('Unavailable'))
+  render(<DiscoveryWorkspace />)
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Example SA' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('remain selected')
+  expect(screen.getByRole('checkbox', { name: 'Select Example SA' })).toBeChecked()
+})
+
+test('loads another 25 results and filters without searching again', async () => {
+  vi.mocked(createDiscoveryRun).mockResolvedValue({ ...run, candidates: Array.from({ length: 30 }, (_, index) => ({ ...candidate, name: `Company ${index}`, domain: `company${index}.ro` })) })
+  render(<DiscoveryWorkspace />)
+  await screen.findByRole('button', { name: 'Load more' })
+  expect(screen.getAllByRole('checkbox')).toHaveLength(25)
+  fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+  expect(screen.getAllByRole('checkbox')).toHaveLength(30)
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search companies' }), { target: { value: 'company29.ro' } })
+  expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+  expect(createDiscoveryRun).toHaveBeenCalledTimes(1)
 })

@@ -38,12 +38,18 @@ class RetryableResearchError(Exception):
 
 class UnconfiguredPipeline:
     def collect(self, run_id: str, company: Company) -> StageResult:
-        raise RuntimeError("Collection and assessment adapters are not configured")
+        raise RuntimeError(
+            "Research adapters are not configured; set OPENROUTER_API_KEY and "
+            "ASSESSMENT_MODEL in the worker environment"
+        )
 
     def assess(
         self, run_id: str, company: Company, profile: ServiceProfileVersion, sources: object
     ) -> StageResult:
-        raise RuntimeError("Assessment adapter is not configured")
+        raise RuntimeError(
+            "Research adapters are not configured; set OPENROUTER_API_KEY and "
+            "ASSESSMENT_MODEL in the worker environment"
+        )
 
 
 def run_once(sessions: sessionmaker[Session], pipeline: ResearchPipeline) -> bool:
