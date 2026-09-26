@@ -28,6 +28,8 @@ services:
       ASSESSMENT_TIMEOUT_SECONDS: ${ASSESSMENT_TIMEOUT_SECONDS:-60}
       RESEARCH_BUDGET_USD: ${RESEARCH_BUDGET_USD:-5}
       SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
+      EU_TENDERS_ENABLED: ${EU_TENDERS_ENABLED:-false}
     command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]

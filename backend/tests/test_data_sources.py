@@ -141,9 +141,18 @@ def test_pipeline_logs_actual_outcomes_through_fenced_checkpoint(newsapi_enabled
     assert {row["company_id"] for row in logs} == {company_id}
     assert body["runtime"]["assessment_configured"] is True
     assert body["runtime"]["newsapi_configured"] == newsapi_enabled
+    assert body["runtime"]["eu_tenders_enabled"] is False
     assert body["runtime"]["assessment_model"] == "test/model"
     assert body["sources"][0]["failed"] == 1
     assert body["sources"][1]["attempts"] == int(newsapi_enabled)
+    assert [source["id"] for source in body["sources"]] == [
+        "gdelt",
+        "newsapi",
+        "websites",
+        "eu_tenders",
+    ]
+    assert body["sources"][1]["enabled"] == newsapi_enabled
+    assert body["sources"][3]["enabled"] is False
     assert len(client.get("/data-sources?limit=1").json()["crawl_log"]) == 1
     assert client.get("/data-sources?limit=0").status_code == 422
     assert client.get("/data-sources?limit=251").status_code == 422
@@ -203,3 +212,32 @@ def test_existing_research_without_telemetry_has_no_fabricated_logs() -> None:
     assert response.json()["crawl_log"] == []
     assert "PRIVATE_TEXT" not in response.text
     assert all(source["attempts"] == 0 for source in response.json()["sources"])
+
+
+def test_newsapi_configuration_is_inferred_from_persisted_worker_attempts() -> None:
+    client = TestClient(app)
+    company_id, run_id = make_run(client)
+    with TestingSession.begin() as session:
+        run = session.get_one(ResearchRun, run_id)
+        run.stage_results = {
+            "collection": {
+                "crawl_log": [
+                    {
+                        "id": "newsapi-attempt",
+                        "run_id": run_id,
+                        "company_id": company_id,
+                        "company_name": "Example",
+                        "provider": "newsapi",
+                        "target": "Example",
+                        "status": "ok",
+                        "detail": "Returned 2 article URLs",
+                        "at": utc_now().isoformat(),
+                    }
+                ]
+            }
+        }
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, newsapi_key=None)
+    body = client.get("/data-sources").json()
+    assert body["runtime"]["newsapi_configured"] is True
+    newsapi = next(source for source in body["sources"] if source["id"] == "newsapi")
+    assert newsapi["enabled"] is True

@@ -43,25 +43,41 @@ def get_data_sources(
             except ValidationError:
                 continue  # Ignore incompatible historical metadata; never invent records.
     entries.sort(key=lambda entry: (entry.at, entry.id), reverse=True)
+    newsapi_configured = bool(settings.newsapi_key) or any(
+        entry.provider == "newsapi" and entry.status != "skipped" for entry in entries
+    )
     entries = entries[:limit]
     sources = [
         DataSourceSummary(
             id="gdelt",
             name="GDELT",
             configured=True,
+            enabled=True,
             description="Public news discovery; article URLs are collected separately.",
         ),
         DataSourceSummary(
             id="newsapi",
             name="NewsAPI",
-            configured=bool(settings.newsapi_key),
+            configured=newsapi_configured,
+            enabled=newsapi_configured,
             description="Supplementary news discovery alongside GDELT when configured.",
         ),
         DataSourceSummary(
             id="websites",
             name="Public websites",
             configured=True,
+            enabled=True,
             description="Company pages, reports, careers and discovered news articles.",
+        ),
+        DataSourceSummary(
+            id="eu_tenders",
+            name="EU Funding & Tenders",
+            configured=True,
+            enabled=settings.eu_tenders_enabled,
+            description=(
+                "Open and forthcoming EU calls matching the service profile; "
+                "a market-demand signal, not company evidence."
+            ),
         ),
     ]
     for source in sources:
@@ -77,7 +93,8 @@ def get_data_sources(
         runtime=SourceRuntime(
             assessment_model=settings.assessment_model,
             assessment_configured=bool(settings.assessment_model and settings.openrouter_api_key),
-            newsapi_configured=bool(settings.newsapi_key),
+            newsapi_configured=newsapi_configured,
+            eu_tenders_enabled=settings.eu_tenders_enabled,
             browser_rendering_enabled=settings.browser_rendering_enabled,
             source_text_retention_days=settings.source_text_retention_days,
             worker_concurrency=settings.worker_concurrency,

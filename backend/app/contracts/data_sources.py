@@ -24,6 +24,7 @@ class DataSourceSummary(BaseModel):
     name: str
     description: str
     configured: bool
+    enabled: bool
     attempts: int = 0
     succeeded: int = 0
     failed: int = 0
@@ -34,6 +35,7 @@ class SourceRuntime(BaseModel):
     assessment_model: str | None
     assessment_configured: bool
     newsapi_configured: bool
+    eu_tenders_enabled: bool
     browser_rendering_enabled: bool
     source_text_retention_days: int
     worker_concurrency: int
