@@ -120,6 +120,12 @@ def test_requests_strict_structured_output_and_tracks_usage() -> None:
     assert isinstance(response_format, dict)
     assert response_format["type"] == "json_schema"
     assert transport.payload["provider"] == {"require_parameters": True}
+    messages = transport.payload["messages"]
+    assert isinstance(messages, list)
+    system_prompt = messages[0]["content"]
+    assert "Optimize for useful lead discovery" in system_prompt
+    assert "weak for a credible directional indicator" in system_prompt
+    assert "services sold to clients do not establish" in system_prompt
 
 
 def test_rejects_missing_or_duplicate_signal_results() -> None:
