@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { OutreachDraft } from '../../api/outreach'
-import { gmailComposeUrl, isEmailAddress, normalizeLetterSpacing } from './gmail'
+import { ensureLetterParagraphs, gmailComposeUrl, isEmailAddress, normalizeLetterSpacing } from './gmail'
 
 const draft: OutreachDraft = {
   channel: 'email',
@@ -32,6 +32,14 @@ describe('Gmail compose integration', () => {
   it('keeps letter paragraphs while removing accidental excess spacing', () => {
     expect(normalizeLetterSpacing('Hello,\n\n\nContext.  \n\nOffer.')).toBe(
       'Hello,\n\nContext.\n\nOffer.',
+    )
+  })
+
+  it('turns a single-line model response into readable letter paragraphs', () => {
+    expect(ensureLetterParagraphs(
+      'Hello, I noticed your automation programme. We support process teams. Would a short call be useful? Best regards,',
+    )).toBe(
+      'Hello,\n\nI noticed your automation programme.\n\nWe support process teams.\n\nWould a short call be useful?\n\nBest regards,',
     )
   })
 })
