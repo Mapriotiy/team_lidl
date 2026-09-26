@@ -8,6 +8,7 @@ test('guides a business user through a three-step profile', async () => {
   const ai = await screen.findByRole('button', { name: /Applied AI/ })
   fireEvent.click(ai)
   expect(ai).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('heading', { name: 'Applied AI' })).toBeInTheDocument()
   expect((screen.getByRole('textbox', { name: /How we help/ }) as HTMLTextAreaElement).value).toContain('responsible AI solutions')
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
   fireEvent.click(screen.getByRole('button', { name: 'Financial services' }))
@@ -24,6 +25,13 @@ test('prevents progress until a service is selected', async () => {
   expect(screen.getByRole('button', { name: /Who we target/ })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: /RPA & automation/ }))
   expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+})
+
+test('offers distinct service templates', async () => {
+  render(<ProfileWorkspace />)
+  await screen.findByRole('button', { name: /RPA & automation/ })
+  expect(screen.getByRole('button', { name: /Cybersecurity/ })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Automation engineering/ })).not.toBeInTheDocument()
 })
 
 test('saves through the profile repository boundary', async () => {
