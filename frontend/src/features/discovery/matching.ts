@@ -30,7 +30,7 @@ export function profileSearch(profile: Profile): { request: DiscoveryRequest; no
   })
   if (notes.length) throw new Error(notes.join(' '))
   const size = String(icp.company_size ?? icp.company_sizes ?? '')
-  if (size) notes.push(`Company size preference: ${size}. Employee counts are unconfirmed; check the source before qualifying a company.`)
+  if (size) notes.push(`Company size preference: ${size}. Check the linked source before qualifying a company.`)
   if (icp.operational_complexity && icp.operational_complexity !== 'unknown') notes.push('Operational characteristics and buying signals are checked during research.')
   return { request: { country_codes: [...new Set(codes)], minimum_employees: minimumSize(profile), include_unknown_size: true, industry: null, industries: words(icp.industries), limit: 50 }, industries: words(icp.industries), notes }
 }
@@ -43,7 +43,7 @@ export function match(candidate: DiscoveryCandidate, profile: Profile) {
   if (words(icp.geographies).length) reasons.push('Within your target geography')
   if (industryMatches) reasons.push(`Industry matches ${candidate.industry}`)
   const sizeMatches = minimumSize(profile) > 1 && candidate.employee_count !== null && candidate.employee_count >= minimumSize(profile)
-  if (sizeMatches) reasons.push('Reported size meets minimum; unconfirmed')
+  if (sizeMatches) reasons.push('Reported size meets minimum')
   if (!reasons.length) reasons.push(industries.length ? 'Industry fit needs review' : 'Found within your search scope')
   if (industries.length && !industryMatches) reasons.push('Industry fit needs review')
   return { score: (industryMatches ? 4 : 0) + (sizeMatches ? 2 : 0), reason: [...new Set(reasons)].join(' · ') }

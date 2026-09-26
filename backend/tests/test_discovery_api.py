@@ -10,6 +10,7 @@ from app.db import Base, get_session
 from app.discovery import DiscoveryCandidate, DiscoveryRequest, SizeVerification
 from app.main import app
 from app.models.research import Company
+from app.models.results import DiscoveryRun
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestingSession = sessionmaker(bind=engine, expire_on_commit=False)
@@ -77,3 +78,50 @@ def test_rejects_domain_not_returned_by_discovery() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_retries_a_transient_discovery_failure() -> None:
+    class FlakyDiscovery(FakeDiscovery):
+        calls = 0
+
+        def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+            self.calls += 1
+            if self.calls == 1:
+                from app.discovery import WikidataError
+
+                raise WikidataError("temporary provider failure")
+            return super().discover(request)
+
+    flaky = FlakyDiscovery()
+    app.dependency_overrides[get_discovery_provider] = lambda: flaky
+
+    response = TestClient(app).post("/discovery-runs", json={})
+
+    assert response.status_code == 201
+    assert flaky.calls == 2
+
+
+def test_uses_matching_cached_results_when_provider_is_unavailable() -> None:
+    request = DiscoveryRequest()
+    candidate = FakeDiscovery().discover(request)[0]
+    with TestingSession.begin() as session:
+        session.add(
+            DiscoveryRun(
+                status="researchable_v1",
+                request=request.model_dump(mode="json"),
+                candidates=[candidate.model_dump(mode="json")],
+            )
+        )
+
+    class OfflineDiscovery:
+        def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+            from app.discovery import WikidataError
+
+            raise WikidataError("provider unavailable")
+
+    app.dependency_overrides[get_discovery_provider] = OfflineDiscovery
+
+    response = TestClient(app).post("/discovery-runs", json={})
+
+    assert response.status_code == 201
+    assert response.json()["candidates"][0]["domain"] == "example.com"

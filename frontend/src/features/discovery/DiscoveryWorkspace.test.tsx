@@ -26,7 +26,8 @@ test('automatically uses the saved profile and queues selected research', async 
   render(<DiscoveryWorkspace />)
   expect(await screen.findByRole('button', { name: 'Example SA' })).toBeInTheDocument()
   expect(createDiscoveryRun).toHaveBeenCalledWith(expect.objectContaining({ country_codes: ['RO'], minimum_employees: 1000 }), expect.any(AbortSignal))
-  expect(screen.getByText('2,500 · Unconfirmed')).toBeInTheDocument()
+  expect(screen.getByText(/2[,.]500/)).toBeInTheDocument()
+  expect(screen.queryByText(/Unconfirmed/i)).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Research selected' })).toBeDisabled()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Example SA' }))
   fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
@@ -67,4 +68,19 @@ test('loads another 25 results and filters without searching again', async () =>
   fireEvent.change(screen.getByRole('textbox', { name: 'Search companies' }), { target: { value: 'company29.ro' } })
   expect(screen.getAllByRole('checkbox')).toHaveLength(1)
   expect(createDiscoveryRun).toHaveBeenCalledTimes(1)
+})
+
+test('sorts discovered companies by clicking column headings', async () => {
+  vi.mocked(createDiscoveryRun).mockResolvedValue({ ...run, candidates: [
+    { ...candidate, name: 'Alpha', domain: 'alpha.ro', employee_count: 100 },
+    { ...candidate, name: 'Zeta', domain: 'zeta.ro', employee_count: 5000 },
+  ] })
+  render(<DiscoveryWorkspace />)
+  await screen.findByRole('button', { name: 'Alpha' })
+
+  fireEvent.click(screen.getByRole('button', { name: /^Sort by Employee count/ }))
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Zeta')
+  fireEvent.click(screen.getByRole('button', { name: /^Sort by Company/ }))
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Alpha')
+  expect(screen.queryByRole('button', { name: /^Sort by Confidence/ })).not.toBeInTheDocument()
 })

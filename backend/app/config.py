@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     assessment_timeout_seconds: float = 60
     research_budget_usd: float = 5
     source_text_retention_days: int = 30
+    worker_concurrency: int = Field(default=2, ge=1, le=4)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

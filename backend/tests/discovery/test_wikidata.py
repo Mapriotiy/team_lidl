@@ -31,7 +31,9 @@ class FakeLabels:
         }
 
 
-def binding(*, entity_id: str, website: str, employees: str) -> dict[str, dict[str, str]]:
+def binding(
+    *, entity_id: str, website: str, employees: str, statements: str = "12"
+) -> dict[str, dict[str, str]]:
     return {
         "company": {"value": f"https://www.wikidata.org/entity/{entity_id}"},
         "website": {"value": website},
@@ -39,6 +41,7 @@ def binding(*, entity_id: str, website: str, employees: str) -> dict[str, dict[s
         "countryCode": {"value": "PL"},
         "industry": {"value": "https://www.wikidata.org/entity/Q177"},
         "employees": {"value": employees},
+        "statements": {"value": statements},
     }
 
 
@@ -66,6 +69,34 @@ def test_discovers_sourced_companies_with_size_left_unverified() -> None:
     assert 'VALUES ?countryCode { "PL" "CZ"' in query
     assert "wdt:P31/wdt:P279* wd:Q783794" in query
     assert "FILTER NOT EXISTS" in query
+    assert "FILTER(?statements >= 8)" in query
+
+
+def test_filters_companies_with_too_little_public_footprint() -> None:
+    transport = FakeTransport(
+        {
+            "results": {
+                "bindings": [
+                    binding(
+                        entity_id="Q1",
+                        website="https://obscure.example",
+                        employees="2500",
+                        statements="7",
+                    ),
+                    binding(
+                        entity_id="Q2",
+                        website="https://researchable.example",
+                        employees="2500",
+                        statements="8",
+                    ),
+                ]
+            }
+        }
+    )
+
+    candidates = WikidataDiscovery(transport, FakeLabels()).discover(DiscoveryRequest())
+
+    assert [candidate.domain for candidate in candidates] == ["researchable.example"]
 
 
 def test_treats_implausible_employee_totals_as_unknown_size() -> None:

@@ -43,3 +43,8 @@ def test_import_submit_and_read() -> None:
     missing = client.get("/research-runs/missing")
     assert missing.status_code == 404
     assert missing.json()["detail"]["request_id"]
+    deleted = client.delete(f"/companies/{company_id}/research")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deleted_runs": 1}
+    assert client.get("/research-runs/" + submitted.json()["id"]).status_code == 404
+    assert client.get("/companies").json()[0]["id"] == company_id

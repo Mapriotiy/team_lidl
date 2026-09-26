@@ -9,7 +9,7 @@ test('shows imported companies without requiring an opportunity', async () => {
   render(<CompanyListWorkspace onOpen={onOpen} />)
   expect(await screen.findByRole('heading', { name: 'Example SA' })).toBeInTheDocument()
   expect(screen.getByText('example.ro')).toBeInTheDocument()
-  expect(screen.getByText('2,500')).toBeInTheDocument()
+  expect(screen.getByText(/2[,.]500/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'View record' }))
   expect(onOpen).toHaveBeenCalledWith('company-1')
 })
