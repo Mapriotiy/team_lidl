@@ -13,13 +13,11 @@ test('opens on the guided service profile', async () => {
   expect(screen.getByRole('button', { name: /Ideal customer/ })).toBeInTheDocument()
 })
 
-test('opens company evidence from the ranked opportunity list', async () => {
+test('keeps research navigation focused on sourcing and evidence', async () => {
   render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Opportunities' }))
-  const evidenceButtons = await screen.findAllByRole('button', { name: 'View evidence' })
-  fireEvent.click(evidenceButtons[0])
-  expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
-  expect(screen.getByText('Score breakdown')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Opportunities' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Companies' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Research' })).toBeInTheDocument()
 })
 
 test('shows buying signal guidance from the first page', async () => {
