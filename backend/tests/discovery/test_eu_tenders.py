@@ -67,7 +67,7 @@ def test_search_builds_portal_filters_and_sanitizes_results() -> None:
 
     assert transport.url.startswith("https://api.tech.ec.europa.eu/search-api/prod/rest/search?")
     assert "apiKey=SEDIA" in transport.url and "text=automation" in transport.url
-    assert "sortBy=startDate" in transport.url and "order=DESC" in transport.url
+    assert "sortBy=" not in transport.url and "order=" not in transport.url
     body, as_file = transport.fields["query"]
     assert as_file
     must = json.loads(body)["bool"]["must"]

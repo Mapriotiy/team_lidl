@@ -83,12 +83,14 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["profile_name"] == "Process automation"
-    assert body["total"] == 1
+    assert body["total"] == 5
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
     assert body["opportunities"][0]["fit_score"] >= 0
     assert body["opportunities"][0]["recommendation"] == "needs_review"
     assert body["opportunities"][0]["dimensions"][-1]["score"] is None
     assert body["opportunities"][0]["risks"]
+    assert body["opportunities"][0]["decision_summary"]
+    assert body["opportunities"][0]["next_actions"]
     assert body["warnings"]
     assert tenders.queries[0] == "automation"
     assert body["query"] == " | ".join(tenders.queries)
@@ -96,15 +98,30 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert "services" not in tenders.queries[0]
 
 
-def test_builtin_services_use_recall_safe_tender_queries() -> None:
+def test_builtin_services_use_diverse_recall_safe_tender_queries() -> None:
     queries = {
-        preset.name: eu_tenders.profile_query(preset.configuration) for preset in load_presets()
+        preset.name: eu_tenders.profile_query_portfolio(preset.configuration)
+        for preset in load_presets()
     }
 
     assert queries == {
-        "RPA": "automation",
-        "Cybersecurity": "cybersecurity",
-        "Software development": "software",
+        "RPA": [
+            "automation",
+            "process automation",
+            "workflow automation",
+            "process mining",
+            "digital transformation",
+        ],
+        "Cybersecurity": [
+            "cybersecurity", "cyber resilience", "information security", "zero trust"
+        ],
+        "Software development": [
+            "software development",
+            "digital platform",
+            "cloud platform",
+            "data platform",
+            "open source",
+        ],
     }
 
 

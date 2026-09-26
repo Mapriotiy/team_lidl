@@ -157,11 +157,23 @@ def _public_call_url(item: Mapping[str, object], metadata: Mapping[str, object])
     return portal_url
 
 
-def _programme(value: object) -> str | None:
+_PROGRAMME_PREFIXES = {
+    "CEF": "Connecting Europe Facility",
+    "DIGITAL": "Digital Europe Programme",
+    "ERASMUS": "Erasmus+",
+    "EU4H": "EU4Health",
+    "HORIZON": "Horizon Europe",
+    "LIFE": "LIFE Programme",
+    "SMP": "Single Market Programme",
+}
+
+
+def _programme(value: object, identifier: str) -> str | None:
     programme = _first(value)
-    if programme is None or programme.isdigit():
-        return None
-    return programme
+    if programme is not None and not programme.isdigit():
+        return programme
+    prefix = identifier.split("-", 1)[0].upper()
+    return _PROGRAMME_PREFIXES.get(prefix)
 
 
 def _number(value: object) -> float | None:
@@ -300,8 +312,6 @@ class EuTendersDiscovery:
             # then enforce profile-term relevance and the requested limit locally.
             "pageSize": str(self.max_page_size),
             "pageNumber": "1",
-            "sortBy": "startDate",
-            "order": "DESC",
         }
         payload = self._request(f"{SEDIA_ENDPOINT}?{urlencode(params)}", filters)
         if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
@@ -348,7 +358,7 @@ class EuTendersDiscovery:
                         status="forthcoming" if status == STATUS_FORTHCOMING else "open",
                         start_date=_date(metadata.get("startDate")),
                         deadline=deadline,
-                        programme=_programme(metadata.get("frameworkProgramme")),
+                        programme=_programme(metadata.get("frameworkProgramme"), identifier),
                         summary=summary,
                         opportunity_type=_opportunity_type(portal_url),
                         budget=_number(metadata.get("budget")),

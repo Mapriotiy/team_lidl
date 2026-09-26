@@ -14,12 +14,13 @@ export interface TenderCall {
 }
 
 export interface TenderFitDimension { id: string; label: string; score: number | null; explanation: string }
-export interface TenderOpportunity { call: TenderCall; fit_score: number; recommendation: 'bid' | 'partner' | 'monitor' | 'reject' | 'needs_review'; dimensions: TenderFitDimension[]; matched_terms: string[]; risks: string[] }
+export interface TenderOpportunity { call: TenderCall; fit_score: number; recommendation: 'bid' | 'partner' | 'monitor' | 'reject' | 'needs_review'; dimensions: TenderFitDimension[]; matched_terms: string[]; risks: string[]; decision_summary: string; next_actions: string[] }
 
 export interface EuTendersSearch {
   profile_id: string
   profile_name: string
   query: string
+  queries: string[]
   total: number
   calls: TenderCall[]
   opportunities: TenderOpportunity[]

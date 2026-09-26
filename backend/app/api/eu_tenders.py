@@ -64,12 +64,15 @@ class TenderOpportunity(BaseModel):
     dimensions: list[TenderFitDimension]
     matched_terms: list[str]
     risks: list[str]
+    decision_summary: str
+    next_actions: list[str]
 
 
 class EuTendersSearch(BaseModel):
     profile_id: str
     profile_name: str
     query: str
+    queries: list[str] = Field(default_factory=list)
     total: int
     calls: list[TenderCall]
     opportunities: list[TenderOpportunity] = Field(default_factory=list)
@@ -77,7 +80,7 @@ class EuTendersSearch(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-def profile_query(configuration: ProfileConfiguration) -> str:
+def profile_query_portfolio(configuration: ProfileConfiguration) -> list[str]:
     text = " ".join(
         [configuration.service_role or "", configuration.service_description]
         + [signal.question for signal in configuration.signals]
@@ -86,23 +89,39 @@ def profile_query(configuration: ProfileConfiguration) -> str:
     lowered = text.casefold()
     acronyms = re.findall(r"\b[A-Z][A-Z0-9]{1,9}\b", text)
     if "RPA" in acronyms:
-        # SEDIA expands phrases very loosely; the central domain term produces a
-        # smaller candidate pool that can be validated deterministically downstream.
-        return "automation"
+        return [
+            "automation",
+            "process automation",
+            "workflow automation",
+            "process mining",
+            "digital transformation",
+        ]
     if "cybersecurity" in lowered or "security engineering" in lowered:
-        return "cybersecurity"
+        return ["cybersecurity", "cyber resilience", "information security", "zero trust"]
     if "software development" in lowered or "product engineering" in lowered:
-        return "software"
+        return [
+            "software development",
+            "digital platform",
+            "cloud platform",
+            "data platform",
+            "open source",
+        ]
     phrases = [phrase for phrase in _DOMAIN_PHRASES if phrase in lowered]
     if phrases:
-        return phrases[0]
+        return phrases[:4]
     terms: list[str] = []
     for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", lowered):
         if term not in _STOPWORDS and term not in terms:
             terms.append(term)
         if len(terms) == MAX_TERMS:
             break
-    return " ".join(terms[:3]) or "digital transformation"
+    queries = terms[:4]
+    return queries or ["digital transformation"]
+
+
+def profile_query(configuration: ProfileConfiguration) -> str:
+    """Backward-compatible primary query used in logs and older clients."""
+    return profile_query_portfolio(configuration)[0]
 
 
 # SEDIA ranks single words well and phrases poorly, so each domain fans out into a few
@@ -177,6 +196,9 @@ def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOp
         + 0.15 * (deadline_score if deadline_score is not None else 45)
         + 0.1 * type_score
     )
+    # Search metadata cannot establish legal eligibility. Keep the screening score
+    # visibly below a bid-ready result until document-level evidence exists.
+    fit_score = min(fit_score, 79)
     risks = ["Eligibility requirements have not yet been extracted from the call documents."]
     if call.budget is None:
         risks.append("No structured budget is available from the search result.")
@@ -184,20 +206,50 @@ def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOp
         risks.append("This is funding demand, not a procurement contract.")
     if capability < 50:
         recommendation = "reject"
-    elif call.opportunity_type == "public_procurement" and evidence >= 85 and fit_score >= 80:
-        recommendation = "bid"
+    elif call.opportunity_type == "public_procurement":
+        recommendation = "needs_review"
     elif call.opportunity_type in {"funding_call", "cascade_funding"} and fit_score >= 65:
         recommendation = "partner"
     elif deadline_score is not None and deadline_score < 50:
         recommendation = "monitor"
     else:
         recommendation = "needs_review"
+    decision_summary = {
+        "reject": "The published scope does not match enough of this service profile.",
+        "partner": (
+            "Relevant funded demand exists, but participation and consortium fit need "
+            "verification."
+        ),
+        "monitor": (
+            "The scope may fit, but the current deadline makes immediate participation unlikely."
+        ),
+        "bid": "The call appears bid-ready against the available evidence.",
+        "needs_review": (
+            "The scope is relevant, but eligibility must be verified before committing bid effort."
+        ),
+    }[recommendation]
+    next_actions = [
+        "Open the official call and verify eligible applicant countries and entity types.",
+        "Check consortium, co-funding and mandatory certification requirements.",
+    ]
+    if recommendation == "partner":
+        next_actions.append(
+            "Identify a coordinator or consortium partner covering the missing eligibility."
+        )
+    elif recommendation == "needs_review":
+        next_actions.append("Assign an owner to complete a document-level go/no-go review.")
+    elif recommendation == "reject":
+        next_actions = ["Archive the call unless the service profile or published scope changes."]
+    else:
+        next_actions.append("Compare deliverables and timetable with current delivery capacity.")
     return TenderOpportunity(
         call=call,
         fit_score=fit_score,
         recommendation=recommendation,
         matched_terms=matched,
         risks=risks,
+        decision_summary=decision_summary,
+        next_actions=next_actions,
         dimensions=[
             TenderFitDimension(
                 id="capability",
@@ -264,16 +316,32 @@ def search(
         # Keep upstream text out of the response; the portal message is not user-facing.
         detail = "EU tenders portal is temporarily unavailable" if exc.retryable else str(exc)
         raise HTTPException(status_code=502, detail=detail) from exc
+    calls_by_id = {
+        (call.identifier, call.title.casefold()): (call, queries[0]) for call in result.calls
+    }
+    candidate_total = result.total
+    retrieved_at = result.retrieved_at
+    opportunities = [
+        _fit_opportunity(call, matched_query, now=datetime.now(UTC))
+        for call, matched_query in calls_by_id.values()
+    ]
+    opportunities.sort(
+        key=lambda item: (
+            -item.fit_score,
+            item.call.deadline or datetime.max.replace(tzinfo=UTC),
+        )
+    )
+    opportunities = opportunities[:limit]
+    calls = [item.call for item in opportunities]
     return EuTendersSearch(
         profile_id=profile.id,
         profile_name=profile.name,
         query=result.query,
-        total=result.total,
-        calls=result.calls,
-        opportunities=[
-            _fit_opportunity(call, result.query, now=datetime.now(UTC)) for call in result.calls
-        ],
-        retrieved_at=result.retrieved_at,
+        queries=queries,
+        total=candidate_total,
+        calls=calls,
+        opportunities=opportunities,
+        retrieved_at=retrieved_at,
         warnings=(
             ["Calls are published by EU bodies and never name prospects; treat as market demand."]
         ),
