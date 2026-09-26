@@ -42,11 +42,21 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(screen.getByText(/%/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Signals and supporting facts' })).toBeInTheDocument()
   expect(screen.getByText('Promising signal')).toBeInTheDocument()
   const source = screen.getByRole('link', { name: /Open original: Lufthansa Group outlines efficiency programme/ })
   expect(source).toHaveAttribute('href', 'https://example.com/lufthansa/efficiency')
-  fireEvent.mouseEnter(source)
-  expect(screen.getByText(/The Group announced a two-year operational-efficiency programme/)).toHaveClass('bg-[#FFE9D8]')
+  expect(screen.getByText(/The Group announced a two-year operational-efficiency programme/)).toBeInTheDocument()
+  expect(screen.getByText(/No verified public fact currently supports or contradicts this signal/)).toBeInTheDocument()
+
+  const sourceInventory = screen.getByText('Collected sources').closest('details')
+  expect(sourceInventory).not.toHaveAttribute('open')
+  fireEvent.click(screen.getByText('Collected sources'))
+  expect(sourceInventory).toHaveAttribute('open')
+  expect(screen.getByText('3 public documents · 1 company · 1 careers · 1 report')).toBeInTheDocument()
+
+  const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
+  expect(headings.indexOf('Collected sources')).toBeGreaterThan(headings.indexOf('Research history and diagnostics'))
 })
 
 test('allows all saved research for a company to be deleted', async () => {

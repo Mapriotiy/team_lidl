@@ -8,6 +8,11 @@ export const companyFixture: CompanyDetail = {
     { label: 'Company size', value: '100,000+ employees', state: 'known', sourceIds: ['source-report'] },
     { label: 'Operational complexity', value: null, state: 'unknown', sourceIds: [] },
   ],
+  sources: [
+    { id: 'source-newsroom', title: 'Lufthansa Group outlines efficiency programme', url: 'https://example.com/lufthansa/efficiency', type: 'company', retrievedAt: '2026-09-25T14:38:00Z', publicationDate: '2026-08-14' },
+    { id: 'source-careers', title: 'Automation centre of excellence roles', url: 'https://example.com/lufthansa/careers', type: 'careers', retrievedAt: '2026-09-25T14:39:00Z', publicationDate: '2026-07-03' },
+    { id: 'source-report', title: 'Annual report 2025', url: 'https://example.com/lufthansa/report', type: 'report', retrievedAt: '2026-09-25T14:40:00Z', publicationDate: '2026-03-12' },
+  ],
   evidence: [
     { id: 'evidence-efficiency', sourceId: 'source-newsroom', sourceTitle: 'Lufthansa Group outlines efficiency programme', sourceUrl: 'https://example.com/lufthansa/efficiency', sourceType: 'Company newsroom', publicationDate: '2026-08-14', excerpt: 'The Group announced a two-year operational-efficiency programme focused on simplifying shared processes.', factualClaim: 'The company announced a two-year operational-efficiency programme.' },
     { id: 'evidence-capability', sourceId: 'source-careers', sourceTitle: 'Automation centre of excellence roles', sourceUrl: 'https://example.com/lufthansa/careers', sourceType: 'Careers', publicationDate: '2026-07-03', excerpt: 'The automation centre of excellence will expand its internal delivery team across the Group.', factualClaim: 'The company is expanding an internal automation delivery team.' },
