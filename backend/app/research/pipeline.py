@@ -1,6 +1,7 @@
 import re
 from datetime import timedelta
 from typing import Literal
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -81,6 +82,20 @@ _SIGNAL_QUERY_STOPWORDS = _QUERY_STOPWORDS | {
     "specific",
 }
 _SHORT_SIGNAL_TERMS = {"ai", "ml", "rpa", "soc"}
+_COMMON_SECOND_LEVEL_DOMAINS = {"ac", "co", "com", "edu", "gov", "net", "org"}
+
+
+def _publisher_key(url: str) -> str:
+    """Collapse publisher subdomains while retaining common country-code domains."""
+    hostname = (urlparse(url).hostname or url).casefold().strip(".")
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    labels = [label for label in hostname.split(".") if label]
+    if len(labels) <= 2:
+        return hostname
+    if len(labels[-1]) == 2 and labels[-2] in _COMMON_SECOND_LEVEL_DOMAINS:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
 
 
 def _research_queries(company_name: str, configuration: ProfileConfiguration) -> list[str]:
@@ -502,6 +517,10 @@ class IntegratedResearchPipeline:
                     assessment=assessment,
                     event_date=max(event_dates) if event_dates else None,
                     publication_date=max(publication_dates) if publication_dates else None,
+                    source_independence_keys={
+                        item.id: _publisher_key(item.canonical_url)
+                        for item in cited_documents
+                    },
                 )
             )
         score = calculate_score(

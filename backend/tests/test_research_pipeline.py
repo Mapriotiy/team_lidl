@@ -17,12 +17,23 @@ from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import Opportunity, StoredScoreSnapshot, StoredSourceDocument
 from app.research import IntegratedResearchPipeline
-from app.research.pipeline import _research_queries
+from app.research.pipeline import _publisher_key, _research_queries
 
 
 class FakeNews:
     def discover(self, company_name: str, *, limit: int = 5) -> list[object]:
         return []
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://business.publisher.com/article", "publisher.com"),
+        ("https://news.publisher.co.uk/article", "publisher.co.uk"),
+    ],
+)
+def test_publisher_key_collapses_subdomains(url: str, expected: str) -> None:
+    assert _publisher_key(url) == expected
 
 
 def test_research_queries_cover_profile_official_analysis_and_discussions() -> None:
