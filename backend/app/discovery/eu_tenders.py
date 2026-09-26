@@ -21,7 +21,9 @@ SEDIA_ENDPOINT = "https://api.tech.ec.europa.eu/search-api/prod/rest/search"
 # Public constant used by the portal itself; it is not an account credential.
 SEDIA_API_KEY = "SEDIA"
 PORTAL_HOST = "ec.europa.eu"
-CALL_TYPE_TENDER = "8"
+# Official SEDIA "All grants and tenders" lanes: procurement, direct grants,
+# external-action grants and cascade funding.
+CALL_TYPES = ["0", "1", "2", "8"]
 STATUS_FORTHCOMING = "31094501"
 STATUS_OPEN = "31094502"
 MAX_PAGE_SIZE = 50
@@ -299,7 +301,7 @@ class EuTendersDiscovery:
         filters = {
             "bool": {
                 "must": [
-                    {"terms": {"type": [CALL_TYPE_TENDER]}},
+                    {"terms": {"type": CALL_TYPES}},
                     {"terms": {"status": statuses}},
                     {"terms": {"language": [language]}},
                 ]
