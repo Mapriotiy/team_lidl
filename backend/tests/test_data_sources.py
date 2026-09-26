@@ -125,6 +125,7 @@ def test_pipeline_logs_actual_outcomes_through_fenced_checkpoint(newsapi_enabled
         openrouter_api_key="secret-provider-token",
         assessment_model="test/model",
         newsapi_key="secret-provider-token" if newsapi_enabled else None,
+        eu_tenders_enabled=False,
     )
     response = client.get("/data-sources")
     assert response.status_code == 200
