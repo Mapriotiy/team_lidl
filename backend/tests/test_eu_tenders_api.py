@@ -133,6 +133,35 @@ def test_builtin_services_fan_out_to_synonym_queries_with_relevance_stems() -> N
         assert stems
 
 
+def test_fit_score_preserves_real_differences_below_unverified_eligibility() -> None:
+    now = datetime(2026, 9, 26, tzinfo=UTC)
+    complete = TenderCall(
+        identifier="A",
+        title="Automation platform",
+        url="https://example.eu/a",
+        status="open",
+        summary="Automation delivery programme",
+        deadline=datetime(2026, 12, 31, tzinfo=UTC),
+        programme="Digital Europe",
+        budget=1_000_000,
+        opportunity_type="public_procurement",
+    )
+    incomplete = TenderCall(
+        identifier="B",
+        title="Automation support",
+        url="https://example.eu/b",
+        status="open",
+        summary="Automation support",
+        opportunity_type="cascade_funding",
+    )
+
+    complete_fit = eu_tenders._fit_opportunity(complete, "automation", now=now)
+    incomplete_fit = eu_tenders._fit_opportunity(incomplete, "automation", now=now)
+
+    assert complete_fit.fit_score > incomplete_fit.fit_score
+    assert complete_fit.fit_score < 80
+    assert incomplete_fit.fit_score < 70
+
 def test_search_reports_unknown_profile_and_upstream_failure_safely() -> None:
     enable(True)
     app.dependency_overrides[eu_tenders.get_tenders] = lambda: RecordingTenders()

@@ -200,15 +200,15 @@ def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOp
         deadline_score = 90 if remaining >= 30 else 65 if remaining >= 14 else 30
         deadline_note = f"{remaining} days remain before the published deadline."
     type_score = 100 if call.opportunity_type == "public_procurement" else 65
+    # Eligibility owns 20 points and contributes zero until document-level evidence
+    # exists. This keeps screening honest without flattening every strong result to
+    # one arbitrary ceiling.
     fit_score = round(
-        0.5 * capability
-        + 0.25 * evidence
+        0.4 * capability
+        + 0.15 * evidence
         + 0.15 * (deadline_score if deadline_score is not None else 45)
         + 0.1 * type_score
     )
-    # Search metadata cannot establish legal eligibility. Keep the screening score
-    # visibly below a bid-ready result until document-level evidence exists.
-    fit_score = min(fit_score, 79)
     risks = ["Eligibility requirements have not yet been extracted from the call documents."]
     if call.budget is None:
         risks.append("No structured budget is available from the search result.")
@@ -218,7 +218,7 @@ def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOp
         recommendation = "reject"
     elif call.opportunity_type == "public_procurement":
         recommendation = "needs_review"
-    elif call.opportunity_type in {"funding_call", "cascade_funding"} and fit_score >= 65:
+    elif call.opportunity_type in {"funding_call", "cascade_funding"} and fit_score >= 55:
         recommendation = "partner"
     elif deadline_score is not None and deadline_score < 50:
         recommendation = "monitor"

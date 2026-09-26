@@ -21,7 +21,7 @@ beforeEach(() => {
     profile_id: 'profile-1', profile_name: 'RPA', query: 'automation', queries: ['automation', 'process automation'], total: 8, retrieved_at: '2026-09-26T12:00:00Z', warnings: [], calls: [],
     opportunities: [{
       call: { identifier: 'DIGITAL-2026', title: 'Automation services framework', url: 'https://example.eu/call', status: 'open', start_date: null, deadline: '2026-12-31T00:00:00Z', programme: 'Digital Europe', summary: 'Public buyers seek process automation expertise.', opportunity_type: 'public_procurement', budget: 2_000_000 },
-      fit_score: 79, recommendation: 'partner', matched_terms: ['automation', 'workflow'], risks: ['Eligibility requirements have not been extracted yet.'], decision_summary: 'Relevant funded demand exists, but participation needs verification.', next_actions: ['Verify applicant eligibility.', 'Find a consortium partner.'],
+      fit_score: 75, recommendation: 'partner', matched_terms: ['automation', 'workflow'], risks: ['Eligibility requirements have not been extracted yet.'], decision_summary: 'Relevant funded demand exists, but participation needs verification.', next_actions: ['Verify applicant eligibility.', 'Find a consortium partner.'],
       dimensions: [
         { id: 'capability_fit', label: 'Capability fit', score: 90, explanation: 'Two service-profile terms match.' },
         { id: 'eligibility', label: 'Eligibility', score: null, explanation: 'Not available from search metadata.' },
@@ -37,7 +37,7 @@ test('turns portal calls into an explainable tender decision brief', async () =>
   await waitFor(() => expect(searchEuTenders).toHaveBeenCalledWith('profile-1', 20))
   expect(await screen.findByRole('heading', { name: 'Automation services framework' })).toBeInTheDocument()
   expect(screen.getAllByText('Find a partner').length).toBeGreaterThan(0)
-  expect(screen.getAllByText('79')).toHaveLength(2)
+  expect(screen.getAllByText('75')).toHaveLength(2)
   expect(screen.getByText('Programmes represented')).toBeInTheDocument()
   expect(screen.getByText('Screening decision')).toBeInTheDocument()
   expect(screen.getByText('Recommended next steps')).toBeInTheDocument()
