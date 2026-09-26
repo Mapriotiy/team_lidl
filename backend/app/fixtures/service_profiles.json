@@ -4,10 +4,9 @@
     "configuration": {
       "service_description": "Intelligent automation, workflow modernization and process improvement services.",
       "icp": {
-        "geographies": [],
-        "industries": [],
-        "company_sizes": [],
-        "operational_complexity": "unknown"
+        "industry": [],
+        "geography": [],
+        "company_size": ""
       },
       "signals": [
         {
@@ -71,7 +70,7 @@
     "name": "Cybersecurity",
     "configuration": {
       "service_description": "Security engineering, risk reduction and compliance support.",
-      "icp": {"geographies": [], "industries": [], "company_sizes": []},
+      "icp": {"industry": [], "geography": [], "company_size": ""},
       "signals": [
         {
           "id": "security-hiring",
@@ -116,7 +115,7 @@
     "name": "Software development",
     "configuration": {
       "service_description": "Product engineering, platform modernization and digital-channel delivery.",
-      "icp": {"geographies": [], "industries": [], "company_sizes": []},
+      "icp": {"industry": [], "geography": [], "company_size": ""},
       "signals": [
         {
           "id": "product-launch",
