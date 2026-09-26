@@ -236,6 +236,36 @@
         {"profile": "Process automation", "signal_id": "efficiency-program", "expected_status": "insufficient_evidence", "evidence": []},
         {"profile": "Cybersecurity", "signal_id": "confirmed-incident", "expected_status": "insufficient_evidence", "evidence": []}
       ]
+    },
+    {
+      "id": "eval-headline-only-synthetic",
+      "name": "Northstar Manufacturing (synthetic)",
+      "country": "Synthetic benchmark case",
+      "domains": ["northstar.example.test"],
+      "case_tags": ["headline-only", "synthetic-adversarial"],
+      "identity_notes": "Deterministic adversarial fixture; not a real company or public-source claim.",
+      "sources": [
+        {
+          "id": "headline-only-s1",
+          "url": "https://news.example.test/northstar-automation",
+          "source_type": "news",
+          "published_at": "2026-09-01",
+          "language": "en",
+          "company_attribution": "confirmed",
+          "event_key": "northstar-rumor-2026",
+          "content_scope": "headline_only",
+          "normalized_text": "Northstar Manufacturing may consider a major automation overhaul"
+        }
+      ],
+      "labels": [
+        {
+          "profile": "Process automation",
+          "signal_id": "transformation-initiative",
+          "expected_status": "insufficient_evidence",
+          "evidence": [],
+          "review_note": "A speculative headline without article body cannot establish a company initiative."
+        }
+      ]
     }
   ]
 }

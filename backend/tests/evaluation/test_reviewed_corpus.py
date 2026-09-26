@@ -35,6 +35,7 @@ REQUIRED_CASE_TAGS = {
     "stale-evidence",
     "syndicated-coverage",
     "multi-service",
+    "headline-only",
 }
 
 
@@ -119,11 +120,13 @@ def test_evaluation_run_template_covers_required_quality_and_cost_metrics() -> N
         "true_positive_supported",
         "false_positive_supported",
         "false_negative_supported",
+        "supported_predictions",
         "reviewed_labels",
         "labels_with_usable_sources",
         "wrong_company_attributions",
         "inaccurate_excerpts",
         "duplicate_events_counted",
+        "headline_only_supported",
     }
     assert set(report["metrics"]) == {
         "supported_finding_precision",
@@ -131,6 +134,7 @@ def test_evaluation_run_template_covers_required_quality_and_cost_metrics() -> N
         "research_coverage",
         "wrong_company_attribution_rate",
         "excerpt_accuracy",
+        "headline_only_supported_rate",
         "mean_latency_ms_per_completed_account",
         "mean_cost_usd_per_completed_account",
     }
