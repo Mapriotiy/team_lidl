@@ -71,22 +71,6 @@ def test_discovery_requires_confirmation_before_import() -> None:
     assert len(confirmed.json()["company_ids"]) == 1
 
 
-def test_lists_configured_discovery_regions() -> None:
-    response = TestClient(app).get("/discovery-runs/regions")
-
-    assert response.status_code == 200
-    regions = response.json()
-    assert [item["id"] for item in regions] == [
-        "eastern-europe",
-        "western-europe",
-        "north-america",
-        "asia-pacific",
-        "latin-america",
-        "middle-east-africa",
-    ]
-    assert "RO" in regions[0]["country_codes"]
-
-
 def test_rejects_domain_not_returned_by_discovery() -> None:
     client = TestClient(app)
     run = client.post("/discovery-runs", json={}).json()

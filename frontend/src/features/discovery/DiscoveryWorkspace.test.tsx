@@ -2,14 +2,14 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { DiscoveryWorkspace } from './DiscoveryWorkspace'
 import { listProfiles } from '../../api/profiles'
-import { createDiscoveryRun, confirmDiscoveryRun, listDiscoveryRegions } from '../../api/discovery'
+import { createDiscoveryRun, confirmDiscoveryRun } from '../../api/discovery'
 import { submitResearch } from '../../api/research'
 
 vi.mock('../../api/profiles', () => ({
   listProfiles: vi.fn(),
   selectDefaultProfile: (profiles: unknown[]) => profiles[0],
 }))
-vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn(), listDiscoveryRegions: vi.fn() }))
+vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn() }))
 vi.mock('../../api/research', () => ({ submitResearch: vi.fn(), importCompanies: vi.fn() }))
 let version = 0
 const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1' }
@@ -17,19 +17,9 @@ const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], 
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); version++
   vi.mocked(listProfiles).mockResolvedValue([{ id: 'profile', name: 'Automation', current_version: { id: `version-${version}`, version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'], company_size: '1,000+ employees' }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' }])
-  vi.mocked(listDiscoveryRegions).mockResolvedValue([{ id: 'eastern-europe', name: 'Eastern Europe', country_codes: ['RO'] }, { id: 'north-america', name: 'North America', country_codes: ['US', 'CA'] }])
   vi.mocked(createDiscoveryRun).mockResolvedValue(run)
   vi.mocked(confirmDiscoveryRun).mockResolvedValue({ run, company_ids: ['company'] })
   vi.mocked(submitResearch).mockResolvedValue({ id: 'research' } as never)
-})
-
-test('switches discovery region and sends its country set to the API', async () => {
-  render(<DiscoveryWorkspace />)
-  await screen.findByRole('button', { name: 'Example SA' })
-
-  fireEvent.change(screen.getByRole('combobox', { name: 'Region for discovery' }), { target: { value: 'north-america' } })
-
-  expect(createDiscoveryRun).toHaveBeenLastCalledWith(expect.objectContaining({ country_codes: ['US', 'CA'] }), expect.any(AbortSignal))
 })
 
 test('automatically uses the saved profile and queues selected research', async () => {
@@ -95,7 +85,7 @@ test('sorts discovered companies by clicking column headings', async () => {
   expect(screen.queryByRole('button', { name: /^Sort by Confidence/ })).not.toBeInTheDocument()
 })
 
-test('discovers and queues companies for the selected service profile', async () => {
+test('uses the active profile without duplicate discovery selectors', async () => {
   vi.mocked(listProfiles).mockResolvedValue([
     { id: 'rpa', name: 'RPA', current_version: { id: 'rpa-version', version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
     { id: 'cyber', name: 'Cybersecurity', current_version: { id: 'cyber-version', version: 1, configuration: { service_description: 'Security', icp: { geographies: ['Romania'], industries: ['Financial services'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
@@ -103,12 +93,7 @@ test('discovers and queues companies for the selected service profile', async ()
   render(<DiscoveryWorkspace />)
   await screen.findByRole('button', { name: 'Example SA' })
 
-  fireEvent.change(screen.getByRole('combobox', { name: 'Service profile for discovery' }), { target: { value: 'cyber' } })
-  await vi.waitFor(() => expect(createDiscoveryRun).toHaveBeenLastCalledWith(expect.objectContaining({ industries: ['Financial services'] }), expect.any(AbortSignal)))
-  expect(screen.getByRole('combobox', { name: 'Service profile for discovery' })).toHaveValue('cyber')
-  expect(screen.getByText(/Financial services/)).toBeInTheDocument()
-
-  fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Example SA' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
-  await vi.waitFor(() => expect(submitResearch).toHaveBeenCalledWith('company', 'cyber-version', 'discovery-run-cyber-version-company'))
+  expect(createDiscoveryRun).toHaveBeenCalledWith(expect.objectContaining({ country_codes: ['RO'], industries: ['Logistics'] }), expect.any(AbortSignal))
+  expect(screen.queryByRole('combobox', { name: 'Region for discovery' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('combobox', { name: 'Service profile for discovery' })).not.toBeInTheDocument()
 })
