@@ -13,6 +13,7 @@ from app.api import eu_tenders
 from app.config import Settings, get_settings
 from app.discovery import EuTendersError, TenderCall, TenderSearchResult
 from app.main import app
+from app.seed import load_presets
 
 client = TestClient(app)
 
@@ -79,7 +80,20 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert body["warnings"]
     assert tenders.queries == [body["query"]]
     assert body["query"] == "automation"
-    assert "services" not in body["query"].split(" OR ")
+    assert "services" not in body["query"]
+
+
+def test_builtin_services_use_recall_safe_tender_queries() -> None:
+    queries = {
+        preset.name: eu_tenders.profile_query(preset.configuration)
+        for preset in load_presets()
+    }
+
+    assert queries == {
+        "RPA": "automation",
+        "Cybersecurity": "cybersecurity",
+        "Software development": "software",
+    }
 
 
 def test_search_reports_unknown_profile_and_upstream_failure_safely() -> None:

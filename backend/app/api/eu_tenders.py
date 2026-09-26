@@ -72,6 +72,10 @@ def profile_query(configuration: ProfileConfiguration) -> str:
         # SEDIA expands phrases very loosely; the central domain term produces a
         # smaller candidate pool that can be validated deterministically downstream.
         return "automation"
+    if "cybersecurity" in lowered or "security engineering" in lowered:
+        return "cybersecurity"
+    if "software development" in lowered or "product engineering" in lowered:
+        return "software"
     phrases = [phrase for phrase in _DOMAIN_PHRASES if phrase in lowered]
     if phrases:
         return phrases[0]
