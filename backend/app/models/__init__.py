@@ -1,3 +1,4 @@
+from app.models.catalog import CatalogCompany
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import (
@@ -12,6 +13,7 @@ from app.models.results import (
 
 __all__ = [
     "Company",
+    "CatalogCompany",
     "DiscoveryRun",
     "EvidenceTranslation",
     "Opportunity",
