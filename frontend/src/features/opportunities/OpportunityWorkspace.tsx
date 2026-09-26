@@ -250,7 +250,7 @@ export function OpportunityWorkspace() {
         {view === 'companies' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyListWorkspace onOpen={(companyId) => { setSelectedCompanyId(companyId); setSelectedOpportunity(null); setView('company') }} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
-        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} /></div>}
+        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} onOpenCompany={(companyId) => { setSelectedCompanyId(companyId); setSelectedOpportunity(null); setView('company') }} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <section aria-labelledby="service-heading" className="mt-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

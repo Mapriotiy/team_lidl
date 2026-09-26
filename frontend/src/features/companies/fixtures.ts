@@ -23,7 +23,7 @@ export const companyFixture: CompanyDetail = {
     { signal: 'Strong internal capability', effect: 'penalty', points: -4.8, evidenceIds: ['evidence-capability'] },
   ],
   researchRuns: [
-    { id: 'run-2026-09-25', status: 'partial', startedAt: '2026-09-25T14:36:00Z', finishedAt: '2026-09-25T14:42:00Z', collected: 7, assessed: 5, warning: 'One careers page was blocked; completed sources were retained.' },
-    { id: 'run-2026-09-18', status: 'completed', startedAt: '2026-09-18T09:10:00Z', finishedAt: '2026-09-18T09:17:00Z', collected: 6, assessed: 5, warning: null },
+    { id: 'run-2026-09-25', status: 'partial', startedAt: '2026-09-25T14:36:00Z', finishedAt: '2026-09-25T14:42:00Z', collected: 7, collectionTotal: 8, assessed: 5, assessmentTotal: 5, model: 'google/gemini-3.1-flash-lite', totalTokens: 2840, costUsd: 0.002, warning: 'One careers page was blocked; completed sources were retained.' },
+    { id: 'run-2026-09-18', status: 'completed', startedAt: '2026-09-18T09:10:00Z', finishedAt: '2026-09-18T09:17:00Z', collected: 6, collectionTotal: 6, assessed: 5, assessmentTotal: 5, model: 'google/gemini-3.1-flash-lite', totalTokens: 2410, costUsd: 0.0018, warning: null },
   ],
 }

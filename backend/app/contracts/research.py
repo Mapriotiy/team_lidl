@@ -34,6 +34,7 @@ class ResearchRunRead(ContractModel):
     progress: list[ResearchProgress]
     partial_errors: list[PartialError]
     result_links: dict[str, str]
+    usage: dict[str, object] = Field(default_factory=dict)
     queued_at: datetime
     started_at: datetime | None = None
     finished_at: datetime | None = None
