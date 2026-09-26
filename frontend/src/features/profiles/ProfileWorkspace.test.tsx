@@ -55,3 +55,33 @@ test('saves through the profile repository boundary', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save profile and discover companies' }))
   expect(await screen.findByText('Profile saved')).toBeInTheDocument()
 })
+
+test('duplicates a profile without overwriting the saved version', async () => {
+  render(<ProfileWorkspace />)
+  await screen.findByRole('heading', { name: 'Tell us what a good opportunity looks like' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
+
+  expect(screen.getByText('Service profile · Unsaved')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: /Profile name/ })).toHaveValue('RPA copy')
+  expect(screen.getByRole('combobox', { name: 'Saved profile' })).toHaveValue('')
+})
+
+test('creates a custom profile without a coded service template', async () => {
+  render(<ProfileWorkspace />)
+  await screen.findByRole('heading', { name: 'Tell us what a good opportunity looks like' })
+  fireEvent.click(screen.getByRole('button', { name: 'New profile' }))
+
+  fireEvent.change(screen.getByRole('textbox', { name: /Profile name/ }), { target: { value: 'Supply chain advisory' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /Service offered/ }), { target: { value: 'Supply-chain consulting' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /How we help/ }), { target: { value: 'We improve planning and logistics operations.' } })
+
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add signal' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save profile and discover companies' }))
+
+  expect(await screen.findByText('Profile saved')).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Saved profile' })).toHaveValue('profile-new')
+})

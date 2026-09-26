@@ -1,6 +1,6 @@
 import { profileFixture } from './fixtures'
 import type { ProfileDraft } from './types'
-import { listProfiles, selectDefaultProfile, updateProfile, type IcpCriterionKey, type Profile, type ProfileConfiguration } from '../../api/profiles'
+import { createProfile, listProfiles, selectDefaultProfile, updateProfile, type IcpCriterionKey, type Profile, type ProfileConfiguration } from '../../api/profiles'
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
@@ -13,9 +13,17 @@ export async function getProfile(): Promise<ProfileDraft> {
   return fromApi(profile)
 }
 
+export async function getProfiles(): Promise<ProfileDraft[]> {
+  if (import.meta.env.MODE === 'test') { await delay(100); return [structuredClone(profileFixture)] }
+  return (await listProfiles()).map(fromApi)
+}
+
 export async function saveProfile(profile: ProfileDraft): Promise<ProfileDraft> {
-  if (import.meta.env.MODE === 'test') { await delay(180); return structuredClone(profile) }
-  return fromApi(await updateProfile(profile.id, profile.name, toConfiguration(profile)))
+  if (import.meta.env.MODE === 'test') { await delay(180); return { ...structuredClone(profile), id: profile.id || 'profile-new', version: profile.version ?? 1 } }
+  const saved = profile.id
+    ? await updateProfile(profile.id, profile.name, toConfiguration(profile))
+    : await createProfile(profile.name, toConfiguration(profile))
+  return fromApi(saved)
 }
 
 // The editor shows the words the user typed, so it reads them back from the criteria the
