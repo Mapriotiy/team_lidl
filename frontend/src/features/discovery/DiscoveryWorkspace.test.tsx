@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { DiscoveryWorkspace } from './DiscoveryWorkspace'
-import { listProfiles } from '../../api/profiles'
+import { listProfiles, type IcpCriterion } from '../../api/profiles'
 import { createDiscoveryRun, confirmDiscoveryRun } from '../../api/discovery'
 import { submitResearch } from '../../api/research'
 
@@ -12,11 +12,16 @@ vi.mock('../../api/profiles', () => ({
 vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn() }))
 vi.mock('../../api/research', () => ({ submitResearch: vi.fn(), importCompanies: vi.fn() }))
 let version = 0
+// The server resolves wording into criteria; the mocks supply what it would return.
+const geography = (values: string[], countries: string[]): IcpCriterion => ({ key: 'geography', values, countries, worldwide: false, employees: null, include_unknown: true, unresolved: [], note: null })
+const industry = (values: string[]): IcpCriterion => ({ key: 'industry', values, countries: [], worldwide: false, employees: null, include_unknown: true, unresolved: [], note: null })
+const size = (values: string, minimum: number): IcpCriterion => ({ key: 'company_size', values: [values], countries: [], worldwide: false, employees: { minimum, maximum: null }, include_unknown: true, unresolved: [], note: null })
+const profileRow = (id: string, name: string, criteria: IcpCriterion[]) => ({ id, name, current_version: { id: `${id}-version-${version}`, version: 1, configuration: { service_description: name, icp: {}, signals: [] }, icp_criteria: criteria, created_at: '' }, created_at: '', updated_at: '' })
 const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1' }
 const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], minimum_employees: 1000, include_unknown_size: true, industry: null, limit: 100 }, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); version++
-  vi.mocked(listProfiles).mockResolvedValue([{ id: 'profile', name: 'Automation', current_version: { id: `version-${version}`, version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'], company_size: '1,000+ employees' }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' }])
+  vi.mocked(listProfiles).mockResolvedValue([profileRow('profile', 'Automation', [geography(['Romania'], ['RO']), industry(['Logistics']), size('1,000+ employees', 1000)])])
   vi.mocked(createDiscoveryRun).mockResolvedValue(run)
   vi.mocked(confirmDiscoveryRun).mockResolvedValue({ run, company_ids: ['company'] })
   vi.mocked(submitResearch).mockResolvedValue({ id: 'research' } as never)
@@ -32,7 +37,7 @@ test('automatically uses the saved profile and queues selected research', async 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Example SA' }))
   fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
   expect(await screen.findByText(/1 company queued/)).toBeInTheDocument()
-  expect(submitResearch).toHaveBeenCalledWith('company', `version-${version}`, `discovery-run-version-${version}-company`)
+  expect(submitResearch).toHaveBeenCalledWith('company', `profile-version-${version}`, `discovery-run-profile-version-${version}-company`)
 })
 
 test('keeps results and selections when returning, and opens source details', async () => {
@@ -87,8 +92,8 @@ test('sorts discovered companies by clicking column headings', async () => {
 
 test('uses the active profile without duplicate discovery selectors', async () => {
   vi.mocked(listProfiles).mockResolvedValue([
-    { id: 'rpa', name: 'RPA', current_version: { id: 'rpa-version', version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
-    { id: 'cyber', name: 'Cybersecurity', current_version: { id: 'cyber-version', version: 1, configuration: { service_description: 'Security', icp: { geographies: ['Romania'], industries: ['Financial services'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
+    profileRow('rpa', 'RPA', [geography(['Romania'], ['RO']), industry(['Logistics'])]),
+    profileRow('cyber', 'Cybersecurity', [geography(['Romania'], ['RO']), industry(['Financial services'])]),
   ])
   render(<DiscoveryWorkspace />)
   await screen.findByRole('button', { name: 'Example SA' })

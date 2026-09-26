@@ -16,6 +16,7 @@ from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.contracts.research import PartialError
 from app.discovery import GdeltError, GdeltNewsDiscovery
+from app.icp.evaluation import evaluate_criteria
 from app.jobs.runner import RetryableResearchError, StageResult
 from app.models.profile import ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
@@ -30,20 +31,7 @@ from app.scoring import IcpCriterion, ScoringInput, SignalScoringInput, calculat
 
 
 def _icp_criteria(company: Company, configuration: ProfileConfiguration) -> list[IcpCriterion]:
-    criteria: list[IcpCriterion] = []
-    for key, expected in configuration.icp.items():
-        if expected in (None, "", []):
-            continue
-        raw_fact = company.facts.get(key)
-        actual = raw_fact.get("value") if isinstance(raw_fact, dict) else raw_fact
-        if actual is None:
-            matched = None
-        elif isinstance(expected, list):
-            matched = str(actual).casefold() in {str(value).casefold() for value in expected}
-        else:
-            matched = str(actual).casefold() == str(expected).casefold()
-        criteria.append(IcpCriterion(key=key, matched=matched))
-    return criteria
+    return evaluate_criteria(configuration.effective_icp_criteria(), company.facts)
 
 
 _QUERY_STOPWORDS = {
