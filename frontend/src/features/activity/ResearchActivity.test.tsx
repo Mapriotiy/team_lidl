@@ -2,8 +2,26 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { ResearchActivityWorkspace } from './ResearchActivity'
+import * as repository from '../companies/repository'
+import { companyFixture } from '../companies/fixtures'
 
 afterEach(() => vi.restoreAllMocks())
+
+test.each([0, 1])('shows Not enough data for a finished run with %i sources despite supported signals', async (count) => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200 }))
+  vi.spyOn(repository, 'getCompany').mockResolvedValue({
+    ...structuredClone(companyFixture),
+    sources: Array.from({ length: count }, (_, index) => ({ id: `source-${index}`, title: 'Source', url: 'https://example.com', type: 'company', retrievedAt: '2026-09-25T00:00:00Z', publicationDate: null })),
+  })
+
+  render(<ResearchActivityWorkspace />)
+
+  expect(await screen.findByText('Not enough data')).toBeInTheDocument()
+  expect(screen.queryByText('Promising')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
+  expect(screen.getByText(/At least 2 distinct sources are required/)).toBeInTheDocument()
+  expect(screen.getByText(/One careers page was blocked/)).toBeInTheDocument()
+})
 
 test('opens company research and links facts to original excerpts', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{
