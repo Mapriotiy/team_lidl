@@ -13,6 +13,7 @@ export interface SignalDraft {
 export interface ProfileDraft {
   id: string
   name: string
+  serviceRole: string
   description: string
   industries: string
   geographies: string

@@ -2,9 +2,10 @@ import json
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from threading import Lock
 from typing import Protocol
 from urllib.error import HTTPError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from app.collection.models import SourceTarget
@@ -63,31 +64,34 @@ class GdeltNewsDiscovery:
         self.timeout = timeout
         self.minimum_interval = minimum_interval
         self._last_request_at: float | None = None
+        self._request_lock = Lock()
 
     def _request(self, params: Mapping[str, str]) -> object:
-        if self._last_request_at is not None:
-            remaining = self.minimum_interval - (time.monotonic() - self._last_request_at)
-            if remaining > 0:
-                time.sleep(remaining)
-        self._last_request_at = time.monotonic()
-        return self.transport.get_json(
-            GDELT_ENDPOINT,
-            params=params,
-            headers={"User-Agent": "LeadRadarResearch/0.1 (public news discovery)"},
-            timeout=self.timeout,
-        )
+        with self._request_lock:
+            if self._last_request_at is not None:
+                remaining = self.minimum_interval - (time.monotonic() - self._last_request_at)
+                if remaining > 0:
+                    time.sleep(remaining)
+            self._last_request_at = time.monotonic()
+            return self.transport.get_json(
+                GDELT_ENDPOINT,
+                params=params,
+                headers={"User-Agent": "LeadRadarResearch/0.1 (public news discovery)"},
+                timeout=self.timeout,
+            )
 
-    def discover(self, company_name: str, *, limit: int = 5) -> list[NewsCandidate]:
+    def _discover_query(
+        self, query: str, *, limit: int, timespan: str = "3months"
+    ) -> list[NewsCandidate]:
         if not 1 <= limit <= 10:
             raise ValueError("GDELT result limit must be between 1 and 10")
-        query = f'"{company_name.strip()}"'
         try:
             params = {
                 "query": query,
                 "mode": "artlist",
                 "maxrecords": str(limit),
                 "format": "json",
-                "timespan": "3months",
+                "timespan": timespan,
                 "sort": "datedesc",
             }
             try:
@@ -124,3 +128,46 @@ class GdeltNewsDiscovery:
                 )
             )
         return results[:limit]
+
+    def discover(self, company_name: str, *, limit: int = 5) -> list[NewsCandidate]:
+        return self._discover_query(f'"{company_name.strip()}"', limit=limit)
+
+    def discover_queries(
+        self,
+        queries: list[str],
+        *,
+        limit_per_query: int = 5,
+        max_results: int = 18,
+    ) -> list[NewsCandidate]:
+        """Search several angles and retain a diverse set of full-page targets."""
+        if not queries or max_results <= 0:
+            return []
+        candidates: list[NewsCandidate] = []
+        seen_urls: set[str] = set()
+        host_counts: dict[str, int] = {}
+        last_error: GdeltError | None = None
+        for query in queries:
+            try:
+                query_candidates = self._discover_query(
+                    query, limit=limit_per_query, timespan="12months"
+                )
+            except GdeltError as exc:
+                last_error = exc
+                # A provider-wide rate limit will affect every variation. Stop immediately
+                # instead of waiting and issuing the remaining queries into the same limit.
+                if exc.retryable:
+                    break
+                continue
+            for candidate in query_candidates:
+                url = candidate.target.url
+                host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
+                if url in seen_urls or host_counts.get(host, 0) >= 3:
+                    continue
+                seen_urls.add(url)
+                host_counts[host] = host_counts.get(host, 0) + 1
+                candidates.append(candidate)
+                if len(candidates) >= max_results:
+                    return candidates
+        if not candidates and last_error is not None:
+            raise last_error
+        return candidates

@@ -65,3 +65,36 @@ def test_retries_one_rate_limited_request() -> None:
     results = GdeltNewsDiscovery(transport, minimum_interval=0).discover("Example Company")
     assert transport.calls == 2
     assert len(results) == 2
+
+
+class DiverseTransport(FakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.queries: list[str] = []
+
+    def get_json(
+        self, url: str, *, params: Mapping[str, str], headers: Mapping[str, str], timeout: float
+    ) -> object:
+        self.queries.append(params["query"])
+        suffix = len(self.queries)
+        return {
+            "articles": [
+                {"url": f"https://publisher{suffix}.example/article", "title": "Detailed report"},
+                {"url": "https://shared.example/article", "title": "Shared article"},
+            ]
+        }
+
+
+def test_searches_all_query_variations_and_deduplicates_sources() -> None:
+    transport = DiverseTransport()
+    discovery = GdeltNewsDiscovery(transport, minimum_interval=0)
+
+    results = discovery.discover_queries(
+        ['"Example"', '"Example" analysis', '"Example" forum'],
+        limit_per_query=5,
+        max_results=10,
+    )
+
+    assert transport.queries == ['"Example"', '"Example" analysis', '"Example" forum']
+    assert len(results) == 4
+    assert len({item.target.url for item in results}) == 4

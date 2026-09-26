@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.api.research_contracts import (
@@ -19,6 +19,14 @@ from app.jobs.imports import import_company
 from app.jobs.service import IdempotencyConflict, submit
 from app.models.profile import ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
+from app.models.results import (
+    EvidenceTranslation,
+    Opportunity,
+    StoredEvidence,
+    StoredScoreSnapshot,
+    StoredSignalAssessment,
+    StoredSourceDocument,
+)
 
 router = APIRouter(tags=["research"])
 
@@ -89,3 +97,32 @@ def get_run(run_id: str, session: Session = Depends(get_session)) -> ResearchRun
     if run is None:
         raise api_error(404, "research_run_not_found", "Research run not found")
     return ResearchRunRead.model_validate(run)
+
+
+@router.delete("/companies/{company_id}/research")
+def delete_company_research(
+    company_id: str, session: Session = Depends(get_session)
+) -> dict[str, int]:
+    if session.get(Company, company_id) is None:
+        raise api_error(404, "company_not_found", "Company not found")
+    run_ids = select(ResearchRun.id).where(ResearchRun.company_id == company_id)
+    source_ids = select(StoredSourceDocument.id).where(
+        StoredSourceDocument.research_run_id.in_(run_ids)
+    )
+    evidence_ids = select(StoredEvidence.id).where(StoredEvidence.source_id.in_(source_ids))
+    snapshot_ids = select(StoredScoreSnapshot.id).where(
+        StoredScoreSnapshot.research_run_id.in_(run_ids)
+    )
+    session.execute(
+        update(Opportunity)
+        .where(Opportunity.latest_snapshot_id.in_(snapshot_ids))
+        .values(latest_snapshot_id=None)
+    )
+    session.execute(delete(EvidenceTranslation).where(EvidenceTranslation.evidence_id.in_(evidence_ids)))
+    session.execute(delete(StoredEvidence).where(StoredEvidence.id.in_(evidence_ids)))
+    session.execute(delete(StoredSourceDocument).where(StoredSourceDocument.id.in_(source_ids)))
+    session.execute(delete(StoredSignalAssessment).where(StoredSignalAssessment.research_run_id.in_(run_ids)))
+    session.execute(delete(StoredScoreSnapshot).where(StoredScoreSnapshot.id.in_(snapshot_ids)))
+    result = session.execute(delete(ResearchRun).where(ResearchRun.company_id == company_id))
+    session.commit()
+    return {"deleted_runs": result.rowcount or 0}

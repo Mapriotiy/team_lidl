@@ -9,17 +9,47 @@ from app.assessment import AssessmentStatus, EvidenceStrength, ProposedAssessmen
 from app.assessment.providers import AssessmentBatch, OpenRouterTransientError
 from app.collection.models import CollectedDocument, CollectionResult
 from app.contracts.evidence import SourceType
+from app.contracts.profile import ProfileConfiguration
 from app.db import Base
 from app.jobs.runner import RetryableResearchError
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import Opportunity, StoredScoreSnapshot, StoredSourceDocument
 from app.research import IntegratedResearchPipeline
+from app.research.pipeline import _research_queries
 
 
 class FakeNews:
     def discover(self, company_name: str, *, limit: int = 5) -> list[object]:
         return []
+
+
+def test_research_queries_cover_profile_official_analysis_and_discussions() -> None:
+    configuration = ProfileConfiguration.model_validate(
+        {
+            "service_description": "Cybersecurity risk and compliance",
+            "icp": {},
+            "signals": [
+                {
+                    "id": "investment",
+                    "question": "Has the company announced a security investment?",
+                    "positive_criteria": ["Named program with budget or date"],
+                    "exclusions": [],
+                    "weight": 20,
+                    "effect": "positive",
+                    "freshness_window_days": 365,
+                }
+            ],
+        }
+    )
+
+    queries = _research_queries("Example SA", configuration)
+
+    assert len(queries) >= 4
+    assert all('"Example SA"' in query for query in queries)
+    assert any("annual report" in query for query in queries)
+    assert any("analysis" in query for query in queries)
+    assert any("reddit" in query for query in queries)
 
 
 class FakeCollector:
@@ -42,6 +72,11 @@ class FakeCollector:
             ),
             errors=(),
         )
+
+
+class EmptyCollector:
+    def collect(self, company: object, targets: object) -> CollectionResult:
+        return CollectionResult(documents=(), errors=(), total=3)
 
 
 class FakeAssessmentProvider:
@@ -254,6 +289,72 @@ def test_transient_provider_overload_is_retryable() -> None:
 
     with pytest.raises(RetryableResearchError, match="temporarily unavailable"):
         pipeline.assess("run-1", company, version, collected.data)
+
+
+def test_empty_collection_finishes_with_actionable_assessment_error() -> None:
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine, expire_on_commit=False)
+    with sessions.begin() as session:
+        company = Company(
+            id="company-1",
+            canonical_domain="example.com",
+            display_name="Example",
+            facts={"size": {"value": 1000, "source": "https://facts.example/company"}},
+        )
+        profile = ServiceProfile(id="profile-1", name="Automation")
+        version = ServiceProfileVersion(
+            id="profile-v1",
+            version=1,
+            configuration={
+                "service_description": "Automation",
+                "icp": {},
+                "signals": [
+                    {
+                        "id": "efficiency",
+                        "question": "Efficiency?",
+                        "positive_criteria": ["Named program"],
+                        "exclusions": [],
+                        "weight": 20,
+                        "effect": "positive",
+                        "freshness_window_days": 365,
+                    }
+                ],
+            },
+        )
+        profile.versions.append(version)
+        session.add_all([
+            company,
+            profile,
+            ResearchRun(
+                id="run-empty",
+                company_id=company.id,
+                profile_version_id=version.id,
+                idempotency_key="empty-collection",
+            ),
+        ])
+    pipeline = IntegratedResearchPipeline(
+        sessions,
+        FakeAssessmentProvider(),  # type: ignore[arg-type]
+        collector=EmptyCollector(),  # type: ignore[arg-type]
+        news=FakeNews(),  # type: ignore[arg-type]
+    )
+    with sessions() as session:
+        company = session.get_one(Company, "company-1")
+        version = session.get_one(ServiceProfileVersion, "profile-v1")
+        session.expunge(company)
+        session.expunge(version)
+
+    collected = pipeline.collect("run-empty", company)
+    assessed = pipeline.assess("run-empty", company, version, collected.data)
+
+    assert collected.total == 3
+    assert assessed.completed == 0
+    assert assessed.total == 1
+    assert [error.code for error in assessed.errors] == ["no_documents"]
+    assert assessed.data == {"score": None, "evidence_ids": []}
 
 
 def test_pipeline_keeps_valid_signals_when_one_citation_is_invalid() -> None:

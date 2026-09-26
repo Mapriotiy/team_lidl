@@ -23,6 +23,7 @@ class SignalDefinition(ContractModel):
 
 
 class ProfileConfiguration(ContractModel):
+    service_role: str | None = Field(default=None, max_length=160)
     service_description: str = Field(min_length=1, max_length=2000)
     icp: dict[str, list[str] | str | int | float | bool | None] = Field(default_factory=dict)
     signals: list[SignalDefinition] = Field(min_length=1)

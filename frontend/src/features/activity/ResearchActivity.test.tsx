@@ -38,6 +38,7 @@ test('opens company research and links facts to original excerpts', async () => 
   render(<ResearchActivityWorkspace />)
 
   expect(await screen.findByText('Promising')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^Sort by Confidence/ })).toBeInTheDocument()
   expect(screen.getByText(/%/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
@@ -46,4 +47,17 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(source).toHaveAttribute('href', 'https://example.com/lufthansa/efficiency')
   fireEvent.mouseEnter(source)
   expect(screen.getByText(/The Group announced a two-year operational-efficiency programme/)).toHaveClass('bg-[#FFE9D8]')
+})
+
+test('allows all saved research for a company to be deleted', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+  render(<ResearchActivityWorkspace />)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(`Delete research for ${companyFixture.name}?`)
+  fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining(`/companies/${companyFixture.id}/research`), expect.objectContaining({ method: 'DELETE' })))
+  await vi.waitFor(() => expect(screen.queryByText(companyFixture.name)).not.toBeInTheDocument())
+  expect(screen.getByText(/No saved research yet/)).toBeInTheDocument()
 })
