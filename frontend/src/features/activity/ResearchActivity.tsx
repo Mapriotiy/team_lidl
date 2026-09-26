@@ -35,12 +35,32 @@ export function ResearchActivityWorkspace() {
   const [pendingDelete, setPendingDelete] = useState<CompanyDetail | null>(null)
   useEffect(() => {
     const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
     setCompanies(null); setError('')
-    void listCompanies(controller.signal).then(async (companies) => {
-      const details = await Promise.all(companies.map((company) => getCompany(company.id)))
-      setCompanies(details.filter((company) => company.researchRuns.length > 0))
-    }).catch((reason) => { if (!controller.signal.aborted) setError(errorMessage(reason)) })
-    return () => controller.abort()
+    const refresh = async () => {
+      let delay = 15000
+      try {
+        const companies = await listCompanies(controller.signal)
+        const details: CompanyDetail[] = []
+        // Bound detail requests instead of flooding the API for every stored company.
+        for (let offset = 0; offset < companies.length; offset += 4) {
+          if (controller.signal.aborted) return
+          details.push(...await Promise.all(companies.slice(offset, offset + 4).map((company) => getCompany(company.id, controller.signal))))
+        }
+        if (controller.signal.aborted) return
+        const researched = details.filter((company) => company.researchRuns.length > 0)
+        setCompanies(researched)
+        setSelected((current) => current ? researched.find((company) => company.id === current.id) ?? null : null)
+        setError('')
+        if (researched.some((company) => company.researchRuns.some((run) => run.status === 'queued' || run.status === 'running'))) delay = 2500
+      } catch (reason) {
+        if (!controller.signal.aborted) setError(errorMessage(reason))
+        delay = 5000
+      }
+      if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), delay)
+    }
+    void refresh()
+    return () => { controller.abort(); clearTimeout(timer) }
   }, [reload])
 
   if (selected) return <CompanyResearch company={selected} onBack={() => setSelected(null)} />
@@ -76,6 +96,7 @@ function displayStatus(company: CompanyDetail): DisplayStatus {
   const run = [...company.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]
   if (!run || run.status === 'queued') return 'Waiting'
   if (run.status === 'running') return 'Researching'
+  if (run.status === 'failed') return 'Failed'
   if (sourceCount(company) < minimumSources) return 'Not enough data'
   if (company.assessments.some((assessment) => assessment.status === 'supported')) return 'Promising'
   if (run.status === 'completed' || (run.assessmentTotal > 0 && run.assessed >= run.assessmentTotal)) return 'Researched'

@@ -23,7 +23,7 @@ test('keeps research navigation focused on sourcing and evidence', async () => {
   expect(within(workflow).queryByText('✓')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Service Profile' })).toHaveTextContent('1')
   expect(screen.getByRole('button', { name: 'Discover companies' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Research' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Research' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Research' })).toHaveTextContent('3')
   expect(screen.getByRole('button', { name: 'Research' })).not.toHaveTextContent('✓')
 })

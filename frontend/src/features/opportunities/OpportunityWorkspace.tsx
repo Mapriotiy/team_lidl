@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
+import { getProfile } from '../profiles/repository'
 
 type View = 'profiles' | 'discovery' | 'activity'
 
@@ -22,7 +23,14 @@ export function OpportunityWorkspace() {
   const completeDiscovery = useCallback(() => complete('discovery'), [complete])
   const finishProfile = useCallback(() => { completeProfile(); setView('discovery') }, [completeProfile])
   const finishDiscovery = useCallback(() => { completeDiscovery(); setView('activity') }, [completeDiscovery])
-  const canOpen = (target: View) => target === 'profiles' || (target === 'discovery' && completed.profiles) || (target === 'activity' && completed.discovery)
+  useEffect(() => {
+    let active = true
+    void getProfile().then((profile) => {
+      if (active && profile.serviceRole) completeProfile()
+    }).catch(() => { /* The profile editor exposes loading errors and retry. */ })
+    return () => { active = false }
+  }, [completeProfile])
+  const canOpen = (target: View) => target !== 'discovery' || completed.profiles
 
   return (
     <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">

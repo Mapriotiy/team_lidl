@@ -4,13 +4,13 @@ import { getCompanyResult } from '../../api/companies'
 
 const delay = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
-export async function getCompany(companyId: string): Promise<CompanyDetail> {
+export async function getCompany(companyId: string, signal?: AbortSignal): Promise<CompanyDetail> {
   if (import.meta.env.MODE === 'test') {
     await delay(140)
     if (companyId !== companyFixture.id) throw new Error('Company not found')
     return structuredClone(companyFixture)
   }
-  const result = await getCompanyResult(companyId)
+  const result = await getCompanyResult(companyId, signal)
   const score = [...result.scores].sort((left, right) => right.created_at.localeCompare(left.created_at))[0]
   const evidence = result.assessments.flatMap((assessment) => assessment.evidence).filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index)
   const factEntries = Object.entries(result.facts).map(([label, raw]) => {
