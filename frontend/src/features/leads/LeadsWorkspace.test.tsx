@@ -24,7 +24,7 @@ function stub() {
 test('ranks leads by score and counts each filter', async () => {
   stub()
   render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
-  const names = (await screen.findAllByRole('heading', { level: 2 })).map((node) => node.textContent)
+  const names = (await screen.findAllByRole('listitem')).filter((node) => node.closest('ul')).map((node) => node.querySelector('h2')?.textContent)
   expect(names).toEqual(['Acme', 'Gamma', 'Beta'])
   const group = screen.getByRole('group', { name: 'Lead filters' })
   expect(within(group).getByRole('button', { name: /Ready to contact\s*1/ })).toBeInTheDocument()
@@ -44,13 +44,24 @@ test('filters, searches and opens the company research', async () => {
   expect(screen.getByText('Beta')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /All leads/ }))
   fireEvent.change(screen.getByLabelText('Search leads'), { target: { value: 'gamma.cz' } })
-  expect(screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent)).toEqual(['Gamma'])
+  expect(screen.getAllByRole('listitem').filter((node) => node.closest('ul')).map((node) => node.querySelector('h2')?.textContent)).toEqual(['Gamma'])
   fireEvent.click(screen.getByRole('button', { name: 'Open research for Gamma' }))
+  expect(onOpen).toHaveBeenCalledTimes(1)
   expect(onOpen).toHaveBeenCalledWith('c3')
+  fireEvent.click(screen.getByText('gamma.cz'))
+  expect(onOpen).toHaveBeenCalledTimes(2)
 })
 
 test('reports a load failure with retry', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({ detail: 'Service down' }) }))
   render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
   expect(await screen.findByRole('alert')).toHaveTextContent('Service down')
+})
+
+test('shows the lead funnel', async () => {
+  stub()
+  render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
+  const funnel = await screen.findByRole('list', { name: 'Lead funnel' })
+  expect(within(funnel).getByText('Researched').nextSibling).toHaveTextContent('3')
+  expect(within(funnel).getByText('Signal found').nextSibling).toHaveTextContent('2')
 })

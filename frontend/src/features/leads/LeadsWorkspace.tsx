@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '../../api/errors'
 import { downloadOpportunities } from '../../api/exports'
 import { listOpportunityRecords, type OpportunityRecord } from '../../api/opportunities'
+import { LeadsFunnel } from './LeadsInsights'
 
 type FilterId = 'all' | 'eligible' | 'needs_research' | 'excluded' | 'shortlisted'
 type SortKey = 'company' | 'score' | 'coverage' | 'updated'
@@ -116,6 +117,10 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
         </div>
       </header>
 
+      {rows.length > 0 && !error && (
+        <LeadsFunnel leads={inProfile} />
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <input aria-label="Search leads" className="h-10 w-72 rounded-xl border border-[#DED9D1] bg-white px-3 text-sm text-[#20242A] placeholder:text-[#8A847D]" placeholder="Search by company or domain" value={query} onChange={(event) => setQuery(event.target.value)} />
         {profiles.length > 1 && (
@@ -170,7 +175,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
               const state = eligibility[lead.eligibility]
               const coverage = Math.round(lead.coverage * 100)
               return (
-                <li key={lead.id} className="grid grid-cols-[minmax(200px,1.5fr)_72px_130px_minmax(140px,1fr)_120px_110px_72px] items-center gap-5 px-6 py-4 transition even:bg-[#FBF9F6] hover:bg-[#FFF0E5]">
+                <li key={lead.id} className="grid cursor-pointer grid-cols-[minmax(200px,1.5fr)_72px_130px_minmax(140px,1fr)_120px_110px_72px] items-center gap-5 px-6 py-4 transition even:bg-[#FBF9F6] hover:bg-[#FFF0E5]" onClick={() => onOpenCompany(lead.company_id)}>
                   <div className="min-w-0">
                     <h2 className="truncate font-semibold text-[#25292E]">{lead.company_name}</h2>
                     <p className="mt-1 truncate text-sm text-[#625D57]">{lead.canonical_domain}{profiles.length > 1 ? ` · ${lead.profile_name}` : ''}</p>
@@ -189,7 +194,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
                   </div>
                   <time className="text-sm text-[#625D57]" dateTime={lead.last_researched_at}>{formatDate(lead.last_researched_at)}</time>
                   <div className="flex justify-end">
-                    <button type="button" className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8]" onClick={() => onOpenCompany(lead.company_id)} aria-label={`Open research for ${lead.company_name}`}>Open</button>
+                    <button type="button" className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8]" onClick={(event) => { event.stopPropagation(); onOpenCompany(lead.company_id) }} aria-label={`Open research for ${lead.company_name}`}>Open</button>
                   </div>
                 </li>
               )
