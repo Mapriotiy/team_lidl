@@ -6,7 +6,7 @@ def test_three_presets_share_the_versioned_configuration_contract() -> None:
     presets = load_presets()
 
     assert [preset.name for preset in presets] == [
-        "Process automation",
+        "RPA",
         "Cybersecurity",
         "Software development",
     ]

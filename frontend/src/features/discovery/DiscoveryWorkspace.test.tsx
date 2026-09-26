@@ -5,7 +5,10 @@ import { listProfiles } from '../../api/profiles'
 import { createDiscoveryRun, confirmDiscoveryRun } from '../../api/discovery'
 import { submitResearch } from '../../api/research'
 
-vi.mock('../../api/profiles', () => ({ listProfiles: vi.fn() }))
+vi.mock('../../api/profiles', () => ({
+  listProfiles: vi.fn(),
+  selectDefaultProfile: (profiles: unknown[]) => profiles[0],
+}))
 vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn() }))
 vi.mock('../../api/research', () => ({ submitResearch: vi.fn(), importCompanies: vi.fn() }))
 let version = 0

@@ -2,7 +2,7 @@ import type { ProfileDraft } from './types'
 
 export const profileFixture: ProfileDraft = {
   id: 'profile-automation',
-  name: 'Process automation',
+  name: 'RPA',
   description: 'Intelligent automation and process improvement services.',
   industries: 'Aviation, logistics, manufacturing',
   geographies: 'Europe',

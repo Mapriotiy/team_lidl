@@ -82,6 +82,20 @@ def test_rejects_profile_without_positive_weight() -> None:
     assert response.status_code == 422
 
 
+def test_lists_rpa_as_the_default_profile() -> None:
+    client = TestClient(app)
+    cybersecurity = profile_payload()
+    cybersecurity["name"] = "Cybersecurity"
+    rpa = profile_payload()
+    rpa["name"] = "RPA"
+    client.post("/service-profiles", json=cybersecurity)
+    client.post("/service-profiles", json=rpa)
+
+    listed = client.get("/service-profiles")
+
+    assert [item["name"] for item in listed.json()] == ["RPA", "Cybersecurity"]
+
+
 def test_rejects_rename_to_an_existing_profile_name() -> None:
     client = TestClient(app)
     first = client.post("/service-profiles", json=profile_payload()).json()

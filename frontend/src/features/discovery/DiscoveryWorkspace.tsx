@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { confirmDiscoveryRun, createDiscoveryRun, type DiscoveryCandidate, type DiscoveryRun } from '../../api/discovery'
-import { listProfiles, type Profile } from '../../api/profiles'
+import { listProfiles, selectDefaultProfile, type Profile } from '../../api/profiles'
 import { importCompanies, submitResearch } from '../../api/research'
 import { errorMessage } from '../../api/errors'
 import { match, profileSearch, words } from './matching'
@@ -51,7 +51,7 @@ export function DiscoveryWorkspace({ onActivity, onProfile }: { onActivity?: () 
     const controller = new AbortController(); request.current = controller
     void listProfiles(controller.signal).then(async (profiles) => {
       if (controller.signal.aborted) return
-      const current = profiles[0]
+      const current = selectDefaultProfile(profiles)
       if (!current) { setError('Save a Service Profile before discovering companies.'); setLoading(false); return }
       setProfile(current)
       const settings = profileSearch(current); setNotes(settings.notes)

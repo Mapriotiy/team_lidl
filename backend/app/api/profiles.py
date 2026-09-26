@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.contracts.profile import (
@@ -10,6 +10,7 @@ from app.contracts.profile import (
 )
 from app.db import get_session
 from app.models.profile import ServiceProfile, ServiceProfileVersion, utc_now
+from app.seed import DEFAULT_PROFILE_NAME
 
 router = APIRouter(prefix="/service-profiles", tags=["service profiles"])
 
@@ -35,7 +36,10 @@ def list_profiles(session: Session = Depends(get_session)) -> list[ProfileRead]:
     statement = (
         select(ServiceProfile)
         .options(selectinload(ServiceProfile.versions))
-        .order_by(ServiceProfile.name)
+        .order_by(
+            case((ServiceProfile.name == DEFAULT_PROFILE_NAME, 0), else_=1),
+            ServiceProfile.name,
+        )
     )
     return [to_profile_read(profile) for profile in session.scalars(statement).all()]
 

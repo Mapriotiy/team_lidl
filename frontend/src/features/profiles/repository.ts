@@ -1,6 +1,6 @@
 import { profileFixture } from './fixtures'
 import type { ProfileDraft } from './types'
-import { listProfiles, updateProfile, type Profile, type ProfileConfiguration } from '../../api/profiles'
+import { listProfiles, selectDefaultProfile, updateProfile, type Profile, type ProfileConfiguration } from '../../api/profiles'
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
@@ -8,8 +8,9 @@ const delay = (milliseconds: number) =>
 export async function getProfile(): Promise<ProfileDraft> {
   if (import.meta.env.MODE === 'test') { await delay(100); return structuredClone(profileFixture) }
   const profiles = await listProfiles()
-  if (!profiles[0]) throw new Error('Create a service profile before editing configuration.')
-  return fromApi(profiles[0])
+  const profile = selectDefaultProfile(profiles)
+  if (!profile) throw new Error('Create a service profile before editing configuration.')
+  return fromApi(profile)
 }
 
 export async function saveProfile(profile: ProfileDraft): Promise<ProfileDraft> {
