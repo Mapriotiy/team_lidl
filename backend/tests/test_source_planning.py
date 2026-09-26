@@ -26,3 +26,13 @@ def test_planning_deduplicates_fragments_and_respects_limit() -> None:
     """
     targets = plan_first_party_sources(body, "https://example.com/", limit=1)
     assert [item.url for item in targets] == ["https://example.com/careers"]
+
+
+def test_plans_ukrainian_first_party_links() -> None:
+    body = """
+    <a href='/novyny'>Новини</a>
+    <a href='/vakansii'>Вакансії та робота</a>
+    <a href='/reports/2025'>Річна звітність</a>
+    """.encode()
+    targets = plan_first_party_sources(body, "https://example.ua/", limit=3)
+    assert [item.source_type.value for item in targets] == ["report", "careers", "company"]

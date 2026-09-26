@@ -69,12 +69,12 @@ class IntegratedResearchPipeline:
             targets.extend(
                 candidate.target for candidate in self.news.discover(company.display_name)
             )
-        except GdeltError:
+        except GdeltError as exc:
             partial_errors.append(
                 PartialError(
                     stage="collection",
                     code="news_discovery_failed",
-                    message="Recent-news discovery failed; first-party collection continued",
+                    message=f"{exc}; first-party collection continued",
                 )
             )
         result = self.collector.collect(
