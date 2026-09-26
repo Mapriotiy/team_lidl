@@ -98,7 +98,21 @@ def test_lists_rpa_as_the_default_profile() -> None:
     assert [item["name"] for item in listed.json()] == ["RPA", "Cybersecurity"]
 
 
-def test_rejects_rename_to_an_existing_profile_name() -> None:
+def test_allows_profiles_with_the_same_name() -> None:
+    client = TestClient(app)
+    first = client.post("/service-profiles", json=profile_payload())
+    second = client.post("/service-profiles", json=profile_payload())
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] != second.json()["id"]
+    assert [item["name"] for item in client.get("/service-profiles").json()] == [
+        "Process automation",
+        "Process automation",
+    ]
+
+
+def test_allows_rename_to_an_existing_profile_name() -> None:
     client = TestClient(app)
     first = client.post("/service-profiles", json=profile_payload()).json()
     second_payload = profile_payload()
@@ -113,4 +127,5 @@ def test_rejects_rename_to_an_existing_profile_name() -> None:
         },
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["name"] == "Transformation advisory"

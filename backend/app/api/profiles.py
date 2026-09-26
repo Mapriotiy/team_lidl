@@ -39,6 +39,8 @@ def list_profiles(session: Session = Depends(get_session)) -> list[ProfileRead]:
         .order_by(
             case((ServiceProfile.name == DEFAULT_PROFILE_NAME, 0), else_=1),
             ServiceProfile.name,
+            ServiceProfile.created_at,
+            ServiceProfile.id,
         )
     )
     return [to_profile_read(profile) for profile in session.scalars(statement).all()]
@@ -46,11 +48,6 @@ def list_profiles(session: Session = Depends(get_session)) -> list[ProfileRead]:
 
 @router.post("", response_model=ProfileRead, status_code=status.HTTP_201_CREATED)
 def create_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> ProfileRead:
-    if session.scalar(select(ServiceProfile).where(ServiceProfile.name == payload.name)):
-        raise HTTPException(
-            status_code=409, detail="A service profile with this name already exists"
-        )
-
     profile = ServiceProfile(name=payload.name)
     profile.versions.append(
         ServiceProfileVersion(
@@ -77,16 +74,6 @@ def update_profile(
         raise HTTPException(status_code=404, detail="Service profile not found")
 
     if payload.name is not None and payload.name != profile.name:
-        duplicate = session.scalar(
-            select(ServiceProfile).where(
-                ServiceProfile.name == payload.name,
-                ServiceProfile.id != profile.id,
-            )
-        )
-        if duplicate:
-            raise HTTPException(
-                status_code=409, detail="A service profile with this name already exists"
-            )
         profile.name = payload.name
 
     profile.versions.append(
