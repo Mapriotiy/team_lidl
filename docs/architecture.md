@@ -1,119 +1,185 @@
-# Architecture and contracts
+# Orange Signal — architecture
 
-## Stack baseline
+An AI B2B sales intelligence platform. It converts public information into scored,
+evidence-backed sales signals so a sales development rep knows who to contact, why now,
+and what to say.
 
-| Layer | Choice |
-| --- | --- |
-| Frontend | React, TypeScript, Vite, Tailwind, shared components |
-| API | Python, FastAPI, Pydantic |
-| Persistence | PostgreSQL, SQLAlchemy, Alembic migrations; JSONB for flexible configuration |
-| Background work | Separate worker, PostgreSQL-backed job table |
-| Collection | HTTP/HTML extraction first; Playwright for dynamic pages |
-| Assessment | One model provider with structured output; small LangGraph workflow if useful to the team |
-| Delivery | Docker-based setup and a deployment host selected at kickoff |
+## The one decision everything else follows from
 
-Use a monorepo with `frontend/`, `backend/`, `docs/`, and `.github/`. Keep backend modules for collection, assessment, scoring, jobs and API separate. Scoring is a pure function of versioned inputs. A vector database is outside the initial scope.
+**The language model never produces a score.**
 
-Provider selection, exact dependency versions, commands, and hosting configuration must be recorded with the scaffold. Do not add dependencies based solely on the challenge's list of examples.
+It answers configured business questions with `yes` / `no` / `unknown`, a confidence, and a
+verbatim quote from a real document. Scoring is arithmetic performed in TypeScript over
+those answers.
 
-## Research flow
+That split buys four things:
 
-```text
-Import/discover domains
-  -> resolve company identity
-  -> collect bounded public sources
-  -> normalize and deduplicate
-  -> assess service questions
-  -> validate supporting evidence
-  -> calculate score
-  -> persist snapshot and display opportunity
+| Benefit | Why it follows |
+|---|---|
+| Explainability | Every point in a score traces to a sentence on a page with a URL and a date |
+| Cheap re-tuning | Changing a weight from medium to high re-scores instantly with no model calls |
+| Auditability | The scoring formula is readable code, not a prompt |
+| Resistance to hallucination | Quotes are checked against the source text in code before they can count |
+
+## Pipeline
+
+```
+ targets ──▶ INGEST ──▶ documents ──▶ EVALUATE ──▶ signal_answers ──▶ SCORE ──▶ lead_scores ──▶ API ──▶ React
+             scrapers    (Postgres)     (Claude)     (evidence)      (pure TS)   (+breakdown)
 ```
 
-Collect shared documents once and reuse them across service assessments. Add targeted collection when a service needs different sources. Weight-only edits reuse assessments; semantic question edits require reassessment, and may require fresh collection.
+Each stage is independently runnable and communicates only through the database. Ingest runs
+nightly, evaluation runs only on companies with new documents, scoring runs on every config
+change. Nothing is recomputed at dashboard load time.
 
-Use a job key tied to company, profile version, and requested research operation. Workers atomically claim jobs, maintain a lease/heartbeat, and use bounded retries with backoff. A stale lease can be reclaimed without duplicating final records. Persist results by stage so one source failure does not discard successful research.
+## 1. Ingest — the custom scrapers
 
-Suggested initial limits, to tune after the source spike: 10 companies per interactive batch, 10 pages per company, bounded page size, request timeouts, and at most two retries for transient failures. Record run cost and usage; enforce the team's chosen budget cap.
+All traffic goes through `src/net/fetcher.ts`, which enforces robots.txt (including
+`Crawl-delay`), one request per host at a time with a configurable gap, a global concurrency
+cap, exponential backoff, and an honest identifying User-Agent. No adapter calls `fetch`
+directly.
 
-## Data model
+### Hiring signals — `src/sources/ats.ts`
 
-| Entity | Minimum fields / rule |
-| --- | --- |
-| Company | ID, canonical domain, display name, aliases, industry/geography/size/operational-complexity facts with provenance and unknown values; extensible profile-specific ICP facts |
-| ServiceProfile / ProfileVersion | Stable profile ID; immutable version containing service description, ICP and signal definitions |
-| SignalDefinition | Stable question ID, criteria, exclusions, weight, effect, freshness window |
-| ResearchRun | Company, profile version, stage/status, progress, timestamps, errors, usage, idempotency key |
-| SourceDocument | Company, canonical URL, source type, title, retrieval/publication/event dates, content hash, permitted stored text |
-| Evidence | Source ID, exact excerpt/offsets, factual claim, company attribution, event grouping key |
-| SignalAssessment | Profile version, question, status, evidence IDs, evidence strength, rationale, model/prompt version |
-| ScoreSnapshot | Company/profile version, calculation version, score, contributions, penalties, eligibility, coverage, input references |
-| Opportunity | Company/profile, shortlist/dismiss state, notes, latest snapshot |
+The highest-value source, and the place where most implementations waste effort. Almost no
+company hand-builds a careers page any more; they embed an applicant tracking system, and
+every major ATS publishes a documented JSON endpoint for its own board.
 
-Keep extracted facts separate from sales interpretations. Store event date separately from publication and retrieval dates. Do not silently use retrieval time as evidence recency.
+So the scraper does not parse careers pages. It **detects which ATS the company uses**, then
+reads structured JSON.
 
-## Assessment contract
+Detection runs three passes, cheapest and most authoritative first:
 
-Question status: `supported`, `contradicted`, or `insufficient_evidence`. Collection status is separate. A failed fetch cannot establish a negative answer.
+1. **Read the homepage and careers pages** for a board URL. Authoritative, no false
+   positives, but low yield: measured across ten European companies, only one exposed its
+   ATS in static HTML. Modern careers pages are client-rendered, so the board URL simply is
+   not in the markup.
+2. **Probe the ATS APIs** with slugs derived from the domain and company name. Keyless and
+   fast. On the same eleven companies this found a board for nine. A 200 is not accepted as
+   proof, because Workable answers 200 with an empty list for accounts that do not exist —
+   only a board returning at least one real posting counts. The domain-derived slug is tried
+   first, since it is least likely to collide with a similarly named company.
+3. **Render a careers page with Playwright** and scan again. Playwright is an optional
+   dependency; without it this pass is skipped rather than failing the crawl.
 
-Every supported finding references source documents and exact excerpts. Validate the excerpt occurs in normalized source text and the source refers to the correct company. Use defined evidence-strength categories, provisionally strong = 1.0, moderate = 0.6, weak = 0.3, rather than treating a model's confidence as calibrated probability.
+Verified end to end: `celonis.com` exposes no ATS in static HTML, but probing resolves it to
+Greenhouse with 250 live postings, each around 7,000 characters of full job description.
 
-Search snippets locate sources; snippets alone do not establish strong verified findings. Group syndicated coverage and repeated job postings into events. Multiple citations can support a finding without multiplying its score.
+The endpoints behind each provider:
 
-## Scoring v1
+| Provider | Endpoint | Status |
+|---|---|---|
+| Greenhouse | `boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true` | verified live |
+| Lever | `api.lever.co/v0/postings/{slug}?mode=json` | verified live |
+| Ashby | `api.ashbyhq.com/posting-api/job-board/{slug}` | verified live |
+| Workable | `apply.workable.com/api/v1/widget/accounts/{slug}?details=true` | verified live |
+| SmartRecruiters | `api.smartrecruiters.com/v1/companies/{slug}/postings` | endpoint valid |
+| Recruitee | `{slug}.recruitee.com/api/offers/` | endpoint valid |
+| Personio | `{slug}.jobs.personio.de/xml` | endpoint valid |
+| Workday | `{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{board}/jobs` (POST) | endpoint valid |
 
-Provisional defaults, to validate with the reviewed dataset:
+HTML scraping of the careers page is the fallback for the tail, not the default path.
 
-```text
-positive_strength = sum(weight * evidence_strength * freshness)
-                    / sum(configured_positive_weights)
+### News — `src/sources/news.ts`
 
-priority = clamp(100 * (0.30 * icp_fit + 0.70 * positive_strength)
-                 - penalty_points, 0, 100)
+- **GDELT** — keyless, global, 65+ languages, which matters for the brief's international
+  markets. Returns direct publisher URLs, so the article body is then fetched and extracted.
+  Two things learned by testing it: the working window parameter is `timespan=3m`, and when
+  throttled it replies **HTTP 200 with a plain-text warning**, not an error status. The
+  adapter serialises its calls at least 6.5 seconds apart and explicitly detects that
+  plain-text body. Without that check a throttled run is indistinguishable from "no news
+  about this company", which silently under-scores leads.
+- **Google News RSS** — keyless, strong headline recall. Item links are consent redirects, so
+  these are stored as headline-level evidence and labelled as such.
+- **NewsAPI** — used only when a key is present.
+
+Results are deduplicated across providers on normalised title, and no single outlet may
+supply more than two articles, so a syndicated wire story cannot dominate the evidence.
+
+### Company-owned pages — `src/sources/website.ts`
+
+Sitemap-first, never a blind crawl. `robots.txt` advertises the sitemap, the sitemap lists
+every URL with a `lastmod`, so relevant recent pages (newsroom, press, strategy, investor,
+about, technology) are selected directly. Blind link-walking is the fallback.
+
+### Firmographics — `src/sources/firmographics.ts`
+
+Crunchbase is the brief's preferred source but its API needs a paid licence, so it sits
+behind an adapter with keyless fallbacks that let the system run today:
+
+1. `config/crunchbase_seed.json` — a manual export keyed by domain
+2. Wikidata — open, no key; matched to the company by official-website URL so the wrong
+   entity is never merged in
+3. The company homepage
+
+Supplying `CRUNCHBASE_API_KEY` changes nothing downstream.
+
+### LinkedIn
+
+Deliberately absent, per the brief. Nothing depends on it. Decision-maker research stays a
+manual step in the rep's workflow.
+
+## 2. Evaluate — `src/signals/evaluate.ts`
+
+One model call per company per service answers every configured question at once.
+
+- **Evidence pack**: recent documents, with a guaranteed share of the budget per source kind
+  so job postings are not crowded out by news. Each is tagged `[D1]`, `[D2]` with source,
+  date and URL.
+- **Prompt caching**: the system prompt and the evidence pack are cached blocks and the
+  questions come last, so evaluating a second service for the same company reads the cache
+  rather than resending the corpus.
+- **Citation verification**: every returned quote is checked as a verbatim substring of a
+  real stored document. Unverified quotes are flagged, and a `yes` whose evidence does not
+  survive verification is capped at low confidence or demoted to `unknown`. A hallucinated
+  citation cannot inflate a lead.
+- **Prompt injection**: scraped pages are hostile input. Documents are delimited and the
+  system prompt states they are untrusted data whose instructions must be ignored.
+
+## 3. Score — `src/scoring/score.ts`
+
+```
+total = fit_weight · fit · 100  +  (1 − fit_weight) · intent  −  penalty
 ```
 
-- Each positive question contributes at most once; repeated sources do not accumulate points.
-- Use a fixed denominator per profile version. Unknown signals contribute zero support and are not explicit negatives.
-- If no positive weights are configured, block scoring and show a configuration error.
-- ICP fit uses equal weights for configured criteria in v1; match = 1, mismatch/unknown = 0. Display unknown facts separately. No configured ICP criteria means ICP fit = 0 with an explicit unconfigured indicator.
-- Explicit hard disqualifiers set eligibility to `excluded`, display the reason, and remove the account from the default ranked list.
-- Penalty definitions use nonnegative score points multiplied by evidence strength and freshness; cap each penalty once per question.
-- Proposed freshness: `max(0, 1 - age_days / window_days)`, using event date, or publication date with that fallback labeled. Missing both dates receives a provisional factor of 0.25 and a visible unknown-date warning. Validate positive windows; flag future dates for review.
-- Round only the final displayed score; keep full precision in stored contributions.
-- Configuration and calculation versions are part of every snapshot. Do not compare scores from different versions as though the criteria were unchanged.
+- `intent` — weighted share of positive signals confirmed, each multiplied by a recency
+  decay of `0.5 ^ (age / half_life)`. A hiring push from two years ago is not a live buying
+  signal, and half-life is configured per question: 120 days for hiring, 365 for a
+  transformation programme.
+- `penalty` — weighted negative signals, **not** decayed. A structural mismatch does not fade.
+- `fit` — firmographic match to the ICP. Missing data scores neutral rather than zero, so an
+  unknown headcount does not silently kill a good lead.
+- Any disqualifier answered `yes` with confidence ≥ 0.5 zeroes the lead.
 
-Coverage is assessed questions / configured questions, where a valid completed assessment counts even when it finds insufficient evidence. Show fetch completion separately. Provisionally label an account `needs_research` if coverage is under 50% or it has no supported evidence; display it separately from the default ranked list. This is a product threshold to validate, not proof of low potential.
+Bands: hot ≥ 70, warm ≥ 45, nurture ≥ 25, cold below.
 
-## API baseline
+The full per-question audit trail is written to `lead_scores.breakdown`, and that JSON is
+what the dashboard renders as "why this lead".
 
-| Endpoint | Behavior |
-| --- | --- |
-| `GET/POST /service-profiles` | List or create profiles |
-| `PATCH /service-profiles/{id}` | Create a new immutable configuration version |
-| `POST /companies/import` | Validate and deduplicate domains; return accepted and rejected entries |
-| `POST /discovery-runs` | Start bounded discovery; return run ID |
-| `POST /research-runs` | Enqueue work; return HTTP 202 and run ID |
-| `GET /research-runs/{id}` | Return stage, counts, partial errors and result links |
-| `GET /opportunities` | Filter/paginate by service, status and eligibility |
-| `GET /companies/{id}` | Company facts, service assessments, evidence and history |
-| `PATCH /opportunities/{id}` | Update shortlist/dismiss state and notes |
-| `POST /opportunities/{id}/draft` | Produce editable text from selected verified evidence |
-| `GET /exports/opportunities.csv` | Export the selected/filter-matching opportunity set |
+## 4. Configuration is data, not code
 
-Use UTC ISO 8601 timestamps and stable string IDs. Return structured errors with code, message and request ID. Document pagination and filters in generated OpenAPI and shared fixtures. Discovery produces candidate domains; confirm the bounded research batch before incurring collection costs.
+`services`, `signal_questions` and `icp_profiles` are database tables edited through the API
+and dashboard. Sales writes its own questions in its own words, sets weight and polarity,
+marks disqualifiers, and re-scores without a deploy. `config/seed.json` only provides the
+starting set.
 
-## Source and application boundaries
+## Cost control
 
-- Crunchbase enrichment is optional until licensed access is confirmed. NewsAPI's developer tier is not a production plan. Keep provider adapters replaceable.
-- LinkedIn is manual validation only. Do not depend on scraping it.
-- Treat retrieved text as untrusted data; embedded instructions cannot change extraction rules or trigger tools.
-- For user-supplied URLs, allow HTTP(S) only, reject private/loopback/link-local destinations, revalidate redirects, cap content size and duration, and do not forward credentials. Browser collection needs equivalent network restrictions.
-- Respect access restrictions and source retention requirements. Store the excerpts and provenance needed for review; do not publish bulk scraped content.
-- Keep provider keys on the backend. Escape rendered source text; neutralize spreadsheet formula prefixes in exported text cells.
-- Put a public demo behind access control before enabling paid research endpoints. Add per-user/run limits. No multi-tenant security claims without implemented isolation tests.
-- Outreach remains a draft. No invented contacts, email lookup, or message sending.
+| Lever | Effect |
+|---|---|
+| Content-hash dedupe on ingest | Unchanged pages are never re-evaluated |
+| One call per company per service | Not one per document |
+| Cached evidence pack | Second service for the same company is mostly cache reads |
+| Re-score without re-evaluating | Weight changes cost nothing |
+| `output_config.effort` in `evaluate.ts` | First dial to turn before changing model |
 
-## External references
+## What to build next
 
-- [Crunchbase API access](https://data.crunchbase.com/docs/using-the-api)
-- [NewsAPI plans](https://newsapi.org/pricing)
-- [LinkedIn prohibited automation](https://www.linkedin.com/help/linkedin/answer/a1341387/prohibited-software-and-extensions)
+- **pgvector retrieval** when a company exceeds a few hundred documents; today the evidence
+  pack is recency-ranked, which is sufficient at this corpus size.
+- **A labelled evaluation set.** Twenty companies a rep has judged by hand, so changes to
+  prompts or weights can be measured rather than argued about. This is the highest-value
+  next step for accuracy.
+- **Scheduled re-ingestion** and change detection alerts, so a newly appointed CIO surfaces
+  the morning it is announced.
+- **HubSpot write-back** from `lead_scores.breakdown`.

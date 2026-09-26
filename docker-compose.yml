@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: orange-signal-db
+    environment:
+      POSTGRES_USER: orange
+      POSTGRES_PASSWORD: orange
+      POSTGRES_DB: orange_signal
+    ports: ["5433:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orange -d orange_signal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  pgdata:

@@ -1,0 +1,32 @@
+{
+  "_comment": "Optional manual firmographics, keyed by bare domain. Read by src/sources/firmographics.ts when CRUNCHBASE_API_KEY is absent, and it wins over Wikidata. Paste a Crunchbase CSV export here to give the demo real profile data with no API key. Delete any entry to fall back to Wikidata.",
+
+  "celonis.com": {
+    "name": "Celonis",
+    "country": "Germany",
+    "industry": "enterprise software",
+    "employee_count": 3000,
+    "hq_city": "Munich",
+    "founded_year": 2011,
+    "revenue_band": "$100M+",
+    "description": "Process mining and process intelligence platform used to find and fix operational inefficiency."
+  },
+  "forto.com": {
+    "name": "Forto",
+    "country": "Germany",
+    "industry": "logistics",
+    "employee_count": 700,
+    "hq_city": "Berlin",
+    "founded_year": 2016,
+    "description": "Digital freight forwarding and supply chain platform."
+  },
+  "personio.de": {
+    "name": "Personio",
+    "country": "Germany",
+    "industry": "human resources software",
+    "employee_count": 1800,
+    "hq_city": "Munich",
+    "founded_year": 2015,
+    "description": "HR and payroll platform for small and mid-sized European companies."
+  }
+}

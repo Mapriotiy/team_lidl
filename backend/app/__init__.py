@@ -1,2 +1,0 @@
-"""Team LIDL API package."""
-

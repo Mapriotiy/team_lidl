@@ -1,0 +1,58 @@
+/*
+ * theme.css is the design system exported from Flowstep, kept verbatim so a
+ * re-export can be diffed against it. Everything below is app-level: rules the
+ * mockups had no way to express because they were single static screens.
+ */
+@import "./theme.css";
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: var(--background);
+}
+
+/* Digits line up in every table, KPI and chart axis. */
+.tabular,
+table,
+kbd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings read better wrapped on meaning rather than on width. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* A visible focus ring everywhere - the comps only ever showed rest states. */
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen-reader-only text, used for table captions and icon-only controls. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

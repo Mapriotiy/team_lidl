@@ -1,0 +1,182 @@
+{
+  "services": [
+    {
+      "key": "apa",
+      "name": "Agentic Process Automation",
+      "description": "Agent-based automation of back-office and operational processes, replacing brittle RPA and manual handoffs.",
+      "value_prop": "We deploy agentic automation on top of existing systems, so throughput rises without a platform migration.",
+      "icp": {
+        "name": "European mid-market and enterprise",
+        "countries": ["Germany", "Netherlands", "Romania", "Moldova", "Austria", "Switzerland", "Belgium", "France", "United Kingdom", "Sweden", "Denmark", "Poland"],
+        "industries": ["manufacturing", "logistics", "insurance", "banking", "retail", "healthcare", "telecommunications", "energy", "transport"],
+        "min_employees": 200,
+        "max_employees": 25000,
+        "exclude_industries": ["information technology consulting", "software development services"],
+        "fit_weight": 0.3
+      },
+      "questions": [
+        {
+          "key": "process_optimization_language",
+          "text": "Does the company publicly mention process optimization, cost reduction, operational efficiency, or automation initiatives?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["website", "news"],
+          "half_life_days": 270
+        },
+        {
+          "key": "automation_hiring",
+          "text": "Is the company hiring RPA developers, business analysts, automation engineers, AI specialists, or process excellence roles?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["jobs"],
+          "half_life_days": 120
+        },
+        {
+          "key": "transformation_programme",
+          "text": "Has the company announced a digital transformation, systems modernization, ERP rollout or shared-services programme?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["website", "news"],
+          "half_life_days": 365
+        },
+        {
+          "key": "ai_adoption_intent",
+          "text": "Is the company actively adopting or piloting AI, machine learning or generative AI in its operations?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["website", "news", "jobs"],
+          "half_life_days": 180
+        },
+        {
+          "key": "manual_process_load",
+          "text": "Are there signs of high-volume manual back-office work, such as shared service centres, large operations or data-entry teams, or hiring for repetitive administrative roles?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["jobs", "website"],
+          "half_life_days": 180
+        },
+        {
+          "key": "new_tech_leadership",
+          "text": "Has the company appointed a new CIO, CTO, COO, Chief Digital Officer or Head of Transformation recently? New leaders buy new tooling.",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["news"],
+          "half_life_days": 270
+        },
+        {
+          "key": "budget_event",
+          "text": "Has the company raised funding, been acquired, announced an acquisition, or announced significant expansion that would free budget?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["news"],
+          "half_life_days": 270
+        },
+        {
+          "key": "cost_pressure",
+          "text": "Is the company under visible cost or margin pressure, for example restructuring, layoffs, profit warnings or an announced efficiency programme?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["news"],
+          "half_life_days": 180
+        },
+        {
+          "key": "inhouse_automation_capability",
+          "text": "Does the company already run a large in-house automation or AI centre of excellence that would build this itself rather than buy it?",
+          "weight": "medium",
+          "polarity": "negative",
+          "source_kinds": ["jobs", "website"],
+          "half_life_days": 365
+        },
+        {
+          "key": "is_it_services_provider",
+          "text": "Is this company itself an IT services, software development or digital consulting provider, and therefore a competitor rather than a client?",
+          "weight": "high",
+          "polarity": "disqualifier",
+          "source_kinds": ["website", "firmographics"],
+          "half_life_days": 3650
+        }
+      ]
+    },
+    {
+      "key": "cyber",
+      "name": "Cybersecurity Services",
+      "description": "Managed detection and response, security engineering, compliance readiness and identity work.",
+      "value_prop": "We stand up detection, response and compliance evidence fast, without the company having to hire a full security team.",
+      "icp": {
+        "name": "Regulated European mid-market",
+        "countries": ["Germany", "Netherlands", "Romania", "Moldova", "Austria", "Switzerland", "Belgium", "France", "United Kingdom", "Sweden", "Denmark", "Poland"],
+        "industries": ["banking", "insurance", "healthcare", "manufacturing", "energy", "telecommunications", "retail", "logistics", "public administration"],
+        "min_employees": 150,
+        "max_employees": 25000,
+        "exclude_industries": ["computer security", "information security"],
+        "fit_weight": 0.3
+      },
+      "questions": [
+        {
+          "key": "security_incident",
+          "text": "Has the company suffered a publicly reported security incident, data breach, ransomware attack or significant outage?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["news"],
+          "half_life_days": 365
+        },
+        {
+          "key": "compliance_driver",
+          "text": "Is the company subject to or actively working towards a security or resilience regime such as NIS2, DORA, GDPR enforcement, ISO 27001, SOC 2 or PCI DSS?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["website", "news", "jobs"],
+          "half_life_days": 540
+        },
+        {
+          "key": "security_hiring",
+          "text": "Is the company hiring security roles such as CISO, SOC analyst, security engineer, IAM specialist, or GRC and compliance staff?",
+          "weight": "high",
+          "polarity": "positive",
+          "source_kinds": ["jobs"],
+          "half_life_days": 120
+        },
+        {
+          "key": "cloud_migration",
+          "text": "Is the company migrating to cloud infrastructure, adopting Kubernetes, or modernizing legacy systems in a way that widens its attack surface?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["jobs", "website", "news"],
+          "half_life_days": 270
+        },
+        {
+          "key": "ot_iot_exposure",
+          "text": "Does the company operate industrial, OT, IoT or connected-product environments that need specialist security?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["website", "jobs"],
+          "half_life_days": 540
+        },
+        {
+          "key": "handles_sensitive_data",
+          "text": "Does the company handle regulated or sensitive personal data at scale, such as health, financial or payment data?",
+          "weight": "medium",
+          "polarity": "positive",
+          "source_kinds": ["website", "firmographics"],
+          "half_life_days": 720
+        },
+        {
+          "key": "mature_security_function",
+          "text": "Does the company already run a large, mature internal security organisation with its own SOC?",
+          "weight": "medium",
+          "polarity": "negative",
+          "source_kinds": ["jobs", "website"],
+          "half_life_days": 365
+        },
+        {
+          "key": "is_security_vendor",
+          "text": "Is this company itself a cybersecurity vendor or managed security service provider, and therefore a competitor rather than a client?",
+          "weight": "high",
+          "polarity": "disqualifier",
+          "source_kinds": ["website", "firmographics"],
+          "half_life_days": 3650
+        }
+      ]
+    }
+  ]
+}

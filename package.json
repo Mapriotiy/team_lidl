@@ -1,0 +1,40 @@
+{
+  "name": "orange-signal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI B2B sales intelligence platform - turns public web signals into scored, evidence-backed leads.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:init": "tsx src/cli/run.ts init",
+    "seed": "tsx src/cli/run.ts seed",
+    "ingest": "tsx src/cli/run.ts ingest",
+    "evaluate": "tsx src/cli/run.ts evaluate",
+    "score": "tsx src/cli/run.ts score",
+    "pipeline": "tsx src/cli/run.ts all",
+    "api": "tsx watch src/api/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.0",
+    "express": "^4.21.2",
+    "fast-xml-parser": "^4.5.1",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "playwright": "^1.63.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
