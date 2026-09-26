@@ -25,8 +25,13 @@ def run(pipeline: ResearchPipeline | None = None) -> None:
                 retention_days=settings.source_text_retention_days,
                 budget_usd=settings.research_budget_usd,
             )
+            logger.info("Research pipeline configured with model %s", settings.assessment_model)
         else:
             pipeline = UnconfiguredPipeline()
+            logger.warning(
+                "Research pipeline is NOT configured: set OPENROUTER_API_KEY and "
+                "ASSESSMENT_MODEL in the worker environment to run real research"
+            )
     logger.info("Worker started")
     while True:
         try:

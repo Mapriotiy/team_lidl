@@ -193,3 +193,10 @@ def test_transient_provider_overload_is_retryable() -> None:
 
     with pytest.raises(RetryableResearchError, match="temporarily unavailable"):
         pipeline.assess("run-1", company, version, collected.data)
+
+
+def test_unconfigured_pipeline_names_required_environment() -> None:
+    from app.jobs.runner import UnconfiguredPipeline
+
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        UnconfiguredPipeline().collect("run-1", None)  # type: ignore[arg-type]
