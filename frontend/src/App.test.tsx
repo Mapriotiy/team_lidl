@@ -37,6 +37,15 @@ test('shows buying signal guidance from the first page', async () => {
   expect(screen.getByText('Evidence of active need, change, or investment.')).toBeInTheDocument()
 })
 
+test('opens settings from the sidebar without adding data sources to primary navigation', async () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+  expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: 'Settings sections' })).toHaveTextContent('Data sources')
+  expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryByText('Data sources')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Switch to dark appearance' })).toBeInTheDocument()
+})
+
 test('advances to company discovery after saving the service profile', async () => {
   render(<App />)
   await screen.findByRole('heading', { name: 'Tell us what a good opportunity looks like' })

@@ -27,7 +27,7 @@ export function ResearchActivity({ runs }: { runs: ResearchRun[] }) {
   )
 }
 
-export function ResearchActivityWorkspace() {
+export function ResearchActivityWorkspace({ initialCompanyId, onInitialCompanyOpened }: { initialCompanyId?: string | null; onInitialCompanyOpened?: () => void } = {}) {
   const [companies, setCompanies] = useState<CompanyDetail[] | null>(null)
   const [selected, setSelected] = useState<CompanyDetail | null>(null)
   const [error, setError] = useState('')
@@ -63,6 +63,15 @@ export function ResearchActivityWorkspace() {
     void refresh()
     return () => { controller.abort(); clearTimeout(timer) }
   }, [reload])
+
+  useEffect(() => {
+    if (!initialCompanyId) return
+    const controller = new AbortController()
+    void getCompany(initialCompanyId, controller.signal).then((company) => {
+      if (!controller.signal.aborted) { setSelected(company); onInitialCompanyOpened?.() }
+    }).catch((reason) => { if (!controller.signal.aborted) setError(errorMessage(reason)) })
+    return () => controller.abort()
+  }, [initialCompanyId, onInitialCompanyOpened])
 
   if (selected) return <CompanyResearch company={selected} onBack={() => setSelected(null)} />
 
