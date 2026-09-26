@@ -517,7 +517,11 @@ def test_newsapi_targets_merge_with_gdelt_and_failures_stay_partial() -> None:
             return [candidate("https://news.example/shared"), candidate("https://news.example/a")]
 
     class NewsApiStub:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
         def discover_queries(self, queries: list[str], **kwargs: object) -> list[NewsCandidate]:
+            self.queries = queries
             return [candidate("https://news.example/shared"), candidate("https://news.example/b")]
 
     class FailingNewsApi:
@@ -537,14 +541,17 @@ def test_newsapi_targets_merge_with_gdelt_and_failures_stay_partial() -> None:
         session.expunge(company)
 
     collector = RecordingCollector()
+    newsapi_stub = NewsApiStub()
     pipeline = IntegratedResearchPipeline(
         sessions,
         FakeAssessmentProvider(),  # type: ignore[arg-type]
         collector=collector,  # type: ignore[arg-type]
         news=GdeltStub(),  # type: ignore[arg-type]
-        newsapi=NewsApiStub(),  # type: ignore[arg-type]
+        newsapi=newsapi_stub,  # type: ignore[arg-type]
     )
     collected = pipeline.collect("run-news", company)
+    assert newsapi_stub.queries[0] == '"Example"'
+    assert all(query.startswith('"Example"') for query in newsapi_stub.queries)
 
     news_urls = [t.url for t in collector.targets if t.source_type == SourceType.NEWS]
     assert news_urls == [

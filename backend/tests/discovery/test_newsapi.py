@@ -52,6 +52,8 @@ def test_discovers_recent_news_with_key_header_and_bounded_window() -> None:
     assert transport.headers["X-Api-Key"] == "secret"
     assert transport.params["q"] == '"Example Company"'
     assert transport.params["pageSize"] == "5"
+    assert transport.params["searchIn"] == "title,description,content"
+    assert transport.params["sortBy"] == "relevancy"
     assert "from" in transport.params
     assert "apiKey" not in transport.params
 
@@ -109,3 +111,15 @@ def test_multi_query_deduplicates_and_caps_results() -> None:
         "https://news.example/ro/article",
         "https://news.example/pl/article",
     ]
+
+
+def test_multi_query_records_reported_received_and_kept_counts() -> None:
+    discovery = NewsApiDiscovery("secret", FakeTransport())
+    discovery.discover_queries(['"A"', '"A" AND hiring'], limit_per_query=30, max_results=12)
+
+    stats = discovery.last_stats
+    assert (stats.reported, stats.received, stats.kept) == (8, 8, 2)
+    assert "reported 8 matches" in stats.describe()
+
+    discovery.discover_queries([])
+    assert discovery.last_stats.reported == 0

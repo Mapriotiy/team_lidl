@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from urllib.error import HTTPError
@@ -13,6 +14,20 @@ from app.discovery.gdelt import NewsCandidate
 NEWSAPI_ENDPOINT = "https://newsapi.org/v2/everything"
 # The free newsapi.org plan only serves articles from the last month.
 NEWSAPI_MAX_WINDOW_DAYS = 29
+MAX_ARTICLES_PER_HOST = 3
+
+
+@dataclass
+class NewsApiStats:
+    reported: int = 0
+    received: int = 0
+    kept: int = 0
+
+    def describe(self) -> str:
+        return (
+            f"NewsAPI reported {self.reported} matches; received {self.received}; "
+            f"kept {self.kept} unique article URLs"
+        )
 
 
 class NewsApiError(RuntimeError):
@@ -57,6 +72,7 @@ class NewsApiDiscovery:
         self.api_key = api_key.strip()
         self.transport = transport or UrlLibNewsApiTransport()
         self.timeout = timeout
+        self.last_stats = NewsApiStats()
 
     def _discover_query(self, query: str, *, limit: int) -> list[NewsCandidate]:
         if not 1 <= limit <= 100:
@@ -64,9 +80,10 @@ class NewsApiDiscovery:
         since = datetime.now(UTC) - timedelta(days=NEWSAPI_MAX_WINDOW_DAYS)
         params = {
             "q": query,
-            "searchIn": "title,description",
+            # Company names rarely appear in headlines; body matches roughly triple recall.
+            "searchIn": "title,description,content",
             "from": since.strftime("%Y-%m-%d"),
-            "sortBy": "publishedAt",
+            "sortBy": "relevancy",
             "pageSize": str(limit),
         }
         headers = {"X-Api-Key": self.api_key, "User-Agent": "LeadRadarResearch/0.1"}
@@ -90,6 +107,9 @@ class NewsApiDiscovery:
         articles = payload.get("articles")
         if not isinstance(articles, list):
             raise NewsApiError("NewsAPI returned an invalid response")
+        reported = payload.get("totalResults")
+        self.last_stats.reported += reported if isinstance(reported, int) and reported > 0 else 0
+        self.last_stats.received += len(articles)
 
         results: list[NewsCandidate] = []
         seen_urls: set[str] = set()
@@ -115,7 +135,10 @@ class NewsApiDiscovery:
         return results[:limit]
 
     def discover(self, company_name: str, *, limit: int = 5) -> list[NewsCandidate]:
-        return self._discover_query(f'"{company_name.strip()}"', limit=limit)
+        self.last_stats = NewsApiStats()
+        results = self._discover_query(f'"{company_name.strip()}"', limit=limit)
+        self.last_stats.kept = len(results)
+        return results
 
     def discover_queries(
         self,
@@ -125,8 +148,16 @@ class NewsApiDiscovery:
         max_results: int = 18,
     ) -> list[NewsCandidate]:
         """Search several angles and retain a diverse set of full-page targets."""
+        self.last_stats = NewsApiStats()
         if not queries or max_results <= 0:
             return []
+        candidates = self._merge_queries(queries, limit_per_query, max_results)
+        self.last_stats.kept = len(candidates)
+        return candidates
+
+    def _merge_queries(
+        self, queries: list[str], limit_per_query: int, max_results: int
+    ) -> list[NewsCandidate]:
         candidates: list[NewsCandidate] = []
         seen_urls: set[str] = set()
         host_counts: dict[str, int] = {}
@@ -141,7 +172,7 @@ class NewsApiDiscovery:
             for candidate in query_candidates:
                 url = candidate.target.url
                 host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
-                if url in seen_urls or host_counts.get(host, 0) >= 3:
+                if url in seen_urls or host_counts.get(host, 0) >= MAX_ARTICLES_PER_HOST:
                     continue
                 seen_urls.add(url)
                 host_counts[host] = host_counts.get(host, 0) + 1

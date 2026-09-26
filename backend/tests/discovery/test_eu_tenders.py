@@ -200,3 +200,57 @@ def test_competitive_call_uses_official_external_page_instead_of_broken_spa_rout
     result = EuTendersDiscovery(CompetitiveCallTransport()).search("automation")
 
     assert result.calls[0].url == "https://nlnet.nl/codesupply"
+
+
+class PerQueryTransport(FakeTransport):
+    """Each query sees its own result set; cascade calls share one parent topic id."""
+
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
+        self.calls += 1
+        shared = "HORIZON-CASCADE"
+        if "text=cyber&" in url:
+            items = [
+                portal_item(shared, url="https://ec.europa.eu/x/cascade-1"),
+                portal_item("OTHER", url="https://ec.europa.eu/x/unrelated"),
+            ]
+        else:
+            items = [
+                portal_item(shared, url="https://ec.europa.eu/x/cascade-1"),
+                portal_item(shared, url="https://ec.europa.eu/x/cascade-2"),
+            ]
+        for item in items:
+            metadata = item["metadata"]
+            assert isinstance(metadata, dict)
+            if str(item["url"]).endswith("unrelated"):
+                metadata["callTitle"] = ["Forest restoration grants"]
+                metadata["description"] = ["Trees"]
+            else:
+                metadata["callTitle"] = ["Cyber resilience open call"]
+        return {"totalResults": len(items), "results": items}
+
+
+def test_search_many_merges_queries_and_keeps_cascade_calls() -> None:
+    transport = PerQueryTransport()
+    result = EuTendersDiscovery(transport).search_many(
+        ["cyber", "security"], relevance_terms=["cyber", "resilien"], limit=10
+    )
+
+    assert transport.calls == 2
+    assert result.query == "cyber | security"
+    assert result.total == 4
+    assert [call.url for call in result.calls] == [
+        "https://ec.europa.eu/x/cascade-1",
+        "https://ec.europa.eu/x/cascade-2",
+    ]
+
+
+def test_search_many_rejects_blank_queries() -> None:
+    with pytest.raises(ValueError):
+        EuTendersDiscovery(FakeTransport()).search_many(["  ", ""])

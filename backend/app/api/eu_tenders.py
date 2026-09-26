@@ -88,6 +88,49 @@ def profile_query(configuration: ProfileConfiguration) -> str:
     return " ".join(terms[:3]) or "digital transformation"
 
 
+# SEDIA ranks single words well and phrases poorly, so each domain fans out into a few
+# synonym queries; the relevance stems then drop cascade calls that merely matched a word.
+_EXPANSIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "automation": (
+        ("automation", "digitalisation", "robotic", "process", "IT services"),
+        (
+            "automat",
+            "robot",
+            "digitali",
+            "digital",
+            "workflow",
+            "artificial intelligence",
+            "software",
+        ),
+    ),
+    "cybersecurity": (
+        ("cybersecurity", "cyber", "security", "information security", "ICT"),
+        ("cyber", "security", "resilien", "threat", "incident"),
+    ),
+    "software": (
+        ("software", "IT services", "application development", "digital", "ICT"),
+        (
+            "software",
+            "digital",
+            "platform",
+            "application",
+            "data",
+            "cloud",
+            "artificial intelligence",
+        ),
+    ),
+}
+
+
+def profile_queries(configuration: ProfileConfiguration) -> tuple[list[str], list[str] | None]:
+    primary = profile_query(configuration)
+    expansion = _EXPANSIONS.get(primary)
+    if expansion is None:
+        return [primary], None
+    queries, stems = expansion
+    return list(queries), list(stems)
+
+
 def get_tenders(settings: Settings = Depends(get_settings)) -> EuTendersDiscovery:
     if not settings.eu_tenders_enabled:
         raise HTTPException(status_code=404, detail="EU tenders source is disabled")
@@ -115,9 +158,14 @@ def search(
     if profile is None or not profile.versions:
         raise HTTPException(status_code=404, detail="Service profile not found")
     configuration = ProfileConfiguration.model_validate(profile.versions[-1].configuration)
-    query = profile_query(configuration)
+    queries, stems = profile_queries(configuration)
     try:
-        result = tenders.search(query, limit=limit, include_forthcoming=include_forthcoming)
+        result = tenders.search_many(
+            queries,
+            relevance_terms=stems,
+            limit=limit,
+            include_forthcoming=include_forthcoming,
+        )
     except EuTendersError as exc:
         # Keep upstream text out of the response; the portal message is not user-facing.
         detail = "EU tenders portal is temporarily unavailable" if exc.retryable else str(exc)

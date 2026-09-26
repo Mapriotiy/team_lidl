@@ -136,7 +136,8 @@ def _portal_url(value: object) -> str | None:
 def _external_call_url(metadata: Mapping[str, object]) -> str | None:
     for field in ("furtherInformation", "beneficiaryAdministration", "destinationDetails"):
         raw = _first(metadata.get(field)) or ""
-        for candidate in _HREF.findall(html.unescape(raw)):
+        for match in _HREF.finditer(html.unescape(raw)):
+            candidate = match.group(1)
             parsed = urlparse(candidate)
             if parsed.scheme == "https" and parsed.hostname and parsed.hostname != PORTAL_HOST:
                 return candidate.split("#", 1)[0]
@@ -163,11 +164,14 @@ def _query_terms(query: str) -> list[str]:
     return list(dict.fromkeys(re.findall(r"[a-z0-9-]{3,}", query.casefold())))
 
 
-def _relevance(title: str, summary: str, terms: list[str]) -> int:
+def _relevance(
+    title: str, summary: str, terms: list[str], minimum_matches: int | None = None
+) -> int:
     title_text = title.casefold()
     body_text = f"{title} {summary}".casefold()
     matched = [term for term in terms if term in body_text]
-    minimum_matches = 2 if len(terms) > 1 else 1
+    if minimum_matches is None:
+        minimum_matches = 2 if len(terms) > 1 else 1
     if len(matched) < minimum_matches:
         return 0
     return sum(3 if term in title_text else 1 for term in matched)
@@ -195,11 +199,63 @@ class EuTendersDiscovery:
         include_forthcoming: bool = True,
         language: str = "en",
     ) -> TenderSearchResult:
-        query = _SPACE.sub(" ", query).strip()
-        if not query:
+        return self.search_many(
+            [query], limit=limit, include_forthcoming=include_forthcoming, language=language
+        )
+
+    def search_many(
+        self,
+        queries: list[str],
+        *,
+        relevance_terms: list[str] | None = None,
+        limit: int = 10,
+        include_forthcoming: bool = True,
+        language: str = "en",
+    ) -> TenderSearchResult:
+        """Merge several synonym queries; SEDIA matches single terms far better than phrases."""
+        cleaned = list(dict.fromkeys(_SPACE.sub(" ", q).strip() for q in queries if q.strip()))
+        if not cleaned:
             raise ValueError("EU tenders query must not be blank")
         if not 1 <= limit <= self.max_page_size:
             raise ValueError(f"EU tenders limit must be between 1 and {self.max_page_size}")
+        terms = [t.casefold() for t in relevance_terms] if relevance_terms else None
+        ranked: dict[str, tuple[int, TenderCall]] = {}
+        total = 0
+        retrieved_at = datetime.now(UTC)
+        for query in cleaned:
+            query_total, calls = self._search_one(
+                query,
+                terms if terms is not None else _query_terms(query),
+                minimum_matches=1 if terms is not None else None,
+                include_forthcoming=include_forthcoming,
+                language=language,
+                now=retrieved_at,
+            )
+            total += query_total
+            for relevance, call in calls:
+                if call.url not in ranked or ranked[call.url][0] < relevance:
+                    ranked[call.url] = (relevance, call)
+        ordered = sorted(
+            ranked.values(),
+            key=lambda item: (-item[0], item[1].deadline or datetime.max.replace(tzinfo=UTC)),
+        )
+        return TenderSearchResult(
+            query=" | ".join(cleaned),
+            total=total,
+            calls=[call for _, call in ordered[:limit]],
+            retrieved_at=retrieved_at,
+        )
+
+    def _search_one(
+        self,
+        query: str,
+        terms: list[str],
+        *,
+        minimum_matches: int | None,
+        include_forthcoming: bool,
+        language: str,
+        now: datetime,
+    ) -> tuple[int, list[tuple[int, TenderCall]]]:
         statuses = [STATUS_OPEN, STATUS_FORTHCOMING] if include_forthcoming else [STATUS_OPEN]
         filters = {
             "bool": {
@@ -225,9 +281,8 @@ class EuTendersDiscovery:
             raise EuTendersError("EU tenders portal returned an invalid response")
         total = payload.get("totalResults")
         ranked_calls: list[tuple[int, TenderCall]] = []
+        # Cascade open calls share their parent topic identifier, so the public URL is the key.
         seen: set[str] = set()
-        query_terms = _query_terms(query)
-        retrieved_at = datetime.now(UTC)
         for item in payload["results"]:
             if not isinstance(item, dict):
                 continue
@@ -237,46 +292,35 @@ class EuTendersDiscovery:
             identifier = _first(metadata.get("identifier"))
             url = _public_call_url(item, metadata)
             title = _first(metadata.get("callTitle")) or _first(item.get("title"))
-            if identifier is None or url is None or title is None or identifier in seen:
+            if identifier is None or url is None or title is None or url in seen:
                 continue
-            seen.add(identifier)
+            seen.add(url)
             status = _first(metadata.get("status"))
             deadline = _date(metadata.get("deadlineDate"))
-            if deadline is not None and deadline < retrieved_at:
+            if deadline is not None and deadline < now:
                 continue
             summary = _summary(metadata.get("description"))
             clean_title = _SPACE.sub(" ", html.unescape(title)).strip()[:300]
-            relevance = _relevance(clean_title, summary, query_terms)
+            relevance = _relevance(clean_title, summary, terms, minimum_matches)
             if relevance == 0:
                 continue
             ranked_calls.append(
                 (
                     relevance,
                     TenderCall(
-                    identifier=identifier,
-                    title=clean_title,
-                    url=url,
-                    status="forthcoming" if status == STATUS_FORTHCOMING else "open",
-                    start_date=_date(metadata.get("startDate")),
-                    deadline=deadline,
-                    programme=_programme(metadata.get("frameworkProgramme")),
-                    summary=summary,
+                        identifier=identifier,
+                        title=clean_title,
+                        url=url,
+                        status="forthcoming" if status == STATUS_FORTHCOMING else "open",
+                        start_date=_date(metadata.get("startDate")),
+                        deadline=deadline,
+                        programme=_programme(metadata.get("frameworkProgramme")),
+                        summary=summary,
                     ),
                 )
             )
-        ranked_calls.sort(
-            key=lambda item: (
-                -item[0],
-                item[1].deadline or datetime.max.replace(tzinfo=UTC),
-            ),
-        )
-        calls = [call for _, call in ranked_calls[:limit]]
-        return TenderSearchResult(
-            query=query,
-            total=total if isinstance(total, int) and total >= 0 else len(calls),
-            calls=calls,
-            retrieved_at=retrieved_at,
-        )
+        reported = total if isinstance(total, int) and total >= 0 else len(ranked_calls)
+        return reported, ranked_calls
 
     def _request(self, url: str, filters: Mapping[str, object]) -> object:
         fields = {"query": (json.dumps(filters), True)}

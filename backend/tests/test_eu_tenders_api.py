@@ -27,12 +27,20 @@ class RecordingTenders:
         self.error = error
         self.queries: list[str] = []
 
-    def search(self, query: str, *, limit: int = 10, include_forthcoming: bool = True):  # type: ignore[no-untyped-def]
-        self.queries.append(query)
+    def search_many(  # type: ignore[no-untyped-def]
+        self,
+        queries: list[str],
+        *,
+        relevance_terms: list[str] | None = None,
+        limit: int = 10,
+        include_forthcoming: bool = True,
+    ):
+        self.queries.extend(queries)
+        self.relevance_terms = relevance_terms
         if self.error is not None:
             raise self.error
         return TenderSearchResult(
-            query=query,
+            query=" | ".join(queries),
             total=1,
             calls=[
                 TenderCall(
@@ -78,15 +86,15 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert body["total"] == 1
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
     assert body["warnings"]
-    assert tenders.queries == [body["query"]]
-    assert body["query"] == "automation"
-    assert "services" not in body["query"]
+    assert tenders.queries[0] == "automation"
+    assert body["query"] == " | ".join(tenders.queries)
+    assert len(tenders.queries) > 1 and tenders.relevance_terms
+    assert "services" not in tenders.queries[0]
 
 
 def test_builtin_services_use_recall_safe_tender_queries() -> None:
     queries = {
-        preset.name: eu_tenders.profile_query(preset.configuration)
-        for preset in load_presets()
+        preset.name: eu_tenders.profile_query(preset.configuration) for preset in load_presets()
     }
 
     assert queries == {
@@ -94,6 +102,14 @@ def test_builtin_services_use_recall_safe_tender_queries() -> None:
         "Cybersecurity": "cybersecurity",
         "Software development": "software",
     }
+
+
+def test_builtin_services_fan_out_to_synonym_queries_with_relevance_stems() -> None:
+    for preset in load_presets():
+        queries, stems = eu_tenders.profile_queries(preset.configuration)
+        assert queries[0] == eu_tenders.profile_query(preset.configuration)
+        assert 1 < len(queries) <= 5
+        assert stems
 
 
 def test_search_reports_unknown_profile_and_upstream_failure_safely() -> None:

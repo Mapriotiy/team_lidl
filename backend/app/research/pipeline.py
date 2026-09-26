@@ -87,6 +87,22 @@ def _research_queries(company_name: str, configuration: ProfileConfiguration) ->
     ]
 
 
+_TRANSFORMATION_TERMS = '"digital transformation" OR "shared services" OR outsourcing'
+
+
+def _newsapi_queries(company: Company) -> list[str]:
+    """Identity query, then themed ones; each query spends one request of the daily quota."""
+    names = [company.display_name.strip(), *(alias.strip() for alias in company.aliases)]
+    unique_names = [n for n in dict.fromkeys(names) if len(n) >= 3][:3]
+    identity = " OR ".join(f'"{name}"' for name in unique_names)
+    scoped = f"({identity})" if len(unique_names) > 1 else identity
+    return [
+        identity,
+        f"{scoped} AND (hiring OR recruiting OR vacancies OR jobs)",
+        f"{scoped} AND (automation OR {_TRANSFORMATION_TERMS})",
+    ]
+
+
 def _fact_source_targets(company: Company) -> list[SourceTarget]:
     targets: list[SourceTarget] = []
     seen: set[str] = set()
@@ -197,15 +213,21 @@ class IntegratedResearchPipeline:
         if self.newsapi is not None:
             try:
                 newsapi_candidates = self.newsapi.discover_queries(
-                    queries[:3], limit_per_query=5, max_results=10
+                    _newsapi_queries(company), limit_per_query=30, max_results=12
                 )
-                log_discovery(
-                    "newsapi", "ok", f"Search batch returned {len(newsapi_candidates)} article URLs"
-                )
+                new_urls = 0
                 for c in newsapi_candidates:
                     if c.target.url not in seen_news_urls:
                         news_candidates.append(c)
                         seen_news_urls.add(c.target.url)
+                        new_urls += 1
+                stats = getattr(self.newsapi, "last_stats", None)
+                summary = (
+                    stats.describe()
+                    if stats is not None
+                    else f"Search batch returned {len(newsapi_candidates)} article URLs"
+                )
+                log_discovery("newsapi", "ok", f"{summary}; {new_urls} new after GDELT merge")
             except NewsApiError as exc:
                 log_discovery(
                     "newsapi", "error", "NewsAPI search failed; continuing with other sources"
