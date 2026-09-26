@@ -198,7 +198,7 @@ export function OpportunityWorkspace() {
           {([
             ['profiles', 'Service Profile'],
             ['discovery', 'Discover companies'],
-            ['activity', 'Research activity'],
+            ['activity', 'Research'],
             ['opportunities', 'Opportunities'],
             ['companies', 'Companies'],
           ] as const).map(([id, label]) => (
@@ -223,13 +223,13 @@ export function OpportunityWorkspace() {
 
       <main className="lg:pl-64">
         <nav aria-label="Mobile navigation" className="flex gap-2 overflow-x-auto border-b border-[#DED9D1] bg-white p-3 lg:hidden">
-          <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view === 'company' ? 'companies' : view} onChange={(event) => setView(event.target.value as typeof view)}>{(['profiles', 'discovery', 'activity', 'opportunities', 'companies'] as const).map((id) => <option key={id} value={id}>{id === 'profiles' ? 'Service Profile' : id === 'discovery' ? 'Discover companies' : id === 'activity' ? 'Research activity' : id === 'opportunities' ? 'Opportunities' : 'Companies'}</option>)}</select>
+          <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view === 'company' ? 'companies' : view} onChange={(event) => setView(event.target.value as typeof view)}>{(['profiles', 'discovery', 'activity', 'opportunities', 'companies'] as const).map((id) => <option key={id} value={id}>{id === 'profiles' ? 'Service Profile' : id === 'discovery' ? 'Discover companies' : id === 'activity' ? 'Research' : id === 'opportunities' ? 'Opportunities' : 'Companies'}</option>)}</select>
         </nav>
         <header className="border-b border-[#E1DDD6] bg-[#F7F6F3]/95 px-5 py-5 backdrop-blur sm:px-8 lg:px-10">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C65318]">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#20242A]">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Service Profile'}</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#20242A]">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research' : view === 'discovery' ? 'Company sourcing' : 'Service Profile'}</h1>
             </div>
           </div>
         </header>
