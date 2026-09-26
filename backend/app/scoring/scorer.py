@@ -64,11 +64,14 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     )
     coverage = supported_count / len(scoring_input.signals) if scoring_input.signals else 0.0
 
+    # A criterion that could not be compared (matched is None) is unknown, not a miss, so
+    # it is reported but kept out of the ICP fit denominator. Otherwise a profile whose
+    # facts are thin would be scored as if it fitted badly.
+    decided = [item for item in scoring_input.icp_criteria if item.matched is not None]
     icp_configured = bool(scoring_input.icp_criteria)
     icp_fit = (
-        sum(criterion.matched is True for criterion in scoring_input.icp_criteria)
-        / len(scoring_input.icp_criteria)
-        if icp_configured
+        sum(criterion.matched is True for criterion in decided) / len(decided)
+        if decided
         else 0.0
     )
 
@@ -137,6 +140,16 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
     if not icp_configured:
         warnings.append("ICP criteria are not configured")
+    elif not decided:
+        warnings.append(
+            "No ICP criterion could be compared against the stored company facts: "
+            + "; ".join(
+                item.reason or item.key for item in scoring_input.icp_criteria
+            )
+        )
+    for criterion in scoring_input.icp_criteria:
+        if criterion.matched is False and criterion.reason is not None:
+            warnings.append(f"{criterion.key}: {criterion.reason}")
 
     return ScoringResult(
         company_id=scoring_input.company_id,

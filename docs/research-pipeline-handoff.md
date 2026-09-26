@@ -65,12 +65,12 @@ ASSESSMENT_MODEL=
 ASSESSMENT_TIMEOUT_SECONDS=60
 RESEARCH_BUDGET_USD=5
 SOURCE_TEXT_RETENTION_DAYS=30
-BROWSER_RENDERING_ENABLED=false
+NEWSAPI_KEY=
 ```
 
 Choose an OpenRouter model that supports `response_format=json_schema`. Do not silently fall back to unstructured output.
 
-`BROWSER_RENDERING_ENABLED=true` makes the worker render JavaScript shells in headless Chromium through the validated transport (see `backend/app/collection/README.md`). The `browser` extra and Chromium must be installed; the development Docker target includes them.
+`NEWSAPI_KEY` (newsapi.org) is optional. When set, collection also queries NewsAPI for recent articles and merges them with GDELT targets by URL. When unset or failing, GDELT-only collection continues and a `newsapi_discovery_failed` partial error is recorded. The free plan covers roughly the last month and a fixed number of searches; each research run spends up to three.
 
 ## Remaining work in priority order
 

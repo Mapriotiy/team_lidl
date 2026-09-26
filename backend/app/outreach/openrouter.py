@@ -54,7 +54,11 @@ class OpenRouterOutreachProvider:
                         "intent. Do not imply that public activity proves interest in the offered "
                         "service. Every company-specific claim must cite its evidence ID. Return "
                         "exactly one draft for every requested channel. Email and InMail need a "
-                        "subject. Connection notes must be at most 300 characters. Call briefs "
+                        "subject. Format email bodies as three sections separated by blank lines: "
+                        "greeting, one cohesive body paragraph containing context, offer and a "
+                        "low-pressure call to action, then sign-off. Do not use Markdown in "
+                        "email bodies. Connection notes must be at most 300 characters. Call "
+                        "briefs "
                         "must include an opening and three discovery questions. All output remains "
                         "a human-reviewed draft."
                     ),

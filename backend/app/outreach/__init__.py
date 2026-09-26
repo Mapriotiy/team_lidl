@@ -1,4 +1,5 @@
 from app.outreach.service import (
+    CURATED_EMAIL_DOMAINS,
     DraftChannel,
     DraftRequest,
     OutreachDraft,
@@ -8,6 +9,7 @@ from app.outreach.service import (
 )
 
 __all__ = [
+    "CURATED_EMAIL_DOMAINS",
     "DraftChannel",
     "DraftRequest",
     "OutreachDraft",

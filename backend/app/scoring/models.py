@@ -13,7 +13,10 @@ class ScoringModel(BaseModel):
 
 class IcpCriterion(ScoringModel):
     key: str
+    # True and False are decided; None means the criterion could not be compared against
+    # the stored facts and is therefore reported but not scored as a miss.
     matched: bool | None
+    reason: str | None = None
 
 
 class SignalScoringInput(ScoringModel):

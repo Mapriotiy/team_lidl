@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.models.results import StoredSourceDocument
 from app.outreach import DraftChannel, DraftRequest, OutreachEvidence, generate_fallback
 from app.outreach.contacts import find_contacts
@@ -64,3 +66,63 @@ def test_prefers_named_company_contact_with_relevant_role() -> None:
     assert contacts[0].name == "Ana Popescu"
     assert contacts[0].role == "Transformation"
     assert contacts[0].confidence == 0.95
+
+
+@pytest.mark.parametrize(
+    ("domain", "company_name", "claims", "subject_phrase", "body_phrase"),
+    [
+        (
+            "pkobp.pl",
+            "PKO Bank Polski",
+            [
+                "The bank's strategy explicitly invests in hyperautomation and process mining.",
+                "PKO robots processed nearly 27 million cases in Q1 2025.",
+            ],
+            "hyperautomation",
+            "27 million",
+        ),
+        (
+            "cez.cz",
+            "ČEZ Group",
+            [
+                "ČEZ is building a group-wide platform for process management and automation.",
+                "ČEZ uses AI automation to reduce customer-service handling time.",
+            ],
+            "ČEZ Group",
+            "group-wide BPM platform",
+        ),
+    ],
+)
+def test_generates_curated_email_for_reference_companies(
+    domain: str,
+    company_name: str,
+    claims: list[str],
+    subject_phrase: str,
+    body_phrase: str,
+) -> None:
+    evidence = [
+        OutreachEvidence(
+            id=f"evidence-{index}",
+            signal_id="automation",
+            factual_claim=claim,
+            excerpt=claim,
+            source_title="Official report",
+            source_url=f"https://{domain}/report-{index}",
+        )
+        for index, claim in enumerate(claims)
+    ]
+
+    result = generate_fallback(
+        company_id="company-1",
+        company_name=company_name,
+        company_domain=domain,
+        service_description="We provide process automation services.",
+        request=DraftRequest(channels=[DraftChannel.EMAIL]),
+        evidence=evidence,
+    )
+
+    draft = result.drafts[0]
+    assert subject_phrase in (draft.subject or "")
+    assert body_phrase in draft.body
+    assert draft.body.count("\n\n") == 2
+    assert draft.evidence_ids == ["evidence-0", "evidence-1"]

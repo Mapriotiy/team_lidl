@@ -37,9 +37,9 @@ export function OpportunityWorkspace() {
     <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[#34312E] bg-[#191817] lg:flex lg:flex-col">
         <div className="flex h-20 items-center gap-3 border-b border-[#34312E] px-6">
-          <div className="grid size-9 place-items-center rounded-lg bg-[#E86722] font-black text-white">L</div>
+          <div aria-hidden="true" className="size-9 rounded-lg bg-[#E86722] shadow-[inset_0_-7px_14px_rgba(129,42,7,0.18)]" />
           <div>
-            <p className="font-semibold tracking-tight text-white">LeadRadar</p>
+            <p className="text-xl font-semibold tracking-tight text-white">LeadRadar</p>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#C8C2BA]">Sales intelligence</p>
           </div>
         </div>

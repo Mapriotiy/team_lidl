@@ -88,7 +88,7 @@ export function ResearchActivityWorkspace() {
 
 type DisplayStatus = 'Waiting' | 'Researching' | 'Promising' | 'Researched' | 'Sources found' | 'Not enough data' | 'Needs attention' | 'Failed'
 
-const statusClasses: Record<DisplayStatus, string> = { Waiting: 'bg-[#EEEAE4] text-[#6F6961]', Researching: 'bg-[#FFF0E5] text-[#A94616]', Promising: 'bg-[#E4F5E9] text-[#24623F]', Researched: 'bg-[#E8F3EC] text-[#326B4B]', 'Sources found': 'bg-[#E9F1FA] text-[#315F8B]', 'Not enough data': 'bg-[#EEEAE4] text-[#6F6961]', 'Needs attention': 'bg-[#FFF4D9] text-[#8A6414]', Failed: 'bg-[#FBE9E5] text-[#9A3828]' }
+const statusClasses: Record<DisplayStatus, string> = { Waiting: 'bg-[#EEEAE4] text-[#6F6961]', Researching: 'bg-[#FFF0E5] text-[#A94616]', Promising: 'bg-[#C9F7D8] text-[#096B34]', Researched: 'bg-[#D7F4E1] text-[#116B39]', 'Sources found': 'bg-[#E9F1FA] text-[#315F8B]', 'Not enough data': 'bg-[#EEEAE4] text-[#6F6961]', 'Needs attention': 'bg-[#FFF4D9] text-[#8A6414]', Failed: 'bg-[#FBE9E5] text-[#9A3828]' }
 
 const minimumSources = 2
 const sourceCount = (company: CompanyDetail) => new Set(company.sources?.map((source) => source.id) ?? company.evidence.map((item) => item.sourceId)).size
@@ -145,7 +145,7 @@ function ResearchCompanyList({ companies, deleting, onDelete, onOpen }: { compan
 }
 
 const assessmentPresentation = (assessment: Assessment) => {
-  if (assessment.status === 'supported') return { label: assessment.strength === 'strong' ? 'Strong signal' : assessment.strength === 'moderate' ? 'Promising signal' : 'Early signal', tone: 'border-[#B9DDC5] bg-[#F4FBF6] text-[#285D3D]' }
+  if (assessment.status === 'supported') return { label: assessment.strength === 'strong' ? 'Strong signal' : assessment.strength === 'moderate' ? 'Promising signal' : 'Early signal', tone: 'border-[#4FC47B] bg-[#DDF9E7] text-[#096B34]' }
   if (assessment.status === 'contradicted') return { label: 'Counter-signal', tone: 'border-[#E6B8AE] bg-[#FFF7F5] text-[#8A2F20]' }
   return { label: 'Open question', tone: 'border-[#D9D4CC] bg-[#FAF8F5] text-[#625D57]' }
 }
@@ -178,11 +178,10 @@ function CompanyResearch({ company, onBack }: { company: CompanyDetail; onBack: 
   })
   return <div className="text-[#20242A]"><button className="text-sm font-semibold text-[#A64212] hover:text-[#742D0D]" onClick={onBack}>← Back to company research</button>
     {status === 'Not enough data' && <div className="mt-6 rounded-xl border border-[#D9D4CC] bg-[#FAF8F5] p-5 text-sm text-[#625D57]">Research finished with {sourceCount(company)} collected source{sourceCount(company) === 1 ? '' : 's'}. At least {minimumSources} distinct sources are required to assess this company. Available findings are retained; collect more sources and rerun research to continue.</div>}
-    {company.researchRuns[0]?.warning && <details className="mt-4 text-sm text-[#716C65]"><summary className="cursor-pointer">Collection and assessment notes</summary><p className="mt-2">{company.researchRuns[0].warning}</p></details>}
-    <div className="mt-6 flex flex-col justify-between gap-5 border-b border-[#DDD8D0] pb-7 md:flex-row md:items-end"><div><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Research findings</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{company.name}</h1><p className="mt-2 text-sm text-[#716C65]">{company.domain}</p></div><div className="flex items-center gap-3"><div className="text-right"><p className="text-lg font-semibold text-[#2F5F43]">{status === 'Not enough data' ? 'Confidence unavailable' : `${confidence.score}% confidence`}</p><p className="text-xs text-[#68645F]">{confidence.label} research confidence</p></div><span className={`h-fit rounded-full px-3 py-1.5 text-sm font-semibold ${statusClasses[status]}`}>{status}</span></div></div>
+    <div className="mt-6 flex flex-col justify-between gap-5 border-b border-[#DDD8D0] pb-7 md:flex-row md:items-end"><div><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Research findings</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{company.name}</h1><p className="mt-2 text-sm text-[#716C65]">{company.domain}</p></div><div className="flex items-center gap-3"><div id="research-header-gmail-action"/><div className="text-right"><p className="text-lg font-semibold text-[#2F5F43]">{status === 'Not enough data' ? 'Confidence unavailable' : `${confidence.score}% confidence`}</p><p className="text-xs text-[#68645F]">{confidence.label} research confidence</p></div><span className={`h-fit rounded-full px-3 py-1.5 text-sm font-semibold ${statusClasses[status]}`}>{status}</span></div></div>
+    {findings.length > 0 && <OutreachDrafts companyId={company.id} />}
     <section aria-label="Research summary" className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[[`${company.sources?.length ?? 0}`, 'Public sources'], [`${company.evidence.length}`, 'Verified facts'], [`${findings.length}`, 'Signals with facts'], [`${Math.round(company.coverage * 100)}%`, 'Signal coverage']].map(([value, label]) => <article className="rounded-xl border border-[#DED9D1] bg-white p-4" key={label}><p className="text-2xl font-semibold text-[#30343A]">{value}</p><p className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#716C65]">{label}</p></article>)}</section>
     <section className="mt-8"><h2 className="text-lg font-semibold">Signals and supporting facts</h2><p className="mt-1 text-sm text-[#716C65]">Each conclusion stays attached to the exact public facts behind it. Signals guide account validation; they do not claim confirmed buying intent.</p>{findings.length ? <div className="mt-5 space-y-5">{findings.map(({ assessment, evidence }) => <SignalFactCard assessment={assessment} evidence={evidence} key={assessment.id} />)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">No signals with verified facts were found for this company.</div>}</section>
-    {findings.length > 0 && <OutreachDrafts companyId={company.id} />}
     <CollectedSources company={company} />
   </div>
 }
