@@ -1,7 +1,7 @@
 import { apiRequest } from './client'
 
 export interface SignalDefinition { id: string; question: string; positive_criteria: string[]; exclusions: string[]; weight: number; effect: 'positive' | 'penalty' | 'disqualifier'; freshness_window_days: number }
-export interface ProfileConfiguration { service_description: string; icp: Record<string, string[] | string | number | boolean | null>; signals: SignalDefinition[] }
+export interface ProfileConfiguration { service_role?: string | null; service_description: string; icp: Record<string, string[] | string | number | boolean | null>; signals: SignalDefinition[] }
 export interface Profile { id: string; name: string; current_version: { id: string; version: number; configuration: ProfileConfiguration; created_at: string }; created_at: string; updated_at: string }
 
 export const selectDefaultProfile = (profiles: Profile[]) =>

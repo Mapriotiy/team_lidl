@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
@@ -14,6 +14,15 @@ const navigation: Array<{ id: View; label: string }> = [
 
 export function OpportunityWorkspace() {
   const [view, setView] = useState<View>('profiles')
+  const [completed, setCompleted] = useState<Record<View, boolean>>({ profiles: false, discovery: false, activity: false })
+  const complete = useCallback((step: View) => {
+    setCompleted((current) => current[step] ? current : { ...current, [step]: true })
+  }, [])
+  const completeProfile = useCallback(() => complete('profiles'), [complete])
+  const completeDiscovery = useCallback(() => complete('discovery'), [complete])
+  const finishProfile = useCallback(() => { completeProfile(); setView('discovery') }, [completeProfile])
+  const finishDiscovery = useCallback(() => { completeDiscovery(); setView('activity') }, [completeDiscovery])
+  const canOpen = (target: View) => target === 'profiles' || (target === 'discovery' && completed.profiles) || (target === 'activity' && completed.discovery)
 
   return (
     <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">
@@ -26,18 +35,16 @@ export function OpportunityWorkspace() {
           </div>
         </div>
 
-        <nav aria-label="Primary" className="flex-1 space-y-1 px-3 py-6">
-          {navigation.map(({ id, label }) => (
-            <button
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-[#FFF1E8] text-[#A64212]' : 'text-[#68645F] hover:bg-[#F0EDE8] hover:text-[#20242A]'}`}
-              key={id}
-              onClick={() => setView(id)}
-              type="button"
-            >
-              <span className={`size-1.5 rounded-full ${view === id ? 'bg-[#C94F12]' : 'bg-[#8F877D]'}`} />
-              {label}
-            </button>
-          ))}
+        <nav aria-label="Primary" className="flex-1 px-3 py-6">
+          <ol>{navigation.map(({ id, label }, index) => (
+            <li className="relative pb-7 last:pb-0" key={id}>
+              {index < navigation.length - 1 && <span aria-hidden="true" className="absolute left-[1.15rem] top-11 text-lg font-bold text-[#A49C92]">↓</span>}
+              <button aria-current={view === id ? 'step' : undefined} aria-label={label} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45 ${view === id ? 'bg-[#FFF1E8] text-[#A64212]' : 'text-[#68645F] hover:bg-[#F0EDE8] hover:text-[#20242A]'}`} disabled={!canOpen(id)} onClick={() => setView(id)} type="button">
+                <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${completed[id] ? 'bg-[#3F7054] text-white' : view === id ? 'bg-[#C94F12] text-white' : 'border border-[#AAA297] bg-white text-[#6B665E]'}`}>{completed[id] ? '✓' : index + 1}</span>
+                <span>{label}</span>
+              </button>
+            </li>
+          ))}</ol>
         </nav>
 
         <p className="m-5 text-xs leading-5 text-[#6B665E]">Research uses saved profile criteria and public evidence.</p>
@@ -46,12 +53,12 @@ export function OpportunityWorkspace() {
       <main className="lg:pl-64">
         <nav aria-label="Mobile navigation" className="flex gap-2 overflow-x-auto border-b border-[#DED9D1] bg-white p-3 lg:hidden">
           <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view} onChange={(event) => setView(event.target.value as View)}>
-            {navigation.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+            {navigation.map(({ id, label }) => <option disabled={!canOpen(id)} key={id} value={id}>{label}</option>)}
           </select>
         </nav>
         <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
-          {view === 'profiles' && <ProfileWorkspace />}
-          {view === 'discovery' && <DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} />}
+          {view === 'profiles' && <ProfileWorkspace onReady={finishProfile} />}
+          {view === 'discovery' && <DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
           {view === 'activity' && <ResearchActivityWorkspace />}
         </div>
       </main>

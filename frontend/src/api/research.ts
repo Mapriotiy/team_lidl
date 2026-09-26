@@ -10,3 +10,4 @@ export const importCompanies = (domains: string[], signal?: AbortSignal) => apiR
 export const listCompanies = (signal?: AbortSignal) => apiRequest<CompanySummary[]>('/companies', { signal })
 export const submitResearch = (companyId: string, profileVersionId: string, idempotencyKey: string) => apiRequest<ResearchRun>('/research-runs', { method: 'POST', body: JSON.stringify({ company_id: companyId, profile_version_id: profileVersionId, idempotency_key: idempotencyKey }) })
 export const getResearchRun = (runId: string, signal?: AbortSignal) => apiRequest<ResearchRun>(`/research-runs/${encodeURIComponent(runId)}`, { signal })
+export const deleteCompanyResearch = (companyId: string) => apiRequest<{ deleted_runs: number }>(`/companies/${encodeURIComponent(companyId)}/research`, { method: 'DELETE' })

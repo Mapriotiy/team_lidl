@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { errorMessage } from '../../api/errors'
-import { listCompanies } from '../../api/research'
+import { deleteCompanyResearch, listCompanies } from '../../api/research'
 import { getCompany } from '../companies/repository'
 import type { CompanyDetail, Evidence, ResearchRun } from '../companies/types'
 
@@ -31,21 +31,36 @@ export function ResearchActivityWorkspace() {
   const [selected, setSelected] = useState<CompanyDetail | null>(null)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<CompanyDetail | null>(null)
   useEffect(() => {
     const controller = new AbortController()
     setCompanies(null); setError('')
     void listCompanies(controller.signal).then(async (companies) => {
-      setCompanies(await Promise.all(companies.map((company) => getCompany(company.id))))
+      const details = await Promise.all(companies.map((company) => getCompany(company.id)))
+      setCompanies(details.filter((company) => company.researchRuns.length > 0))
     }).catch((reason) => { if (!controller.signal.aborted) setError(errorMessage(reason)) })
     return () => controller.abort()
   }, [reload])
 
   if (selected) return <CompanyResearch company={selected} onBack={() => setSelected(null)} />
 
+  const removeResearch = async (company: CompanyDetail) => {
+    setPendingDelete(null)
+    setDeleting(company.id); setError('')
+    try {
+      await deleteCompanyResearch(company.id)
+      setCompanies((current) => current?.filter((item) => item.id !== company.id) ?? current)
+    } catch (reason) { setError(errorMessage(reason)) }
+    finally { setDeleting(null) }
+  }
+
   return (
     <div className="text-[#20242A]">
       <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Company research</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Research coverage</h1><p className="mt-3 text-sm leading-6 text-[#68645F]">Track each company’s public-source research and open the evidence behind every extracted fact.</p></div>
-      <div className="mt-8">{error ? <div className="rounded-2xl border border-[#E6B8AE] bg-[#FFF4F1] p-8 text-[#8A2F20]"><p>{error}</p><button className="mt-4 rounded-lg border border-[#C97865] bg-white px-4 py-2 text-sm font-semibold" onClick={() => setReload((value) => value + 1)}>Retry</button></div> : companies ? companies.length ? <ResearchCompanyList companies={companies} onOpen={setSelected} /> : <div className="rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">No companies yet. Discover and confirm a company to begin research.</div> : <div className="rounded-2xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading company research…</div>}</div>
+      <div className="mt-8">{error && <div className="mb-4 rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-4 text-[#8A2F20]"><p>{error}</p><button className="mt-2 text-sm font-semibold underline" onClick={() => setReload((value) => value + 1)}>Retry</button></div>}{companies ? companies.length ? <ResearchCompanyList companies={companies} deleting={deleting} onDelete={setPendingDelete} onOpen={setSelected} /> : <div className="rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">No saved research yet. Select companies in Discover companies to begin research.</div> : !error && <div className="rounded-2xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading company research…</div>}</div>
+      {pendingDelete && <div className="fixed inset-0 z-50 grid place-items-center bg-[#201A16]/45 p-5 backdrop-blur-sm" onClick={() => setPendingDelete(null)}><section aria-describedby="delete-research-description" aria-labelledby="delete-research-title" aria-modal="true" className="w-full max-w-md rounded-2xl border border-[#E2D8D0] bg-white p-6 shadow-[0_24px_70px_rgba(45,28,18,0.28)]" onClick={(event) => event.stopPropagation()} role="alertdialog"><div className="grid size-11 place-items-center rounded-full bg-[#FBE9E5] text-xl text-[#9A3828]" aria-hidden="true">×</div><h2 className="mt-4 text-xl font-semibold text-[#292521]" id="delete-research-title">Delete research for {pendingDelete.name}?</h2><p className="mt-2 text-sm leading-6 text-[#68615B]" id="delete-research-description">This permanently removes its saved research runs, sources, evidence, assessments, and scores. The company remains available so you can research it again later.</p><div className="mt-6 flex justify-end gap-3"><button autoFocus className="rounded-lg border border-[#B8B0A8] bg-white px-4 py-2.5 text-sm font-semibold text-[#4F4943] transition hover:bg-[#F5F2EE]" onClick={() => setPendingDelete(null)}>Keep research</button><button className="rounded-lg bg-[#A33B2C] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#862F23] focus:outline-none focus:ring-2 focus:ring-[#A33B2C]/30" onClick={() => void removeResearch(pendingDelete)}>Delete permanently</button></div></section></div>}
+
     </div>
   )
 }
@@ -81,10 +96,29 @@ function researchConfidence(company: CompanyDetail) {
   return { score, label: score >= 75 ? 'High' : score >= 45 ? 'Developing' : 'Early' }
 }
 
-function ResearchCompanyList({ companies, onOpen }: { companies: CompanyDetail[]; onOpen: (company: CompanyDetail) => void }) {
+type ResearchSortKey = 'company' | 'status' | 'confidence' | 'updated'
+type SortDirection = 'asc' | 'desc'
+
+function ResearchCompanyList({ companies, deleting, onDelete, onOpen }: { companies: CompanyDetail[]; deleting: string | null; onDelete: (company: CompanyDetail) => void; onOpen: (company: CompanyDetail) => void }) {
+  const [sort, setSort] = useState<{ key: ResearchSortKey; direction: SortDirection }>({ key: 'updated', direction: 'desc' })
+  const toggleSort = (key: ResearchSortKey) => setSort((current) => ({
+    key,
+    direction: current.key === key ? (current.direction === 'asc' ? 'desc' : 'asc') : key === 'company' || key === 'status' ? 'asc' : 'desc',
+  }))
+  const ordered = useMemo(() => [...companies].sort((a, b) => {
+    const aRun = [...a.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]
+    const bRun = [...b.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]
+    const comparison = sort.key === 'company' ? a.name.localeCompare(b.name)
+      : sort.key === 'status' ? displayStatus(a).localeCompare(displayStatus(b))
+      : sort.key === 'confidence' ? researchConfidence(a).score - researchConfidence(b).score
+      : (aRun?.finishedAt ?? aRun?.startedAt ?? '').localeCompare(bRun?.finishedAt ?? bRun?.startedAt ?? '')
+    return comparison * (sort.direction === 'asc' ? 1 : -1) || a.name.localeCompare(b.name)
+  }), [companies, sort])
+  const header = (key: ResearchSortKey, label: string) => <button type="button" aria-label={`Sort by ${label}${sort.key === key ? `, ${sort.direction === 'asc' ? 'ascending' : 'descending'}` : ''}`} className="flex items-center gap-1 text-left font-bold uppercase tracking-wider hover:text-[#A64212]" onClick={() => toggleSort(key)}>{label}<span aria-hidden="true">{sort.key === key ? sort.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button>
   return <section className="overflow-hidden rounded-2xl border border-[#DCD7CF] bg-white shadow-[0_8px_28px_rgba(58,45,31,0.06)]">
-    <div className="grid grid-cols-[minmax(0,1fr)_140px_130px_170px_120px] gap-5 border-b border-[#E5E0D8] bg-[#FCFBF8] px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-[#68645F]"><span>Company</span><span>Status</span><span>Confidence</span><span>Last updated</span><span className="text-right">Research</span></div>
-    <div className="divide-y divide-[#E9E5DE]">{companies.map((company) => { const latest = [...company.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]; const status = displayStatus(company); const confidence = researchConfidence(company); return <article className="grid grid-cols-[minmax(0,1fr)_140px_130px_170px_120px] items-center gap-5 px-6 py-5 transition hover:bg-[#FFF9F4]" key={company.id}><div className="min-w-0"><h2 className="truncate font-semibold text-[#25292E]">{company.name}</h2><p className="mt-1 truncate text-sm text-[#68645F]">{company.domain}</p></div><div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[status]}`}>{status}</span></div><div><p className="text-sm font-semibold text-[#34383D]">{status === 'Not enough data' ? '—' : `${confidence.score}%`}</p><p className="text-xs text-[#68645F]">{confidence.label}</p></div><time className="text-sm text-[#6F6A64]">{latest ? formatTime(latest.finishedAt) : 'Not started'}</time><div className="text-right"><button className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8] focus:outline-none focus:ring-2 focus:ring-[#E86722]/30" onClick={() => onOpen(company)}>Open research</button></div></article> })}</div>
+
+    <div className="grid grid-cols-[minmax(0,1fr)_140px_130px_170px_120px] gap-5 border-b border-[#E5E0D8] bg-[#FCFBF8] px-6 py-3 text-[11px] text-[#68645F]">{header('company', 'Company')}{header('status', 'Status')}{header('confidence', 'Confidence')}{header('updated', 'Last updated')}<span className="text-right font-bold uppercase tracking-wider">Research</span></div>
+    <div className="divide-y divide-[#E9E5DE]">{ordered.map((company) => { const latest = [...company.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]; const status = displayStatus(company); const confidence = researchConfidence(company); return <article className="grid grid-cols-[minmax(0,1fr)_140px_130px_170px_120px] items-center gap-5 px-6 py-5 transition hover:bg-[#FFF9F4]" key={company.id}><div className="min-w-0"><h2 className="truncate font-semibold text-[#25292E]">{company.name}</h2><p className="mt-1 truncate text-sm text-[#68645F]">{company.domain}</p></div><div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[status]}`}>{status}</span></div><div><p className="text-sm font-semibold text-[#34383D]">{status === 'Not enough data' ? '—' : `${confidence.score}%`}</p><p className="text-xs text-[#68645F]">{confidence.label}</p></div><time className="text-sm text-[#6F6A64]">{latest ? formatTime(latest.finishedAt) : 'Not started'}</time><div className="flex flex-col items-end gap-2"><button className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8] focus:outline-none focus:ring-2 focus:ring-[#E86722]/30" onClick={() => onOpen(company)}>Open research</button>{company.researchRuns.length > 0 && <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5B9B0] bg-[#FFF7F5] px-3 py-1.5 text-xs font-semibold text-[#913426] transition hover:border-[#C97865] hover:bg-[#FBE9E5] disabled:opacity-50" disabled={deleting === company.id} onClick={() => onDelete(company)}><span aria-hidden="true">⌫</span>{deleting === company.id ? 'Deleting…' : 'Delete'}</button>}</div></article> })}</div>
   </section>
 }
 
