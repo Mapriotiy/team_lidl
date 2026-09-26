@@ -5,7 +5,10 @@ import { ProfileWorkspace } from './ProfileWorkspace'
 
 test('guides a business user through criteria and signals', async () => {
   render(<ProfileWorkspace />)
-  const description = await screen.findByRole('textbox', { name: /Service description/ })
+  const name = await screen.findByRole('textbox', { name: /Service name/ })
+  fireEvent.change(name, { target: { value: 'Operations transformation' } })
+  expect(name).toHaveValue('Operations transformation')
+  const description = screen.getByRole('textbox', { name: /Service description/ })
   fireEvent.change(description, { target: { value: 'Automation advisory for complex operations.' } })
   expect(description).toHaveValue('Automation advisory for complex operations.')
   fireEvent.click(screen.getByRole('button', { name: /Buying signals/ }))

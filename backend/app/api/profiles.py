@@ -72,6 +72,19 @@ def update_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="Service profile not found")
 
+    if payload.name is not None and payload.name != profile.name:
+        duplicate = session.scalar(
+            select(ServiceProfile).where(
+                ServiceProfile.name == payload.name,
+                ServiceProfile.id != profile.id,
+            )
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=409, detail="A service profile with this name already exists"
+            )
+        profile.name = payload.name
+
     profile.versions.append(
         ServiceProfileVersion(
             version=profile.versions[-1].version + 1,
