@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.discovery import get_discovery_provider
 from app.db import Base, get_session
 from app.discovery import DiscoveryCandidate, DiscoveryRequest, SizeVerification
+from app.discovery.catalog import store_candidates
 from app.main import app
 from app.models.research import Company
 from app.models.results import DiscoveryRun
@@ -99,6 +100,22 @@ def test_repeated_search_reuses_recent_run_without_provider_call() -> None:
         second["created_at"]
     )
     assert provider.calls == 1
+
+
+def test_preloaded_catalog_avoids_external_provider() -> None:
+    class Offline:
+        def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+            raise AssertionError("external discovery should not be called")
+
+    request = DiscoveryRequest(limit=1)
+    with TestingSession.begin() as session:
+        store_candidates(session, FakeDiscovery().discover(request))
+    app.dependency_overrides[get_discovery_provider] = Offline
+
+    response = TestClient(app).post("/discovery-runs", json={"limit": 1})
+
+    assert response.status_code == 201
+    assert response.json()["candidates"][0]["domain"] == "example.com"
 
 
 def test_expired_cache_fallback_preserves_original_timestamp() -> None:

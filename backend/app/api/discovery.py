@@ -8,7 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.contracts.common import ContractModel
 from app.db import get_session
-from app.discovery import DiscoveryCandidate, DiscoveryRequest, WikidataDiscovery, WikidataError
+from app.discovery import (
+    CatalogDiscovery,
+    DiscoveryCandidate,
+    DiscoveryRequest,
+    WikidataDiscovery,
+    WikidataError,
+    store_candidates,
+)
 from app.jobs.imports import import_company
 from app.models.profile import new_id, utc_now
 from app.models.results import DiscoveryRun
@@ -73,29 +80,37 @@ def create_discovery_run(
     cached = next((run for run in recent if run.request == payload.model_dump(mode="json")), None)
     if cached is not None:
         return _read(cached)
+    local_candidates = CatalogDiscovery(session).discover(payload)
+    if len(local_candidates) >= payload.limit:
+        candidates = local_candidates
+    else:
+        candidates = None
     failure: WikidataError | None = None
-    candidates: list[DiscoveryCandidate] | None = None
-    for _ in range(2):
+    for _ in range(2 if candidates is None else 0):
         try:
             candidates = provider.discover(payload)
+            store_candidates(session, candidates)
             break
         except WikidataError as exc:
             failure = exc
     if candidates is None:
-        recent = session.scalars(
-            select(DiscoveryRun)
-            .where(DiscoveryRun.status == RESEARCHABLE_DISCOVERY_STATUS)
-            .order_by(DiscoveryRun.created_at.desc())
-            .limit(20)
-        ).all()
-        cached = next(
-            (run for run in recent if run.request == payload.model_dump(mode="json")),
-            None,
-        )
-        if cached is None:
-            assert failure is not None
-            raise HTTPException(status_code=502, detail=str(failure)) from failure
-        return _read(cached)
+        if local_candidates:
+            candidates = local_candidates
+        else:
+            recent = session.scalars(
+                select(DiscoveryRun)
+                .where(DiscoveryRun.status == RESEARCHABLE_DISCOVERY_STATUS)
+                .order_by(DiscoveryRun.created_at.desc())
+                .limit(20)
+            ).all()
+            cached = next(
+                (run for run in recent if run.request == payload.model_dump(mode="json")),
+                None,
+            )
+            if cached is None:
+                assert failure is not None
+                raise HTTPException(status_code=502, detail=str(failure)) from failure
+            return _read(cached)
     run = DiscoveryRun(
         id=new_id(),
         status=RESEARCHABLE_DISCOVERY_STATUS,
