@@ -101,7 +101,14 @@ class WikidataLabelResolver:
         return labels
 
 
-def _sparql(request: DiscoveryRequest, *, fetch_limit: int | None = None, offset: int = 0) -> str:
+def _sparql(
+    request: DiscoveryRequest,
+    *,
+    fetch_limit: int | None = None,
+    offset: int = 0,
+    minimum_statements: int = MIN_RESEARCHABILITY_STATEMENTS,
+    require_scale_indicator: bool = False,
+) -> str:
     country_values = " ".join(f'"{code}"' for code in request.country_codes)
     fetch_limit = fetch_limit or min(request.limit * 4, 200)
     countries = f"VALUES ?countryCode {{ {country_values} }}" if country_values else ""
@@ -114,6 +121,13 @@ def _sparql(request: DiscoveryRequest, *, fetch_limit: int | None = None, offset
         f"!BOUND(?employees) || ?employees >= {request.minimum_employees}"
         if request.include_unknown_size
         else f"?employees >= {request.minimum_employees}"
+    )
+    scale_filter = (
+        "FILTER(EXISTS { ?company wdt:P414 ?exchange. } || "
+        "EXISTS { ?company wdt:P2139 ?revenue. } || "
+        "EXISTS { ?company wdt:P2403 ?assets. })"
+        if require_scale_indicator
+        else ""
     )
     return f"""
 PREFIX wd: <http://www.wikidata.org/entity/>
@@ -129,7 +143,8 @@ SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees ?st
   {countries}
   OPTIONAL {{ ?company wdt:P452 ?industry. }}
   FILTER({employee_filter})
-  FILTER(?statements >= {MIN_RESEARCHABILITY_STATEMENTS})
+  FILTER(?statements >= {minimum_statements})
+  {scale_filter}
   FILTER NOT EXISTS {{
     VALUES ?excludedType {{
       wd:Q327333 wd:Q192350 wd:Q732717 wd:Q8473 wd:Q163740 wd:Q708676
@@ -178,18 +193,30 @@ class WikidataDiscovery:
         self.timeout = timeout
 
     def discover(
-        self, request: DiscoveryRequest, *, page_limit: int | None = None, offset: int = 0
+        self,
+        request: DiscoveryRequest,
+        *,
+        page_limit: int | None = None,
+        offset: int = 0,
+        minimum_statements: int = MIN_RESEARCHABILITY_STATEMENTS,
+        require_scale_indicator: bool = False,
     ) -> list[DiscoveryCandidate]:
         result_limit = page_limit or request.limit
         fetch_limit = page_limit or min(request.limit * 4, 200)
-        if not 1 <= result_limit <= 500 or offset < 0:
+        if not 1 <= result_limit <= 500 or offset < 0 or minimum_statements < 1:
             raise ValueError("Wikidata page limit must be 1–500 and offset cannot be negative")
         deadline = time.monotonic() + self.timeout
         try:
             payload = self.transport.get_json(
                 WIKIDATA_ENDPOINT,
                 params={
-                    "query": _sparql(request, fetch_limit=fetch_limit, offset=offset),
+                    "query": _sparql(
+                        request,
+                        fetch_limit=fetch_limit,
+                        offset=offset,
+                        minimum_statements=minimum_statements,
+                        require_scale_indicator=require_scale_indicator,
+                    ),
                     "format": "json",
                 },
                 headers={"Accept": "application/sparql-results+json", "User-Agent": USER_AGENT},
@@ -252,7 +279,7 @@ class WikidataDiscovery:
                 statements = int(float(statements_text)) if statements_text is not None else 0
             except ValueError:
                 statements = 0
-            if statements < MIN_RESEARCHABILITY_STATEMENTS:
+            if statements < minimum_statements:
                 continue
             try:
                 employee_count = int(float(employee_text)) if employee_text is not None else None

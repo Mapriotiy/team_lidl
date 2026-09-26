@@ -191,3 +191,30 @@ def test_profile_industries_rank_matches_without_hiding_other_candidates() -> No
 
     candidates = provider.discover(DiscoveryRequest(industries=["Software"]))
     assert [item.domain for item in candidates] == ["known.example", "unknown.example"]
+
+
+def test_catalog_mode_requires_public_scale_indicators_and_more_statements() -> None:
+    transport = FakeTransport(
+        {
+            "results": {
+                "bindings": [
+                    binding(
+                        entity_id="Q1",
+                        website="https://known.example",
+                        employees="2500",
+                        statements="35",
+                    )
+                ]
+            }
+        }
+    )
+
+    WikidataDiscovery(transport, FakeLabels()).discover(
+        DiscoveryRequest(), minimum_statements=30, require_scale_indicator=True
+    )
+
+    query = transport.params["query"]
+    assert "FILTER(?statements >= 30)" in query
+    assert "wdt:P414" in query
+    assert "wdt:P2139" in query
+    assert "wdt:P2403" in query
