@@ -20,7 +20,7 @@ test.each([0, 1])('shows Not enough data for a finished run with %i sources desp
   expect(screen.queryByText('Promising')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(screen.getByText(/At least 2 distinct sources are required/)).toBeInTheDocument()
-  expect(screen.getByText(/One careers page was blocked/)).toBeInTheDocument()
+  expect(screen.queryByText(/One careers page was blocked/)).not.toBeInTheDocument()
 })
 
 test('opens company research and links facts to original excerpts', async () => {
