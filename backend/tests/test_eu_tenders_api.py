@@ -85,6 +85,10 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert body["profile_name"] == "Process automation"
     assert body["total"] == 1
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
+    assert body["opportunities"][0]["fit_score"] >= 0
+    assert body["opportunities"][0]["recommendation"] == "needs_review"
+    assert body["opportunities"][0]["dimensions"][-1]["score"] is None
+    assert body["opportunities"][0]["risks"]
     assert body["warnings"]
     assert tenders.queries[0] == "automation"
     assert body["query"] == " | ".join(tenders.queries)

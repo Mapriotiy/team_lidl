@@ -1,7 +1,7 @@
 """Optional market signal from EU calls for tenders; disabled unless EU_TENDERS_ENABLED."""
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -50,12 +50,29 @@ class EuTendersStatus(BaseModel):
     )
 
 
+class TenderFitDimension(BaseModel):
+    id: str
+    label: str
+    score: int | None = Field(default=None, ge=0, le=100)
+    explanation: str
+
+
+class TenderOpportunity(BaseModel):
+    call: TenderCall
+    fit_score: int = Field(ge=0, le=100)
+    recommendation: Literal["bid", "partner", "monitor", "reject", "needs_review"]
+    dimensions: list[TenderFitDimension]
+    matched_terms: list[str]
+    risks: list[str]
+
+
 class EuTendersSearch(BaseModel):
     profile_id: str
     profile_name: str
     query: str
     total: int
     calls: list[TenderCall]
+    opportunities: list[TenderOpportunity] = Field(default_factory=list)
     retrieved_at: datetime
     warnings: list[str] = Field(default_factory=list)
 
@@ -137,6 +154,83 @@ def get_tenders(settings: Settings = Depends(get_settings)) -> EuTendersDiscover
     return EuTendersDiscovery()
 
 
+def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOpportunity:
+    terms = list(dict.fromkeys(re.findall(r"[a-z0-9-]{3,}", query.casefold())))
+    text = f"{call.title} {call.summary}".casefold()
+    matched = [term for term in terms if term in text]
+    capability = round(100 * len(matched) / len(terms)) if terms else 0
+    evidence = 35 + (20 if call.deadline else 0) + (20 if call.summary else 0)
+    evidence += 15 if call.programme else 0
+    evidence += 10 if call.budget is not None else 0
+    evidence = min(100, evidence)
+    if call.deadline is None:
+        deadline_score = None
+        deadline_note = "No structured deadline was supplied by the portal."
+    else:
+        remaining = max(0, (call.deadline - now).days)
+        deadline_score = 90 if remaining >= 30 else 65 if remaining >= 14 else 30
+        deadline_note = f"{remaining} days remain before the published deadline."
+    type_score = 100 if call.opportunity_type == "public_procurement" else 65
+    fit_score = round(
+        0.5 * capability
+        + 0.25 * evidence
+        + 0.15 * (deadline_score if deadline_score is not None else 45)
+        + 0.1 * type_score
+    )
+    risks = ["Eligibility requirements have not yet been extracted from the call documents."]
+    if call.budget is None:
+        risks.append("No structured budget is available from the search result.")
+    if call.opportunity_type != "public_procurement":
+        risks.append("This is funding demand, not a procurement contract.")
+    if capability < 50:
+        recommendation = "reject"
+    elif call.opportunity_type == "public_procurement" and evidence >= 85 and fit_score >= 80:
+        recommendation = "bid"
+    elif call.opportunity_type in {"funding_call", "cascade_funding"} and fit_score >= 65:
+        recommendation = "partner"
+    elif deadline_score is not None and deadline_score < 50:
+        recommendation = "monitor"
+    else:
+        recommendation = "needs_review"
+    return TenderOpportunity(
+        call=call,
+        fit_score=fit_score,
+        recommendation=recommendation,
+        matched_terms=matched,
+        risks=risks,
+        dimensions=[
+            TenderFitDimension(
+                id="capability",
+                label="Capability fit",
+                score=capability,
+                explanation=(
+                    f"Matched profile terms: {', '.join(matched)}."
+                    if matched
+                    else "No profile term is present in the returned title or summary."
+                ),
+            ),
+            TenderFitDimension(
+                id="evidence",
+                label="Evidence completeness",
+                score=evidence,
+                explanation="Based on available summary, deadline, programme and budget fields.",
+            ),
+            TenderFitDimension(
+                id="deadline",
+                label="Deadline readiness",
+                score=deadline_score,
+                explanation=deadline_note,
+            ),
+            TenderFitDimension(
+                id="eligibility",
+                label="Eligibility fit",
+                score=None,
+                explanation="Needs document-level extraction before a bid decision.",
+            ),
+        ],
+    )
+
+
 @router.get("/status", response_model=EuTendersStatus)
 def get_status(settings: Settings = Depends(get_settings)) -> EuTendersStatus:
     return EuTendersStatus(enabled=settings.eu_tenders_enabled)
@@ -176,6 +270,9 @@ def search(
         query=result.query,
         total=result.total,
         calls=result.calls,
+        opportunities=[
+            _fit_opportunity(call, result.query, now=datetime.now(UTC)) for call in result.calls
+        ],
         retrieved_at=result.retrieved_at,
         warnings=(
             ["Calls are published by EU bodies and never name prospects; treat as market demand."]

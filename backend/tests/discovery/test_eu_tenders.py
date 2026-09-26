@@ -80,6 +80,7 @@ def test_search_builds_portal_filters_and_sanitizes_results() -> None:
     assert first.title == "Support & automation of public services"
     assert first.url == "https://ec.europa.eu/info/funding-tenders/opportunities/x/DIGITAL-2026-A"
     assert first.status == "open" and second.status == "forthcoming"
+    assert first.opportunity_type == "funding_call"
     assert first.deadline is not None and first.deadline.isoformat().startswith("2027-11-13T17:00")
     assert first.summary.startswith("WHO CAN APPLY? Automation SMEs")
     assert "<" not in first.summary and len(first.summary) <= 600
@@ -200,6 +201,7 @@ def test_competitive_call_uses_official_external_page_instead_of_broken_spa_rout
     result = EuTendersDiscovery(CompetitiveCallTransport()).search("automation")
 
     assert result.calls[0].url == "https://nlnet.nl/codesupply"
+    assert result.calls[0].opportunity_type == "cascade_funding"
 
 
 class PerQueryTransport(FakeTransport):

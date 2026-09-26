@@ -10,7 +10,7 @@ import json
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Literal, Protocol
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -95,6 +95,10 @@ class TenderCall(BaseModel):
     deadline: datetime | None = None
     programme: str | None = None
     summary: str = Field(default="", max_length=600)
+    opportunity_type: Literal[
+        "public_procurement", "funding_call", "cascade_funding", "market_consultation", "unknown"
+    ] = "unknown"
+    budget: float | None = None
 
 
 class TenderSearchResult(BaseModel):
@@ -158,6 +162,29 @@ def _programme(value: object) -> str | None:
     if programme is None or programme.isdigit():
         return None
     return programme
+
+
+def _number(value: object) -> float | None:
+    raw = _first(value)
+    if raw is None:
+        return None
+    try:
+        number = float(raw.replace(",", "").strip())
+    except ValueError:
+        return None
+    return number if number >= 0 else None
+
+
+def _opportunity_type(portal_url: str) -> str:
+    if "/competitive-calls-cs/" in portal_url:
+        return "cascade_funding"
+    if "/tender-details/" in portal_url or "/calls-for-tenders" in portal_url:
+        return "public_procurement"
+    if "consultation" in portal_url:
+        return "market_consultation"
+    if "/opportunities/" in portal_url:
+        return "funding_call"
+    return "unknown"
 
 
 def _query_terms(query: str) -> list[str]:
@@ -290,9 +317,16 @@ class EuTendersDiscovery:
             if not isinstance(metadata, dict):
                 continue
             identifier = _first(metadata.get("identifier"))
+            portal_url = _portal_url(item.get("url"))
             url = _public_call_url(item, metadata)
             title = _first(metadata.get("callTitle")) or _first(item.get("title"))
-            if identifier is None or url is None or title is None or url in seen:
+            if (
+                identifier is None
+                or url is None
+                or portal_url is None
+                or title is None
+                or url in seen
+            ):
                 continue
             seen.add(url)
             status = _first(metadata.get("status"))
@@ -316,6 +350,8 @@ class EuTendersDiscovery:
                         deadline=deadline,
                         programme=_programme(metadata.get("frameworkProgramme")),
                         summary=summary,
+                        opportunity_type=_opportunity_type(portal_url),
+                        budget=_number(metadata.get("budget")),
                     ),
                 )
             )
