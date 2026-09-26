@@ -19,9 +19,11 @@ test('opens company research and links facts to original excerpts', async () => 
 
   render(<ResearchActivityWorkspace />)
 
-  expect(await screen.findByText('Needs attention')).toBeInTheDocument()
+  expect(await screen.findByText('Promising')).toBeInTheDocument()
+  expect(screen.getByText(/%/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
+  expect(screen.getByText('Promising signal')).toBeInTheDocument()
   const source = screen.getByRole('link', { name: /Open original: Lufthansa Group outlines efficiency programme/ })
   expect(source).toHaveAttribute('href', 'https://example.com/lufthansa/efficiency')
   fireEvent.mouseEnter(source)
