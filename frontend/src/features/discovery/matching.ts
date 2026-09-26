@@ -19,16 +19,18 @@ function minimumSize(profile: Profile): number {
 export function profileSearch(profile: Profile): { request: DiscoveryRequest; notes: string[]; industries: string[] } {
   const icp = profile.current_version.configuration.icp
   const notes: string[] = []
+  const errors: string[] = []
   const geography = words(icp.geographies)
-  const codes = geography.flatMap((place) => {
+  const codes = geography.length ? geography.flatMap((place) => {
     const lower = place.toLowerCase()
     if (regions[lower]) return regions[lower]
     const code = countries.find((item) => item === place.toUpperCase() || names.of(item)?.toLowerCase() === lower)
     if (code) return [code]
-    notes.push(`“${place}” could not be interpreted as a country or supported region. Update the Service Profile to make this restriction searchable.`)
+    errors.push(`“${place}” could not be interpreted as a country or supported region. Update the Service Profile to make this restriction searchable.`)
     return []
-  })
-  if (notes.length) throw new Error(notes.join(' '))
+  }) : eastern
+  if (!geography.length) notes.push('No geography is set. Searching Central and Eastern Europe by default.')
+  if (errors.length) throw new Error(errors.join(' '))
   const size = String(icp.company_size ?? icp.company_sizes ?? '')
   if (size) notes.push(`Company size preference: ${size}. Check the linked source before qualifying a company.`)
   if (icp.operational_complexity && icp.operational_complexity !== 'unknown') notes.push('Operational characteristics and buying signals are checked during research.')

@@ -1,5 +1,7 @@
 import json
+import time
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol, cast
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -61,9 +63,13 @@ class WikidataLabelResolver:
     def resolve(self, entity_ids: set[str], *, timeout: float) -> dict[str, str]:
         labels: dict[str, str] = {}
         ordered = sorted(entity_ids)
-        for offset in range(0, len(ordered), 50):
-            batch = ordered[offset : offset + 50]
-            payload = self.transport.get_json(
+        deadline = time.monotonic() + timeout
+
+        def load(batch: list[str]) -> object:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise WikidataError("Wikidata label deadline exceeded")
+            return self.transport.get_json(
                 WIKIDATA_ENTITY_API,
                 params={
                     "action": "wbgetentities",
@@ -74,8 +80,13 @@ class WikidataLabelResolver:
                     "format": "json",
                 },
                 headers={"Accept": "application/json", "User-Agent": USER_AGENT},
-                timeout=timeout,
+                timeout=remaining,
             )
+
+        batches = [ordered[offset : offset + 50] for offset in range(0, len(ordered), 50)]
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            payloads = list(pool.map(load, batches))
+        for payload in payloads:
             if not isinstance(payload, dict) or not isinstance(payload.get("entities"), dict):
                 raise WikidataError("Wikidata label response is invalid")
             for entity_id, raw in payload["entities"].items():
@@ -96,11 +107,13 @@ def _sparql(request: DiscoveryRequest) -> str:
     countries = f"VALUES ?countryCode {{ {country_values} }}" if country_values else ""
     employees = (
         "OPTIONAL { ?company wdt:P1128 ?employees. }"
-        if request.include_unknown_size else "?company wdt:P1128 ?employees."
+        if request.include_unknown_size
+        else "?company wdt:P1128 ?employees."
     )
     employee_filter = (
         f"!BOUND(?employees) || ?employees >= {request.minimum_employees}"
-        if request.include_unknown_size else f"?employees >= {request.minimum_employees}"
+        if request.include_unknown_size
+        else f"?employees >= {request.minimum_employees}"
     )
     return f"""
 PREFIX wd: <http://www.wikidata.org/entity/>
@@ -124,7 +137,7 @@ SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees ?st
     ?company wdt:P31/wdt:P279* ?excludedType.
   }}
 }}
-ORDER BY DESC(?employees)
+ORDER BY DESC(BOUND(?employees)) DESC(?employees)
 LIMIT {fetch_limit}
 """.strip()
 
@@ -164,6 +177,7 @@ class WikidataDiscovery:
         self.timeout = timeout
 
     def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+        deadline = time.monotonic() + self.timeout
         try:
             payload = self.transport.get_json(
                 WIKIDATA_ENDPOINT,
@@ -195,11 +209,14 @@ class WikidataDiscovery:
             if item_id is not None
         }
         try:
-            labels = self.label_resolver.resolve(entity_ids, timeout=self.timeout)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise WikidataError("Wikidata discovery deadline exceeded")
+            labels = self.label_resolver.resolve(entity_ids, timeout=remaining)
         except Exception as exc:
             raise WikidataError("Wikidata label lookup failed") from exc
 
-        candidates: list[DiscoveryCandidate] = []
+        ranked_candidates: list[tuple[bool, DiscoveryCandidate]] = []
         seen_domains: set[str] = set()
         seen_entities: set[str] = set()
         for binding in typed:
@@ -241,10 +258,10 @@ class WikidataDiscovery:
                 continue
 
             industry = labels.get(_entity_id(_value(binding, "industry")) or "")
-            if request.industries and industry and not any(
-                term.casefold() in industry.casefold() for term in request.industries
-            ):
-                continue
+            industry_match = bool(
+                industry
+                and any(term.casefold() in industry.casefold() for term in request.industries)
+            )
             if request.industry and (
                 industry is None or request.industry.casefold() not in industry.casefold()
             ):
@@ -252,20 +269,26 @@ class WikidataDiscovery:
 
             seen_domains.add(domain)
             seen_entities.add(entity_id)
-            candidates.append(
-                DiscoveryCandidate(
-                    entity_id=entity_id,
-                    name=name,
-                    domain=domain,
-                    country_code=country_code,
-                    country_name=country_name,
-                    industry=industry,
-                    employee_count=employee_count,
-                    size_verification=SizeVerification.NEEDS_VERIFICATION,
-                    discovery_confidence=UNVERIFIED_CONFIDENCE,
-                    source_url=entity_url,
+            ranked_candidates.append(
+                (
+                    industry_match,
+                    DiscoveryCandidate(
+                        entity_id=entity_id,
+                        name=name,
+                        domain=domain,
+                        country_code=country_code,
+                        country_name=country_name,
+                        industry=industry,
+                        employee_count=employee_count,
+                        size_verification=SizeVerification.NEEDS_VERIFICATION,
+                        discovery_confidence=UNVERIFIED_CONFIDENCE,
+                        source_url=entity_url,
+                    ),
                 )
             )
-            if len(candidates) == request.limit:
-                break
-        return candidates
+        # Profile industries are preferences. Wikidata coverage is incomplete, so
+        # treating them as a hard filter can turn a useful geographic result set
+        # into an empty page. Keep the provider order within each group and put
+        # explicit industry matches first for the UI to qualify further.
+        ranked_candidates.sort(key=lambda item: item[0], reverse=True)
+        return [candidate for _, candidate in ranked_candidates[: request.limit]]

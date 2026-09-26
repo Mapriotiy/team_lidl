@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,17 +36,20 @@ class DiscoveryConfirmationResult(ContractModel):
 
 
 def get_discovery_provider() -> WikidataDiscovery:
-    return WikidataDiscovery()
+    return WikidataDiscovery(timeout=15)
 
 
 def _read(run: DiscoveryRun) -> DiscoveryRunRead:
+    created_at = run.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC)
     return DiscoveryRunRead(
         id=run.id,
         status=run.status,
         request=DiscoveryRequest.model_validate(run.request),
         candidates=[DiscoveryCandidate.model_validate(item) for item in run.candidates],
         confirmed_domains=list(run.confirmed_domains),
-        created_at=run.created_at,
+        created_at=created_at,
     )
 
 
@@ -56,6 +59,20 @@ def create_discovery_run(
     provider: Annotated[WikidataDiscovery, Depends(get_discovery_provider)],
     session: Session = Depends(get_session),
 ) -> DiscoveryRunRead:
+    # Reuse matching recent results before external requests; retain the original
+    # collection timestamp rather than presenting cached records as fresh research.
+    recent = session.scalars(
+        select(DiscoveryRun)
+        .where(
+            DiscoveryRun.status == RESEARCHABLE_DISCOVERY_STATUS,
+            DiscoveryRun.created_at >= utc_now() - timedelta(minutes=15),
+        )
+        .order_by(DiscoveryRun.created_at.desc())
+        .limit(100)
+    ).all()
+    cached = next((run for run in recent if run.request == payload.model_dump(mode="json")), None)
+    if cached is not None:
+        return _read(cached)
     failure: WikidataError | None = None
     candidates: list[DiscoveryCandidate] | None = None
     for _ in range(2):
@@ -78,7 +95,7 @@ def create_discovery_run(
         if cached is None:
             assert failure is not None
             raise HTTPException(status_code=502, detail=str(failure)) from failure
-        candidates = [DiscoveryCandidate.model_validate(item) for item in cached.candidates]
+        return _read(cached)
     run = DiscoveryRun(
         id=new_id(),
         status=RESEARCHABLE_DISCOVERY_STATUS,
@@ -125,6 +142,10 @@ def confirm_discovery_run(
             **company.facts,
             "geography": {
                 "value": candidate["country_name"],
+                "source": candidate["source_url"],
+            },
+            "industry": {
+                "value": candidate.get("industry"),
                 "source": candidate["source_url"],
             },
             "company_size": {

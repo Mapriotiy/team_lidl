@@ -15,14 +15,14 @@ class FakeTransport:
     ) -> object:
         assert url == "https://qlever.dev/api/wikidata"
         assert headers["Accept"] == "application/sparql-results+json"
-        assert timeout == 30
+        assert 0 < timeout <= 30
         self.params = params
         return self.payload
 
 
 class FakeLabels:
     def resolve(self, entity_ids: set[str], *, timeout: float) -> dict[str, str]:
-        assert timeout == 30
+        assert 0 < timeout <= 30
         return {
             "Q1": "Verified SA",
             "Q2": "Second SA",
@@ -177,18 +177,17 @@ def test_unrestricted_geography_keeps_missing_employee_counts() -> None:
 
 def test_rejects_invalid_provider_response() -> None:
     with pytest.raises(WikidataError, match="no bindings"):
-        WikidataDiscovery(FakeTransport({"results": {}}), FakeLabels()).discover(
-            DiscoveryRequest()
-        )
+        WikidataDiscovery(FakeTransport({"results": {}}), FakeLabels()).discover(DiscoveryRequest())
 
 
-def test_filters_multiple_profile_industries_but_keeps_unknowns() -> None:
+def test_profile_industries_rank_matches_without_hiding_other_candidates() -> None:
     known = binding(entity_id="Q1", website="https://known.example", employees="2500")
     unknown = binding(entity_id="Q2", website="https://unknown.example", employees="2500")
     del unknown["industry"]
     transport = FakeTransport({"results": {"bindings": [known, unknown]}})
     provider = WikidataDiscovery(transport, FakeLabels())
-    assert len(provider.discover(DiscoveryRequest(industries=["Logistics", "Manufacturing"]))) == 2
-    assert [item.domain for item in provider.discover(
-        DiscoveryRequest(industries=["Software"])
-    )] == ["unknown.example"]
+    candidates = provider.discover(DiscoveryRequest(industries=["Logistics", "Manufacturing"]))
+    assert [item.domain for item in candidates] == ["known.example", "unknown.example"]
+
+    candidates = provider.discover(DiscoveryRequest(industries=["Software"]))
+    assert [item.domain for item in candidates] == ["known.example", "unknown.example"]

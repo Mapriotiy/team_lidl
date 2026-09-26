@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -78,6 +79,56 @@ def test_rejects_domain_not_returned_by_discovery() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_repeated_search_reuses_recent_run_without_provider_call() -> None:
+    class CountingDiscovery(FakeDiscovery):
+        calls = 0
+
+        def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+            self.calls += 1
+            return super().discover(request)
+
+    provider = CountingDiscovery()
+    app.dependency_overrides[get_discovery_provider] = lambda: provider
+    client = TestClient(app)
+    first = client.post("/discovery-runs", json={}).json()
+    second = client.post("/discovery-runs", json={}).json()
+    assert first["id"] == second["id"]
+    assert datetime.fromisoformat(first["created_at"]) == datetime.fromisoformat(
+        second["created_at"]
+    )
+    assert provider.calls == 1
+
+
+def test_expired_cache_fallback_preserves_original_timestamp() -> None:
+    from datetime import timedelta
+
+    from app.discovery import WikidataError
+    from app.models.profile import utc_now
+
+    request = DiscoveryRequest()
+    recorded = utc_now() - timedelta(hours=1)
+    with TestingSession.begin() as session:
+        session.add(
+            DiscoveryRun(
+                id="old-run",
+                status="researchable_v1",
+                created_at=recorded,
+                request=request.model_dump(mode="json"),
+                candidates=[FakeDiscovery().discover(request)[0].model_dump(mode="json")],
+            )
+        )
+
+    class Offline:
+        def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+            raise WikidataError("unavailable")
+
+    app.dependency_overrides[get_discovery_provider] = Offline
+    response = TestClient(app).post("/discovery-runs", json={})
+    assert response.status_code == 201
+    assert response.json()["id"] == "old-run"
+    assert response.json()["created_at"].startswith(recorded.strftime("%Y-%m-%dT%H:%M:%S"))
 
 
 def test_retries_a_transient_discovery_failure() -> None:
