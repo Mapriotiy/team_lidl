@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from app.assessment.providers import OpenRouterAssessmentProvider
+from app.collection import BrowserRenderingTransport, PublicSourceCollector
 from app.config import get_settings
 from app.db import SessionLocal
 from app.discovery import NewsApiDiscovery

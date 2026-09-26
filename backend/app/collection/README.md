@@ -40,10 +40,32 @@ A watchdog closes stalled sockets. Bounded DNS worker capacity prevents unbounde
 resolver-thread growth; an OS DNS call itself cannot be cancelled, but callers time
 out and occupied resolver slots reject further work until available.
 
-Limits: static HTML/plain text only, no browser rendering, PDF parsing, discovery,
-robots.txt crawler, general CSS visibility evaluation, paywall bypass, login,
-automatic domain-alias discovery, semantic event deduplication, assessment or sales
-interpretation. Explicit noarchive/nosnippet restrictions prevent retention. Callers
+## JavaScript-driven pages
+
+```python
+from app.collection import BrowserRenderingTransport, PublicSourceCollector
+
+collector = PublicSourceCollector(BrowserRenderingTransport(), timeout=12)
+```
+
+`BrowserRenderingTransport` wraps the safe HTTP transport. Every page is fetched
+statically first; only pages whose static HTML yields little text but ships scripts
+(`needs_rendering`) are opened in headless Chromium via Playwright. The browser never
+touches the network itself: name resolution is disabled and IP literals are routed to
+a dead proxy, so the document, scripts and XHR/fetch calls are all served through the
+same validated transport (DNS, public-address, redirect, size and deadline rules).
+Images, styles, fonts, media, websockets, service workers, downloads, popups and
+non-GET requests are refused. Each render has its own request/byte budget
+(`RenderLimits`) and shares the page deadline. Rendering runs on one dedicated
+thread, so a single transport can serve parallel collector workers.
+
+Enable it in the worker with `BROWSER_RENDERING_ENABLED=true`; the `browser` extra
+and `python -m playwright install --with-deps chromium` must be installed. When the
+browser is unavailable a page fails with `render_failed`, never silently as static.
+
+Limits: no discovery, robots.txt crawler, general CSS visibility evaluation, paywall
+bypass, login, automatic domain-alias discovery, semantic event deduplication,
+assessment or sales interpretation. Explicit noarchive/nosnippet restrictions prevent retention. Callers
 must select permitted public sources and apply their retention policy. Corporate and
 news saved fixtures are synthetic test data, not researched account evidence. No live
 provider checks were performed. A rejected fetch is an error, never a negative signal.
