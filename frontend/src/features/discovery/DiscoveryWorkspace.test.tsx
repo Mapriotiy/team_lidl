@@ -84,3 +84,21 @@ test('sorts discovered companies by clicking column headings', async () => {
   expect(screen.getAllByRole('row')[1]).toHaveTextContent('Alpha')
   expect(screen.queryByRole('button', { name: /^Sort by Confidence/ })).not.toBeInTheDocument()
 })
+
+test('discovers and queues companies for the selected service profile', async () => {
+  vi.mocked(listProfiles).mockResolvedValue([
+    { id: 'rpa', name: 'RPA', current_version: { id: 'rpa-version', version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
+    { id: 'cyber', name: 'Cybersecurity', current_version: { id: 'cyber-version', version: 1, configuration: { service_description: 'Security', icp: { geographies: ['Romania'], industries: ['Financial services'] }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' },
+  ])
+  render(<DiscoveryWorkspace />)
+  await screen.findByRole('button', { name: 'Example SA' })
+
+  fireEvent.change(screen.getByRole('combobox', { name: 'Service profile for discovery' }), { target: { value: 'cyber' } })
+  await vi.waitFor(() => expect(createDiscoveryRun).toHaveBeenLastCalledWith(expect.objectContaining({ industries: ['Financial services'] }), expect.any(AbortSignal)))
+  expect(screen.getByRole('combobox', { name: 'Service profile for discovery' })).toHaveValue('cyber')
+  expect(screen.getByText(/Financial services/)).toBeInTheDocument()
+
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Example SA' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
+  await vi.waitFor(() => expect(submitResearch).toHaveBeenCalledWith('company', 'cyber-version', 'discovery-run-cyber-version-company'))
+})
