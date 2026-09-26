@@ -108,6 +108,60 @@ def test_homepage_planning_survives_locale_redirect() -> None:
     ]
 
 
+def test_collection_continues_with_www_when_apex_dns_fails() -> None:
+    transport = SavedTransport(
+        {
+            "https://example.com/": OSError("DNS lookup failed"),
+            "https://www.example.com/": FetchResponse(
+                200, {"content-type": "text/html"}, b"<h1>Official company website</h1>"
+            ),
+        }
+    )
+
+    result = PublicSourceCollector(transport, max_pages=2).collect(
+        COMPANY,
+        [
+            SourceTarget("https://example.com/"),
+            SourceTarget("https://www.example.com/"),
+        ],
+    )
+
+    assert len(result.documents) == 1
+    assert result.documents[0].canonical_url == "https://www.example.com/"
+    assert [error.code for error in result.errors] == ["fetch_error"]
+
+
+def test_first_party_index_can_plan_concrete_report() -> None:
+    homepage = FetchResponse(
+        200,
+        {"content-type": "text/html"},
+        b"<h1>Company</h1><a href='/investors'>Investor relations</a>",
+    )
+    investors = FetchResponse(
+        200,
+        {"content-type": "text/html"},
+        b"<h1>Investors</h1><a href='/reports/annual-report.pdf'>Annual report</a>",
+    )
+    transport = SavedTransport(
+        {
+            "https://example.com/": homepage,
+            "https://example.com/investors": investors,
+            "https://example.com/reports/annual-report.pdf": FetchResponse(
+                200, {"content-type": "text/plain"}, b"Automation investment increased."
+            ),
+        }
+    )
+
+    result = PublicSourceCollector(transport, max_pages=3).collect(COMPANY)
+
+    assert transport.calls == [
+        "https://example.com/",
+        "https://example.com/investors",
+        "https://example.com/reports/annual-report.pdf",
+    ]
+    assert len(result.documents) == 3
+
+
 def test_news_dates_remain_unknown_and_text_is_not_executed() -> None:
     transport = SavedTransport({"https://news.example.net/": html("news.html")})
     result = PublicSourceCollector(transport).collect(

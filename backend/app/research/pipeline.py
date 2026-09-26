@@ -64,7 +64,10 @@ class IntegratedResearchPipeline:
         self.budget_usd = budget_usd
 
     def collect(self, run_id: str, company: Company) -> StageResult:
-        targets = [SourceTarget(f"https://{company.canonical_domain}/", SourceType.COMPANY)]
+        targets = [
+            SourceTarget(f"https://{company.canonical_domain}/", SourceType.COMPANY),
+            SourceTarget(f"https://www.{company.canonical_domain}/", SourceType.COMPANY),
+        ]
         partial_errors: list[PartialError] = []
         try:
             targets.extend(
