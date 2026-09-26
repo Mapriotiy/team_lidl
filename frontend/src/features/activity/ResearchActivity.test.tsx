@@ -67,7 +67,7 @@ test('allows all saved research for a company to be deleted', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200, headers: { 'Content-Type': 'application/json' } })))
   render(<ResearchActivityWorkspace />)
 
-  fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+  fireEvent.click(await screen.findByRole('button', { name: `Delete research for ${companyFixture.name}` }))
   expect(screen.getByRole('alertdialog')).toHaveTextContent(`Delete research for ${companyFixture.name}?`)
   fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
 
