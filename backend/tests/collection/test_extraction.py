@@ -38,3 +38,12 @@ def test_extracts_text_from_pdf_report() -> None:
     )
 
     assert result.text == "Annual report operational efficiency program"
+
+
+def test_preserves_public_mailto_address_in_normalized_text() -> None:
+    result = extract(
+        b'<html><body><a href="mailto:ana.popescu@example.ro">Contact Ana</a></body></html>',
+        "text/html; charset=utf-8",
+    )
+
+    assert "ana.popescu@example.ro" in result.text

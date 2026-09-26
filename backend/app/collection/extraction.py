@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from io import BytesIO
+from urllib.parse import unquote, urlsplit
 
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
@@ -49,6 +50,11 @@ class TextParser(HTMLParser):
             name = attributes.get("property") or attributes.get("name")
             if name and attributes.get("content"):
                 self.metadata[name.lower()] = attributes["content"] or ""
+        href = attributes.get("href") or ""
+        if tag == "a" and href.lower().startswith("mailto:"):
+            address = unquote(urlsplit(href).path).strip()
+            if address:
+                self.text.append(f" {address} ")
         if tag not in {
             "area",
             "base",

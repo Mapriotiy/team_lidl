@@ -4,14 +4,46 @@ from sqlalchemy.orm import Session
 
 from app.assessment.providers.openrouter import OpenRouterError
 from app.config import get_settings
+from app.contracts.common import ContractModel
 from app.db import get_session
 from app.models.profile import ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import StoredEvidence, StoredSignalAssessment, StoredSourceDocument
 from app.outreach import DraftRequest, OutreachDraftBundle, OutreachEvidence, generate_fallback
+from app.outreach.contacts import find_contacts
 from app.outreach.openrouter import OpenRouterOutreachProvider
 
 router = APIRouter(tags=["outreach"])
+
+
+class ContactRead(ContractModel):
+    email: str
+    name: str | None
+    role: str | None
+    source_url: str
+    source_title: str
+    confidence: float
+
+
+@router.get("/companies/{company_id}/outreach-contact", response_model=ContactRead | None)
+def discover_outreach_contact(
+    company_id: str, session: Session = Depends(get_session)
+) -> ContactRead | None:
+    company = session.get(Company, company_id)
+    if company is None:
+        raise HTTPException(status_code=404, detail="Company not found")
+    documents = list(
+        session.scalars(
+            select(StoredSourceDocument)
+            .where(
+                StoredSourceDocument.company_id == company_id,
+                StoredSourceDocument.normalized_text.is_not(None),
+            )
+            .order_by(StoredSourceDocument.retrieved_at.desc())
+        ).all()
+    )
+    contacts = find_contacts(documents, company.canonical_domain)
+    return ContactRead(**contacts[0].__dict__) if contacts else None
 
 
 @router.post("/companies/{company_id}/outreach-drafts", response_model=OutreachDraftBundle)

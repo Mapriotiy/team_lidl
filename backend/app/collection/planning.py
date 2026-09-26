@@ -39,6 +39,21 @@ class LinkParser(HTMLParser):
 
 _CLASSIFIERS: tuple[tuple[SourceType, tuple[str, ...]], ...] = (
     (
+        SourceType.COMPANY,
+        (
+            "contact",
+            "contacts",
+            "team",
+            "leadership",
+            "management",
+            "people",
+            "kontakt",
+            "contacte",
+            "echipa",
+            "conducere",
+        ),
+    ),
+    (
         SourceType.REPORT,
         (
             "annual-report",
