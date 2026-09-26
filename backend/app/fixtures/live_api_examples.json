@@ -30,6 +30,16 @@
       "display_name": "Example Company",
       "aliases": [],
       "facts": {"industry": {"value": "Logistics", "source_ids": ["source-1"]}},
+      "sources": [{
+        "id": "source-1",
+        "canonical_url": "https://example.com/news/efficiency",
+        "source_type": "company",
+        "title": "Efficiency program",
+        "retrieved_at": "2026-09-25T16:00:00Z",
+        "publication_date": "2026-09-20T00:00:00Z",
+        "event_date": "2026-09-18T00:00:00Z",
+        "content_hash": "sha256-example"
+      }],
       "assessments": [{
         "id": "assessment-1",
         "profile_version_id": "profile-automation-v1",

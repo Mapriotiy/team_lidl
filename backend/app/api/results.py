@@ -221,7 +221,12 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
         .where(StoredScoreSnapshot.company_id == company_id)
         .order_by(StoredScoreSnapshot.created_at.desc())
     ).all()
-    latest_run_id = scores[0].research_run_id if scores else None
+    runs = session.scalars(
+        select(ResearchRun)
+        .where(ResearchRun.company_id == company_id)
+        .order_by(ResearchRun.queued_at.desc())
+    ).all()
+    latest_run_id = runs[0].id if runs else None
     assessments = session.scalars(
         select(StoredSignalAssessment)
         .where(
@@ -237,15 +242,22 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
         else []
     )
     evidence_by_id = {item.id: item for item in evidence_rows}
-    source_ids = {item.source_id for item in evidence_rows}
-    sources = (
+    evidence_source_ids = {item.source_id for item in evidence_rows}
+    sources = list(
         session.scalars(
-            select(StoredSourceDocument).where(StoredSourceDocument.id.in_(source_ids))
+            select(StoredSourceDocument)
+            .where(StoredSourceDocument.research_run_id == latest_run_id)
+            .order_by(StoredSourceDocument.retrieved_at.desc())
         ).all()
-        if source_ids
-        else []
-    )
+    ) if latest_run_id else []
     source_by_id = {item.id: item for item in sources}
+    missing_source_ids = evidence_source_ids - source_by_id.keys()
+    if missing_source_ids:
+        historical_sources = session.scalars(
+            select(StoredSourceDocument).where(StoredSourceDocument.id.in_(missing_source_ids))
+        ).all()
+        sources.extend(historical_sources)
+        source_by_id.update({item.id: item for item in historical_sources})
     translation_rows = (
         session.scalars(
             select(EvidenceTranslation).where(EvidenceTranslation.evidence_id.in_(evidence_ids))
@@ -274,17 +286,13 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
             ],
         )
 
-    runs = session.scalars(
-        select(ResearchRun)
-        .where(ResearchRun.company_id == company_id)
-        .order_by(ResearchRun.queued_at.desc())
-    ).all()
     return CompanyResultRead(
         id=company.id,
         canonical_domain=company.canonical_domain,
         display_name=company.display_name,
         aliases=company.aliases,
         facts=company.facts,
+        sources=[SourceRead.model_validate(item) for item in sources],
         assessments=[
             AssessmentRead(
                 id=item.id,

@@ -120,6 +120,7 @@ class CompanyResultRead(ContractModel):
     display_name: str
     aliases: list[str]
     facts: dict[str, object]
+    sources: list[SourceRead]
     assessments: list[AssessmentRead]
     scores: list[ScoreRead]
     research_history: list[ResearchHistoryRead]
