@@ -77,6 +77,11 @@ function TenderBrief({ opportunity }: { opportunity: TenderOpportunity }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState('')
 
+  useEffect(() => {
+    setIntelligence(null)
+    setAnalysisError('')
+  }, [call.url])
+
   async function analyze() {
     setAnalyzing(true); setAnalysisError('')
     try { setIntelligence(await analyzeEuTender(call)) }
