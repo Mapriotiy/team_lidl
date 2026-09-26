@@ -72,7 +72,7 @@ def generate_fallback(
                     channel=channel,
                     subject=f"Process automation at {company_name}",
                     body=(
-                        f"Hello,\n\n{context} {offer}. Would a short conversation about the "
+                        f"Hello,\n\n{context}\n\n{offer}.\n\nWould a short conversation about the "
                         "processes currently creating the most operational friction be useful?\n\n"
                         "Best regards,"
                     ),
