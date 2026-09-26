@@ -227,6 +227,7 @@ body, .lr-theme-surface { background-color: var(--background); color: var(--fore
 [data-appearance="dark"] .lr-theme-surface :is(
   [class~="text-[#315F8B]"]
 ) { color: #a2cef5; }
+[data-appearance="dark"] .lr-theme-surface [class~="even:bg-[#FBF9F6]"]:nth-child(even) { background-color: var(--card); }
 [data-appearance="dark"] .lr-theme-surface :is([class~="hover:bg-[#F5F2EE]"],[class~="hover:bg-[#F7F6F3]"]):hover { background-color: var(--muted); }
 [data-appearance="dark"] .lr-theme-surface :is([class~="hover:bg-[#FFF0E5]"],[class~="hover:bg-[#FFF1E8]"],[class~="hover:bg-[#FFF9F4]"]):hover { background-color: var(--accent); }
 [data-appearance="dark"] .lr-theme-surface :is([class~="hover:bg-[#FFF4F1]"]):hover { background-color: var(--danger-background); }
