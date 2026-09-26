@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     source_text_retention_days: int = 30
     worker_concurrency: int = Field(default=2, ge=1, le=4)
     browser_rendering_enabled: bool = False
+    eu_tenders_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

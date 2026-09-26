@@ -1,0 +1,235 @@
+"""EU Funding & Tenders portal calls, as a market-level signal rather than company news.
+
+The portal is a single-page app over the public SEDIA search API. Calls are published by
+EU bodies, so searching by a company name never matches; queries are topical and the
+result describes demand in a service area, not a specific prospect.
+"""
+
+import html
+import json
+import re
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Protocol
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+from pydantic import BaseModel, Field
+
+SEDIA_ENDPOINT = "https://api.tech.ec.europa.eu/search-api/prod/rest/search"
+# Public constant used by the portal itself; it is not an account credential.
+SEDIA_API_KEY = "SEDIA"
+PORTAL_HOST = "ec.europa.eu"
+CALL_TYPE_TENDER = "8"
+STATUS_FORTHCOMING = "31094501"
+STATUS_OPEN = "31094502"
+MAX_PAGE_SIZE = 50
+_TAG = re.compile(r"<[^>]+>")
+_SPACE = re.compile(r"\s+")
+
+
+class EuTendersError(RuntimeError):
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+class EuTendersTransport(Protocol):
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object: ...
+
+
+class UrlLibEuTendersTransport:
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
+        boundary = "----LeadRadarBoundary"
+        body = ""
+        for name, (value, as_json_file) in fields.items():
+            body += f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"'
+            if as_json_file:
+                body += '; filename="blob"\r\nContent-Type: application/json'
+            body += f"\r\n\r\n{value}\r\n"
+        body += f"--{boundary}--\r\n"
+        request = Request(
+            url,
+            data=body.encode("utf-8"),
+            method="POST",
+            headers={
+                **headers,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+        )
+        try:
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed HTTPS endpoint
+                if response.status != 200:
+                    raise EuTendersError(f"EU tenders portal returned HTTP {response.status}")
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in {429, 500, 502, 503, 504}:
+                raise EuTendersError(
+                    f"EU tenders portal returned HTTP {exc.code}", retryable=True
+                ) from exc
+            raise EuTendersError(f"EU tenders portal returned HTTP {exc.code}") from exc
+
+
+class TenderCall(BaseModel):
+    identifier: str
+    title: str
+    url: str
+    status: str
+    start_date: datetime | None = None
+    deadline: datetime | None = None
+    programme: str | None = None
+    summary: str = Field(default="", max_length=600)
+
+
+class TenderSearchResult(BaseModel):
+    query: str
+    total: int
+    calls: list[TenderCall]
+    retrieved_at: datetime
+
+
+def _first(value: object) -> str | None:
+    if isinstance(value, list):
+        value = value[0] if value else None
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _date(value: object) -> datetime | None:
+    raw = _first(value)
+    if raw is None:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("+0000", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _summary(value: object) -> str:
+    raw = _first(value) or ""
+    text = _SPACE.sub(" ", html.unescape(_TAG.sub(" ", raw))).strip()
+    return text[:600]
+
+
+def _portal_url(value: object) -> str | None:
+    url = _first(value)
+    if url is None or not url.startswith(f"https://{PORTAL_HOST}/"):
+        return None
+    return url.split("#", 1)[0]
+
+
+class EuTendersDiscovery:
+    def __init__(
+        self,
+        transport: EuTendersTransport | None = None,
+        *,
+        timeout: float = 20,
+        max_page_size: int = MAX_PAGE_SIZE,
+    ) -> None:
+        if not 1 <= max_page_size <= MAX_PAGE_SIZE:
+            raise ValueError(f"EU tenders page size must be between 1 and {MAX_PAGE_SIZE}")
+        self.transport = transport or UrlLibEuTendersTransport()
+        self.timeout = timeout
+        self.max_page_size = max_page_size
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+        include_forthcoming: bool = True,
+        language: str = "en",
+    ) -> TenderSearchResult:
+        query = _SPACE.sub(" ", query).strip()
+        if not query:
+            raise ValueError("EU tenders query must not be blank")
+        if not 1 <= limit <= self.max_page_size:
+            raise ValueError(f"EU tenders limit must be between 1 and {self.max_page_size}")
+        statuses = [STATUS_OPEN, STATUS_FORTHCOMING] if include_forthcoming else [STATUS_OPEN]
+        filters = {
+            "bool": {
+                "must": [
+                    {"terms": {"type": [CALL_TYPE_TENDER]}},
+                    {"terms": {"status": statuses}},
+                    {"terms": {"language": [language]}},
+                ]
+            }
+        }
+        params = {
+            "apiKey": SEDIA_API_KEY,
+            "text": query,
+            "pageSize": str(limit),
+            "pageNumber": "1",
+            "sortBy": "startDate",
+            "order": "DESC",
+        }
+        payload = self._request(f"{SEDIA_ENDPOINT}?{urlencode(params)}", filters)
+        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+            raise EuTendersError("EU tenders portal returned an invalid response")
+        total = payload.get("totalResults")
+        calls: list[TenderCall] = []
+        seen: set[str] = set()
+        for item in payload["results"]:
+            if not isinstance(item, dict):
+                continue
+            metadata = item.get("metadata")
+            if not isinstance(metadata, dict):
+                continue
+            identifier = _first(metadata.get("identifier"))
+            url = _portal_url(item.get("url"))
+            title = _first(metadata.get("callTitle")) or _first(item.get("title"))
+            if identifier is None or url is None or title is None or identifier in seen:
+                continue
+            seen.add(identifier)
+            status = _first(metadata.get("status"))
+            calls.append(
+                TenderCall(
+                    identifier=identifier,
+                    title=_SPACE.sub(" ", html.unescape(title)).strip()[:300],
+                    url=url,
+                    status="forthcoming" if status == STATUS_FORTHCOMING else "open",
+                    start_date=_date(metadata.get("startDate")),
+                    deadline=_date(metadata.get("deadlineDate")),
+                    programme=_first(metadata.get("frameworkProgramme")),
+                    summary=_summary(metadata.get("description")),
+                )
+            )
+        return TenderSearchResult(
+            query=query,
+            total=total if isinstance(total, int) and total >= 0 else len(calls),
+            calls=calls[:limit],
+            retrieved_at=datetime.now(UTC),
+        )
+
+    def _request(self, url: str, filters: Mapping[str, object]) -> object:
+        fields = {"query": (json.dumps(filters), True)}
+        headers = {"User-Agent": "LeadRadarResearch/0.1 (public tenders search)"}
+        try:
+            try:
+                return self.transport.post_multipart(
+                    url, fields=fields, headers=headers, timeout=self.timeout
+                )
+            except EuTendersError as exc:
+                if not exc.retryable:
+                    raise
+                return self.transport.post_multipart(
+                    url, fields=fields, headers=headers, timeout=self.timeout
+                )
+        except EuTendersError:
+            raise
+        except Exception as exc:
+            raise EuTendersError("EU tenders search failed") from exc
