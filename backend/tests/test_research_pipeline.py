@@ -1,14 +1,16 @@
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.assessment import AssessmentStatus, EvidenceStrength, ProposedAssessment, ProposedEvidence
-from app.assessment.providers import AssessmentBatch
+from app.assessment.providers import AssessmentBatch, OpenRouterTransientError
 from app.collection.models import CollectedDocument, CollectionResult
 from app.contracts.evidence import SourceType
 from app.db import Base
+from app.jobs.runner import RetryableResearchError
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import Opportunity, StoredScoreSnapshot, StoredSourceDocument
@@ -74,6 +76,11 @@ class FakeAssessmentProvider:
         )
 
 
+class TransientAssessmentProvider:
+    def assess(self, **kwargs: object) -> AssessmentBatch:
+        raise OpenRouterTransientError("Service temporarily overloaded")
+
+
 def test_pipeline_persists_sources_assessments_score_and_opportunity() -> None:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -132,3 +139,57 @@ def test_pipeline_persists_sources_assessments_score_and_opportunity() -> None:
         opportunity = session.scalar(select(Opportunity))
         assert snapshot is not None and snapshot.score > 0
         assert opportunity is not None and opportunity.latest_snapshot_id == snapshot.id
+
+
+def test_transient_provider_overload_is_retryable() -> None:
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine, expire_on_commit=False)
+    with sessions.begin() as session:
+        company = Company(id="company-1", canonical_domain="example.com", display_name="Example")
+        profile = ServiceProfile(id="profile-1", name="Automation")
+        version = ServiceProfileVersion(
+            id="profile-v1",
+            version=1,
+            configuration={
+                "service_description": "Automation",
+                "icp": {},
+                "signals": [
+                    {
+                        "id": "efficiency",
+                        "question": "Is there an efficiency initiative?",
+                        "positive_criteria": ["Named program"],
+                        "exclusions": [],
+                        "weight": 20,
+                        "effect": "positive",
+                        "freshness_window_days": 365,
+                    }
+                ],
+            },
+        )
+        profile.versions.append(version)
+        run = ResearchRun(
+            id="run-1",
+            company_id=company.id,
+            profile_version_id=version.id,
+            idempotency_key="pipeline-retry",
+        )
+        session.add_all([company, profile, run])
+
+    pipeline = IntegratedResearchPipeline(
+        sessions,
+        TransientAssessmentProvider(),  # type: ignore[arg-type]
+        collector=FakeCollector(),  # type: ignore[arg-type]
+        news=FakeNews(),  # type: ignore[arg-type]
+    )
+    with sessions() as session:
+        company = session.get_one(Company, "company-1")
+        version = session.get_one(ServiceProfileVersion, "profile-v1")
+        session.expunge(company)
+        session.expunge(version)
+    collected = pipeline.collect("run-1", company)
+
+    with pytest.raises(RetryableResearchError, match="temporarily unavailable"):
+        pipeline.assess("run-1", company, version, collected.data)

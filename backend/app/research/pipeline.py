@@ -5,13 +5,16 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.assessment import SourceText, validate_assessment
 from app.assessment.models import SignalAssessment
-from app.assessment.providers import OpenRouterAssessmentProvider
+from app.assessment.providers import (
+    OpenRouterAssessmentProvider,
+    OpenRouterTransientError,
+)
 from app.collection import CanonicalCompany, CollectedDocument, PublicSourceCollector, SourceTarget
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.contracts.research import PartialError
 from app.discovery import GdeltError, GdeltNewsDiscovery
-from app.jobs.runner import StageResult
+from app.jobs.runner import RetryableResearchError, StageResult
 from app.models.profile import ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
 from app.models.results import (
@@ -137,12 +140,17 @@ class IntegratedResearchPipeline:
         if not documents:
             raise ValueError("No collected documents are available for assessment")
         configuration = ProfileConfiguration.model_validate(profile.configuration)
-        batch = self.assessment_provider.assess(
-            company_id=company.id,
-            company_name=company.display_name,
-            profile=configuration,
-            documents=documents,
-        )
+        try:
+            batch = self.assessment_provider.assess(
+                company_id=company.id,
+                company_name=company.display_name,
+                profile=configuration,
+                documents=documents,
+            )
+        except OpenRouterTransientError as exc:
+            raise RetryableResearchError(
+                f"Assessment provider was temporarily unavailable: {exc}"
+            ) from exc
         if batch.cost_usd is not None and batch.cost_usd > self.budget_usd:
             raise RuntimeError("Research run exceeded its configured model budget")
 

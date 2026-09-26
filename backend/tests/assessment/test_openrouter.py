@@ -1,10 +1,19 @@
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from email.message import Message
+from io import BytesIO
+from unittest import mock
+from urllib.error import HTTPError
 
 import pytest
 
-from app.assessment.providers import OpenRouterAssessmentProvider, OpenRouterError
+from app.assessment.providers import (
+    OpenRouterAssessmentProvider,
+    OpenRouterError,
+    OpenRouterTransientError,
+)
+from app.assessment.providers.openrouter import UrlLibJsonPostTransport
 from app.collection.models import CollectedDocument
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration, SignalDefinition, SignalEffect
@@ -128,3 +137,83 @@ def test_rejects_missing_or_duplicate_signal_results() -> None:
             profile=profile(),
             documents=[document()],
         )
+
+
+def test_surfaces_error_field_instead_of_no_choices() -> None:
+    provider = OpenRouterAssessmentProvider(
+        api_key="secret",
+        model="test-model",
+        timeout=30,
+        transport=FakeTransport(
+            {"error": {"code": 400, "message": "model does not support response_format"}}
+        ),
+    )
+
+    with pytest.raises(OpenRouterError, match="model does not support response_format"):
+        provider.assess(
+            company_id="company-1",
+            company_name="Example",
+            profile=profile(),
+            documents=[document()],
+        )
+
+
+def test_classifies_provider_overload_as_transient() -> None:
+    provider = OpenRouterAssessmentProvider(
+        api_key="secret",
+        model="test-model",
+        timeout=30,
+        transport=FakeTransport(
+            {
+                "error": {
+                    "code": 503,
+                    "message": "Service temporarily overloaded",
+                    "metadata": {"error_type": "provider_overloaded"},
+                }
+            }
+        ),
+    )
+
+    with pytest.raises(OpenRouterTransientError, match="Service temporarily overloaded"):
+        provider.assess(
+            company_id="company-1",
+            company_name="Example",
+            profile=profile(),
+            documents=[document()],
+        )
+
+
+def test_transport_surfaces_http_error_message() -> None:
+    body = json.dumps(
+        {"error": {"code": 400, "message": "model does not support response_format"}}
+    ).encode()
+    raised = HTTPError("https://openrouter.ai", 400, "Bad Request", Message(), BytesIO(body))
+    with mock.patch(
+        "app.assessment.providers.openrouter.urlopen", side_effect=raised
+    ):
+        with pytest.raises(OpenRouterError, match="model does not support response_format"):
+            UrlLibJsonPostTransport().post_json(
+                "https://openrouter.ai", payload={}, headers={}, timeout=30
+            )
+
+
+def test_transport_classifies_overload_as_transient() -> None:
+    body = json.dumps(
+        {
+            "error": {
+                "code": 503,
+                "message": "Service temporarily overloaded",
+                "metadata": {"error_type": "provider_overloaded"},
+            }
+        }
+    ).encode()
+    raised = HTTPError(
+        "https://openrouter.ai", 503, "Service Unavailable", Message(), BytesIO(body)
+    )
+    with mock.patch(
+        "app.assessment.providers.openrouter.urlopen", side_effect=raised
+    ):
+        with pytest.raises(OpenRouterTransientError, match="Service temporarily overloaded"):
+            UrlLibJsonPostTransport().post_json(
+                "https://openrouter.ai", payload={}, headers={}, timeout=30
+            )
