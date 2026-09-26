@@ -57,8 +57,12 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     if positive_denominator <= 0:
         raise ScoringConfigurationError("at least one positive signal must have a nonzero weight")
 
-    assessed_count = sum(signal.assessment is not None for signal in scoring_input.signals)
-    coverage = assessed_count / len(scoring_input.signals) if scoring_input.signals else 0.0
+    supported_count = sum(
+        signal.assessment is not None
+        and signal.assessment.status == AssessmentStatus.SUPPORTED
+        for signal in scoring_input.signals
+    )
+    coverage = supported_count / len(scoring_input.signals) if scoring_input.signals else 0.0
 
     icp_configured = bool(scoring_input.icp_criteria)
     icp_fit = (

@@ -108,8 +108,28 @@ def test_calculates_fixed_denominator_score_without_rounding() -> None:
     assert result.icp_fit == 0.5
     assert result.positive_strength == 0.5
     assert result.score == 50.0
-    assert result.coverage == 1.0
+    assert result.coverage == 0.5
     assert result.eligibility == Eligibility.ELIGIBLE
+
+
+def test_insufficient_evidence_does_not_inflate_coverage() -> None:
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition("unknown"),
+                    assessment=assessment(
+                        "unknown",
+                        status=AssessmentStatus.INSUFFICIENT_EVIDENCE,
+                        strength=None,
+                    ),
+                )
+            ]
+        )
+    )
+
+    assert result.coverage == 0
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
 
 
 def test_applies_strength_freshness_and_penalty_once_per_question() -> None:
