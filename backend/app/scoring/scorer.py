@@ -81,6 +81,9 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     positive_numerator = 0.0
     penalty_points = 0.0
     has_credible_positive = False
+    claimed_positive_events: set[str] = set()
+    independent_positive_sources: set[str] = set()
+    positive_strength_factors: list[float] = []
 
     for signal in scoring_input.signals:
         assessment = signal.assessment
@@ -105,6 +108,19 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
         weighted_value = signal.definition.weight * strength.factor * freshness
         source_ids = list(dict.fromkeys(item.source_id for item in assessment.evidence))
+        event_keys = set(item.event_group_key for item in assessment.evidence)
+
+        # One public event may answer more than one broad profile question. It is still
+        # one piece of commercial evidence and must not multiply the opportunity score.
+        if signal.definition.effect == SignalEffect.POSITIVE and event_keys:
+            novel_events = event_keys - claimed_positive_events
+            novelty_factor = len(novel_events) / len(event_keys)
+            if novelty_factor < 1:
+                warnings.append(
+                    f"{signal.definition.id}: repeated evidence event was not scored twice"
+                )
+            weighted_value *= novelty_factor
+            claimed_positive_events.update(novel_events)
         contributions.append(
             ScoreContributionResult(
                 signal_id=signal.definition.id,
@@ -119,7 +135,10 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
         if signal.definition.effect == SignalEffect.POSITIVE:
             positive_numerator += weighted_value
-            if strength.factor >= 0.7:
+            if weighted_value > 0:
+                independent_positive_sources.update(source_ids)
+                positive_strength_factors.append(strength.factor)
+            if strength.factor >= 0.7 and weighted_value > 0:
                 has_credible_positive = True
         elif signal.definition.effect == SignalEffect.PENALTY:
             penalty_points += weighted_value
@@ -127,10 +146,24 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
             exclusion_reasons.append(signal.definition.question)
 
     positive_strength = positive_numerator / positive_denominator
+    source_confidence = min(1.0, len(independent_positive_sources) / 2)
+    mean_positive_strength = (
+        sum(positive_strength_factors) / len(positive_strength_factors)
+        if positive_strength_factors
+        else 0.0
+    )
+    evidence_confidence = source_confidence * mean_positive_strength
+
+    # ICP facts decide whether an account belongs in the research queue. They do not
+    # prove current demand. The public opportunity score is therefore evidence-gated.
     score = min(
         100.0,
-        max(0.0, 100 * (0.30 * icp_fit + 0.70 * positive_strength) - penalty_points),
+        max(0.0, 100 * positive_strength * evidence_confidence - penalty_points),
     )
+    if len(independent_positive_sources) < 2:
+        score = min(score, 49.0)
+    if not has_credible_positive:
+        score = min(score, 39.0)
 
     target_mismatch = bool(decided) and not any(item.matched is True for item in decided)
 
@@ -139,7 +172,9 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     elif (
         coverage < 0.5
         or not has_credible_positive
-        or positive_strength < 0.35
+        or len(independent_positive_sources) < 2
+        or evidence_confidence < 0.65
+        or positive_strength < 0.5
         or target_mismatch
     ):
         eligibility = Eligibility.NEEDS_RESEARCH
@@ -162,6 +197,10 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         warnings.append("No verified company fact matches the configured target criteria")
     if positive_numerator > 0 and not has_credible_positive:
         warnings.append("Only weak positive evidence was found; buying intent is not established")
+    if positive_numerator > 0 and len(independent_positive_sources) < 2:
+        warnings.append(
+            "Fewer than two independent sources support the opportunity; score is capped at 49"
+        )
 
     return ScoringResult(
         company_id=scoring_input.company_id,
@@ -173,6 +212,8 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         icp_fit=icp_fit,
         icp_configured=icp_configured,
         positive_strength=positive_strength,
+        evidence_confidence=evidence_confidence,
+        independent_positive_sources=len(independent_positive_sources),
         penalty_points=penalty_points,
         contributions=contributions,
         exclusion_reasons=exclusion_reasons,

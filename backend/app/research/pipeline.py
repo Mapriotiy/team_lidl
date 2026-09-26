@@ -417,7 +417,11 @@ class IntegratedResearchPipeline:
                 penalty_points=score.penalty_points,
                 contributions=[item.model_dump(mode="json") for item in score.contributions],
                 exclusion_reasons=score.exclusion_reasons,
-                warnings=score.warnings,
+                warnings=[
+                    *score.warnings,
+                    f"Evidence confidence: {score.evidence_confidence:.0%}; "
+                    f"independent positive sources: {score.independent_positive_sources}",
+                ],
             )
             session.add(snapshot)
             session.flush()
