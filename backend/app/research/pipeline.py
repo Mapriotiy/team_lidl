@@ -36,6 +36,7 @@ from app.models.results import (
     StoredSignalAssessment,
     StoredSourceDocument,
 )
+from app.research.identity import verify_document_identity
 from app.scoring import IcpCriterion, ScoringInput, SignalScoringInput, calculate_score
 
 
@@ -309,6 +310,27 @@ class IntegratedResearchPipeline:
             ),
             targets,
         )
+        verified_documents: list[CollectedDocument] = []
+        rejected_documents: list[CollectedDocument] = []
+        for document in result.documents:
+            decision = verify_document_identity(company, document)
+            if decision.matched:
+                verified_documents.append(document)
+            else:
+                rejected_documents.append(document)
+                crawl_log.append(
+                    CrawlLogEntry(
+                        id=str(uuid4()),
+                        run_id=run_id,
+                        company_id=company.id,
+                        company_name=company.display_name,
+                        provider="websites",
+                        target=document.canonical_url,
+                        status="skipped",
+                        detail="Collected page excluded: company identity could not be verified",
+                        at=utc_now(),
+                    )
+                )
         crawl_log.extend(
             CrawlLogEntry(
                 id=str(uuid4()),
@@ -328,13 +350,25 @@ class IntegratedResearchPipeline:
             PartialError(stage="collection", code=error.code, message=error.message)
             for error in result.errors
         )
+        if rejected_documents:
+            partial_errors.append(
+                PartialError(
+                    stage="collection",
+                    code="source_identity_unverified",
+                    message=(
+                        f"Excluded {len(rejected_documents)} external source"
+                        f"{'s' if len(rejected_documents) != 1 else ''} that could not be "
+                        "attributed to the selected company"
+                    ),
+                )
+            )
         expires_at = utc_now() + timedelta(days=self.retention_days)
         persisted_documents: list[CollectedDocument] = []
         with self.sessions.begin() as session:
             # Serialize repeated research for one company across worker slots, so
             # deduplication cannot race against the unique company/content key.
             session.execute(select(Company.id).where(Company.id == company.id).with_for_update())
-            for document in result.documents:
+            for document in verified_documents:
                 stored = session.get(StoredSourceDocument, document.id)
                 if stored is None:
                     stored = session.scalar(
@@ -377,7 +411,7 @@ class IntegratedResearchPipeline:
                 "documents": [document.model_dump(mode="json") for document in persisted_documents],
                 "crawl_log": [entry.model_dump(mode="json") for entry in crawl_log],
             },
-            completed=len(result.documents),
+            completed=len(verified_documents),
             total=result.total or len(targets),
             errors=partial_errors,
         )
