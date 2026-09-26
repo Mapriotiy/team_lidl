@@ -17,7 +17,7 @@ const geography = (values: string[], countries: string[]): IcpCriterion => ({ ke
 const industry = (values: string[]): IcpCriterion => ({ key: 'industry', values, countries: [], worldwide: false, employees: null, include_unknown: true, unresolved: [], note: null })
 const size = (values: string, minimum: number): IcpCriterion => ({ key: 'company_size', values: [values], countries: [], worldwide: false, employees: { minimum, maximum: null }, include_unknown: true, unresolved: [], note: null })
 const profileRow = (id: string, name: string, criteria: IcpCriterion[]) => ({ id, name, current_version: { id: `${id}-version-${version}`, version: 1, configuration: { service_description: name, icp: {}, signals: [] }, icp_criteria: criteria, created_at: '' }, created_at: '', updated_at: '' })
-const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1' }
+const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1', qualification: 'qualified' as const, qualification_reasons: ['Target industry matches'] }
 const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], minimum_employees: 1000, include_unknown_size: true, industry: null, limit: 100 }, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); version++
@@ -61,6 +61,18 @@ test('keeps failed research selected for retry', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('remain selected')
   expect(screen.getByRole('checkbox', { name: 'Select Example SA' })).toBeChecked()
+})
+
+test('shows pre-research qualification and blocks a known ICP mismatch', async () => {
+  vi.mocked(createDiscoveryRun).mockResolvedValue({ ...run, candidates: [
+    { ...candidate, name: 'Wrong Industry', domain: 'wrong.ro', qualification: 'out_of_icp', qualification_reasons: ['Industry is outside the target profile'] },
+  ] })
+  render(<DiscoveryWorkspace />)
+
+  expect(await screen.findByText('Out of ICP')).toBeInTheDocument()
+  expect(screen.getByRole('checkbox', { name: 'Select Wrong Industry' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Wrong Industry' }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('Industry is outside the target profile')
 })
 
 test('loads another 25 results and filters without searching again', async () => {

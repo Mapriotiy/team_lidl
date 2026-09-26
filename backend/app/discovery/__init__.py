@@ -6,8 +6,14 @@ from app.discovery.eu_tenders import (
     TenderSearchResult,
 )
 from app.discovery.gdelt import GdeltError, GdeltNewsDiscovery, NewsCandidate
-from app.discovery.models import DiscoveryCandidate, DiscoveryRequest, SizeVerification
+from app.discovery.models import (
+    DiscoveryCandidate,
+    DiscoveryRequest,
+    QualificationStatus,
+    SizeVerification,
+)
 from app.discovery.newsapi import NewsApiDiscovery, NewsApiError
+from app.discovery.qualification import qualify_candidate, qualify_candidates
 from app.discovery.wikidata import WikidataDiscovery, WikidataError
 
 __all__ = [
@@ -21,10 +27,13 @@ __all__ = [
     "NewsApiDiscovery",
     "NewsApiError",
     "NewsCandidate",
+    "QualificationStatus",
     "SizeVerification",
     "TenderCall",
     "TenderSearchResult",
     "WikidataDiscovery",
     "WikidataError",
+    "qualify_candidate",
+    "qualify_candidates",
     "store_candidates",
 ]

@@ -12,8 +12,10 @@ from app.discovery import (
     CatalogDiscovery,
     DiscoveryCandidate,
     DiscoveryRequest,
+    QualificationStatus,
     WikidataDiscovery,
     WikidataError,
+    qualify_candidates,
     store_candidates,
 )
 from app.jobs.imports import import_company
@@ -21,7 +23,7 @@ from app.models.profile import new_id, utc_now
 from app.models.results import DiscoveryRun
 
 router = APIRouter(prefix="/discovery-runs", tags=["discovery"])
-RESEARCHABLE_DISCOVERY_STATUS = "researchable_v1"
+RESEARCHABLE_DISCOVERY_STATUS = "researchable_v2"
 
 
 class DiscoveryRunRead(ContractModel):
@@ -111,6 +113,7 @@ def create_discovery_run(
                 assert failure is not None
                 raise HTTPException(status_code=502, detail=str(failure)) from failure
             return _read(cached)
+    candidates = qualify_candidates(candidates, payload)
     run = DiscoveryRun(
         id=new_id(),
         status=RESEARCHABLE_DISCOVERY_STATUS,
@@ -147,6 +150,17 @@ def confirm_discovery_run(
     requested = list(dict.fromkeys(domain.lower() for domain in payload.domains))
     if any(domain not in available for domain in requested):
         raise HTTPException(status_code=422, detail="Confirm only candidates from this run")
+    blocked = [
+        domain
+        for domain in requested
+        if DiscoveryCandidate.model_validate(available[domain]).qualification
+        == QualificationStatus.OUT_OF_ICP
+    ]
+    if blocked:
+        raise HTTPException(
+            status_code=422,
+            detail="Out-of-ICP candidates cannot be queued for research: " + ", ".join(blocked),
+        )
 
     company_ids: list[str] = []
     for domain in requested:
