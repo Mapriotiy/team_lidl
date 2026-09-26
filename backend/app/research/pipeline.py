@@ -15,7 +15,13 @@ from app.collection import CanonicalCompany, CollectedDocument, PublicSourceColl
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.contracts.research import PartialError
-from app.discovery import GdeltError, GdeltNewsDiscovery, NewsApiDiscovery, NewsCandidate
+from app.discovery import (
+    GdeltError,
+    GdeltNewsDiscovery,
+    NewsApiDiscovery,
+    NewsApiError,
+    NewsCandidate,
+)
 from app.icp.evaluation import evaluate_criteria
 from app.jobs.runner import RetryableResearchError, StageResult
 from app.models.profile import ServiceProfileVersion, utc_now
@@ -169,7 +175,7 @@ class IntegratedResearchPipeline:
                     if c.target.url not in seen_news_urls:
                         news_candidates.append(c)
                         seen_news_urls.add(c.target.url)
-            except Exception as exc:
+            except NewsApiError as exc:
                 partial_errors.append(
                     PartialError(
                         stage="collection",
