@@ -37,8 +37,8 @@ class PublicSourceCollector:
         max_bytes: int = 1_000_000,
         max_redirects: int = 4,
     ) -> None:
-        if not 1 <= max_pages <= 10 or not 0 < timeout <= 30:
-            raise ValueError("Collection permits 1–10 pages and a 0–30 second page deadline")
+        if not 1 <= max_pages <= 24 or not 0 < timeout <= 30:
+            raise ValueError("Collection permits 1–24 pages and a 0–30 second page deadline")
         if not 1 <= max_bytes <= 2_000_000 or not 0 <= max_redirects <= 5:
             raise ValueError("Invalid byte or redirect limit")
         self.transport = transport if transport is not None else SafeHTTPTransport()

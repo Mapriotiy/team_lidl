@@ -25,6 +25,7 @@ def profile_payload(weight: float = 20) -> dict[str, object]:
     return {
         "name": "Process automation",
         "configuration": {
+            "service_role": "RPA developers",
             "service_description": "Intelligent automation services.",
             "icp": {"geographies": ["Europe"]},
             "signals": [
@@ -72,6 +73,7 @@ def test_create_list_and_version_profile() -> None:
 
     assert changed.status_code == 200
     assert changed.json()["name"] == "Operational automation"
+    assert changed.json()["current_version"]["configuration"]["service_role"] == "RPA developers"
     assert changed.json()["current_version"]["version"] == 2
     assert changed.json()["current_version"]["configuration"]["signals"][0]["weight"] == 35
 

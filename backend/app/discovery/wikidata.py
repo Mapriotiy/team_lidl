@@ -18,6 +18,11 @@ LABEL_LANGUAGES = "en|uk|pl|cs|sk|hu|ro|bg|et|lv|lt|ru"
 # market and is presented as unknown company size instead of an asserted fact.
 MAX_PLAUSIBLE_EMPLOYEES = 500_000
 
+# A small structured-fact floor is a zero-extra-request proxy for public researchability.
+# It removes obscure entities that are unlikely to have enough attributable public
+# material while preserving search latency and allowing manual domain import as an override.
+MIN_RESEARCHABILITY_STATEMENTS = 8
+
 # Company size is instead stamped needs_verification until our pipeline confirms
 # it from primary sources; reduced discovery confidence signals that the size
 # fact has not been verified (docs/research-pipeline-handoff.md).
@@ -100,15 +105,18 @@ def _sparql(request: DiscoveryRequest) -> str:
     return f"""
 PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees WHERE {{
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees ?statements WHERE {{
   ?company wdt:P31/wdt:P279* wd:Q783794;
            wdt:P17 ?country;
-           wdt:P856 ?website.
+           wdt:P856 ?website;
+           wikibase:statements ?statements.
   {employees}
   ?country wdt:P297 ?countryCode.
   {countries}
   OPTIONAL {{ ?company wdt:P452 ?industry. }}
   FILTER({employee_filter})
+  FILTER(?statements >= {MIN_RESEARCHABILITY_STATEMENTS})
   FILTER NOT EXISTS {{
     VALUES ?excludedType {{
       wd:Q327333 wd:Q192350 wd:Q732717 wd:Q8473 wd:Q163740 wd:Q708676
@@ -212,6 +220,13 @@ class WikidataDiscovery:
                 continue
 
             employee_text = _value(binding, "employees")
+            statements_text = _value(binding, "statements")
+            try:
+                statements = int(float(statements_text)) if statements_text is not None else 0
+            except ValueError:
+                statements = 0
+            if statements < MIN_RESEARCHABILITY_STATEMENTS:
+                continue
             try:
                 employee_count = int(float(employee_text)) if employee_text is not None else None
             except ValueError:

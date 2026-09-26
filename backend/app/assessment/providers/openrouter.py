@@ -12,7 +12,8 @@ from app.collection.models import CollectedDocument
 from app.contracts.profile import ProfileConfiguration
 
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-MAX_DOCUMENT_CHARACTERS = 80_000
+MAX_DOCUMENT_CHARACTERS = 120_000
+MAX_DOCUMENT_CHARACTERS_PER_SOURCE = 12_000
 TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
 TRANSIENT_ERROR_TYPES = {
     "provider_overloaded",
@@ -151,10 +152,12 @@ def _schema() -> dict[str, object]:
 def _documents_payload(documents: Sequence[CollectedDocument]) -> str:
     remaining = MAX_DOCUMENT_CHARACTERS
     blocks: list[str] = []
-    for document in documents:
+    for index, document in enumerate(documents):
         if remaining <= 0:
             break
-        text = document.normalized_text[:remaining]
+        documents_left = len(documents) - index
+        fair_share = max(1_000, remaining // documents_left)
+        text = document.normalized_text[: min(MAX_DOCUMENT_CHARACTERS_PER_SOURCE, fair_share)]
         remaining -= len(text)
         blocks.append(
             "\n".join(
@@ -212,6 +215,12 @@ class OpenRouterAssessmentProvider:
             "is a lead, not proof of buying intent. Do not infer contacts, budget, or unstated "
             "facts. Generic navigation, slogans, "
             "and services sold to clients do not establish the company's own internal initiative. "
+            "Extract concrete details whenever the sources state them: dates, quantities, money, "
+            "percentages, named products, locations, staffing levels, and program scope. Preserve "
+            "useful details that appear in only one source instead of flattening all sources to a "
+            "common summary. Prefer corroboration from distinct publishers. In each rationale, "
+            "identify material conflicts between sources and explain which claim is better "
+            "supported or more recent. Never resolve a conflict by inventing a value. "
             "Return one assessment per signal; use insufficient_evidence only when there is no "
             "directly relevant attributable fact, and explain what was missing."
         )

@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.contracts.common import ContractModel
@@ -13,6 +14,7 @@ from app.models.profile import new_id, utc_now
 from app.models.results import DiscoveryRun
 
 router = APIRouter(prefix="/discovery-runs", tags=["discovery"])
+RESEARCHABLE_DISCOVERY_STATUS = "researchable_v1"
 
 
 class DiscoveryRunRead(ContractModel):
@@ -54,13 +56,32 @@ def create_discovery_run(
     provider: Annotated[WikidataDiscovery, Depends(get_discovery_provider)],
     session: Session = Depends(get_session),
 ) -> DiscoveryRunRead:
-    try:
-        candidates = provider.discover(payload)
-    except WikidataError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    failure: WikidataError | None = None
+    candidates: list[DiscoveryCandidate] | None = None
+    for _ in range(2):
+        try:
+            candidates = provider.discover(payload)
+            break
+        except WikidataError as exc:
+            failure = exc
+    if candidates is None:
+        recent = session.scalars(
+            select(DiscoveryRun)
+            .where(DiscoveryRun.status == RESEARCHABLE_DISCOVERY_STATUS)
+            .order_by(DiscoveryRun.created_at.desc())
+            .limit(20)
+        ).all()
+        cached = next(
+            (run for run in recent if run.request == payload.model_dump(mode="json")),
+            None,
+        )
+        if cached is None:
+            assert failure is not None
+            raise HTTPException(status_code=502, detail=str(failure)) from failure
+        candidates = [DiscoveryCandidate.model_validate(item) for item in cached.candidates]
     run = DiscoveryRun(
         id=new_id(),
-        status="completed",
+        status=RESEARCHABLE_DISCOVERY_STATUS,
         request=payload.model_dump(mode="json"),
         candidates=[candidate.model_dump(mode="json") for candidate in candidates],
     )

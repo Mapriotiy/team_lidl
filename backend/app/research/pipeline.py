@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -45,6 +46,51 @@ def _icp_criteria(company: Company, configuration: ProfileConfiguration) -> list
     return criteria
 
 
+_QUERY_STOPWORDS = {
+    "about", "company", "does", "from", "have", "into", "that", "their", "there",
+    "this", "what", "when", "where", "which", "with", "would",
+}
+
+
+def _research_queries(company_name: str, configuration: ProfileConfiguration) -> list[str]:
+    """Build repeatable search angles from the selected company and saved profile."""
+    quoted_name = f'"{company_name.strip()}"'
+    profile_text = " ".join(
+        [configuration.service_description]
+        + [signal.question for signal in configuration.signals]
+        + [criterion for signal in configuration.signals for criterion in signal.positive_criteria]
+    )
+    terms: list[str] = []
+    for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", profile_text.casefold()):
+        if term not in _QUERY_STOPWORDS and term not in terms:
+            terms.append(term)
+        if len(terms) == 6:
+            break
+    profile_clause = " OR ".join(terms) or "strategy OR investment"
+    return [
+        quoted_name,
+        f"{quoted_name} ({profile_clause})",
+        f'{quoted_name} ("annual report" OR strategy OR investor OR results)',
+        f"{quoted_name} (analysis OR review OR comparison OR interview)",
+        f"{quoted_name} (reddit OR forum OR discussion OR experience)",
+    ]
+
+
+def _fact_source_targets(company: Company) -> list[SourceTarget]:
+    targets: list[SourceTarget] = []
+    seen: set[str] = set()
+    for fact in company.facts.values():
+        source = fact.get("source") if isinstance(fact, dict) else None
+        if (
+            isinstance(source, str)
+            and source.startswith(("http://", "https://"))
+            and source not in seen
+        ):
+            targets.append(SourceTarget(source, SourceType.OTHER))
+            seen.add(source)
+    return targets
+
+
 class IntegratedResearchPipeline:
     def __init__(
         self,
@@ -58,7 +104,7 @@ class IntegratedResearchPipeline:
     ) -> None:
         self.sessions = sessions
         self.assessment_provider = assessment_provider
-        self.collector = collector or PublicSourceCollector(max_pages=10)
+        self.collector = collector or PublicSourceCollector(max_pages=16, timeout=6)
         self.news = news or GdeltNewsDiscovery()
         self.retention_days = retention_days
         self.budget_usd = budget_usd
@@ -68,11 +114,33 @@ class IntegratedResearchPipeline:
             SourceTarget(f"https://{company.canonical_domain}/", SourceType.COMPANY),
             SourceTarget(f"https://www.{company.canonical_domain}/", SourceType.COMPANY),
         ]
+        targets.extend(_fact_source_targets(company))
         partial_errors: list[PartialError] = []
-        try:
-            targets.extend(
-                candidate.target for candidate in self.news.discover(company.display_name, limit=4)
+        with self.sessions() as session:
+            run = session.get(ResearchRun, run_id)
+            profile = (
+                session.get(ServiceProfileVersion, run.profile_version_id)
+                if run is not None
+                else None
             )
+            configuration = (
+                ProfileConfiguration.model_validate(profile.configuration)
+                if profile is not None
+                else None
+            )
+        try:
+            queries = (
+                _research_queries(company.display_name, configuration)
+                if configuration is not None
+                else [f'"{company.display_name.strip()}"']
+            )
+            if hasattr(self.news, "discover_queries"):
+                candidates = self.news.discover_queries(
+                    queries, limit_per_query=4, max_results=13
+                )
+            else:
+                candidates = self.news.discover(company.display_name, limit=8)
+            targets.extend(candidate.target for candidate in candidates)
         except GdeltError as exc:
             partial_errors.append(
                 PartialError(
@@ -149,7 +217,23 @@ class IntegratedResearchPipeline:
             raise ValueError("Collection checkpoint contains no documents")
         documents = [CollectedDocument.model_validate(item) for item in sources["documents"]]
         if not documents:
-            raise ValueError("No collected documents are available for assessment")
+            configuration = ProfileConfiguration.model_validate(profile.configuration)
+            return StageResult(
+                data={"score": None, "evidence_ids": []},
+                completed=0,
+                total=len(configuration.signals),
+                errors=[
+                    PartialError(
+                        stage="assessment",
+                        code="no_documents",
+                        message=(
+                            "No public pages could be collected. Check the company website or "
+                            "retry later; no assessment was generated."
+                        ),
+                    )
+                ],
+                links={"company": f"/companies/{company.id}"},
+            )
         configuration = ProfileConfiguration.model_validate(profile.configuration)
         try:
             batch = self.assessment_provider.assess(
