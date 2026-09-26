@@ -34,6 +34,19 @@ test('offers distinct service templates', async () => {
   expect(screen.queryByRole('button', { name: /Automation engineering/ })).not.toBeInTheDocument()
 })
 
+test('replaces research signals when the selected service changes', async () => {
+  render(<ProfileWorkspace />)
+  fireEvent.click(await screen.findByRole('button', { name: /Cybersecurity/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+  expect(screen.getByDisplayValue(/confirmed a recent security incident/)).toBeInTheDocument()
+  expect(screen.getByDisplayValue(/NIS2, DORA/)).toBeInTheDocument()
+  expect(screen.queryByDisplayValue(/cost-reduction or operational-efficiency/)).not.toBeInTheDocument()
+  expect(screen.getByText('Buying signal 4')).toBeInTheDocument()
+  expect(screen.getByText('Warning 2')).toBeInTheDocument()
+})
+
 test('saves through the profile repository boundary', async () => {
   render(<ProfileWorkspace />)
   fireEvent.click(await screen.findByRole('button', { name: /RPA & automation/ }))

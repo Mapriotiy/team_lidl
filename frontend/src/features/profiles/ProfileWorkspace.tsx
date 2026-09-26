@@ -7,11 +7,52 @@ import type { ProfileDraft, SignalDraft, SignalEffect } from './types'
 const steps = ['What we sell', 'Who we target', 'What we look for']
 const importance = [{ label: 'High', value: 20 }, { label: 'Medium', value: 10 }, { label: 'Low', value: 5 }]
 const ages = [{ label: 'Last 6 months', value: 180 }, { label: 'Last year', value: 365 }, { label: 'Last 2 years', value: 730 }]
-const serviceOptions = [
-  { name: 'RPA developers', profileName: 'RPA', title: 'RPA & automation', short: 'Automate repetitive operations and improve process accuracy.', description: 'We provide RPA development expertise to design, build, test, and maintain reliable software automations that reduce repetitive work and improve process accuracy.' },
-  { name: 'Cybersecurity specialists', profileName: 'Cybersecurity', title: 'Cybersecurity', short: 'Strengthen security, resilience, and regulatory readiness.', description: 'We provide cybersecurity expertise to assess risk, strengthen security controls, improve operational resilience, and support organisations responding to regulatory and technology change.' },
-  { name: 'AI specialists', profileName: 'Applied AI', title: 'Applied AI', short: 'Identify and deliver practical AI use cases.', description: 'We provide AI expertise to identify valuable use cases, design and implement responsible AI solutions, and integrate them into existing business processes and systems.' },
-  { name: 'Process excellence roles', profileName: 'Process excellence', title: 'Process excellence', short: 'Redesign workflows and deliver measurable operational gains.', description: 'We provide process excellence expertise to analyse and redesign workflows, establish continuous-improvement practices, and deliver measurable gains in quality, speed, and cost.' },
+const signal = (id: string, question: string, positiveCriteria: string, weight: number, freshnessWindowDays: number, effect: SignalEffect = 'positive', exclusions = ''): SignalDraft => ({ id, question, positiveCriteria, exclusions, effect, weight, freshnessWindowDays })
+const serviceOptions: Array<{ name: string; profileName: string; title: string; short: string; description: string; signals: SignalDraft[] }> = [
+  {
+    name: 'RPA developers', profileName: 'RPA', title: 'RPA & automation', short: 'Automate repetitive operations and improve process accuracy.', description: 'We provide RPA development expertise to design, build, test, and maintain reliable software automations that reduce repetitive work and improve process accuracy.',
+    signals: [
+      signal('efficiency-program', 'Is there a current cost-reduction or operational-efficiency programme?', 'A named, dated efficiency or cost programme with operational scope.', 20, 730, 'positive', 'Generic undated efficiency language.'),
+      signal('automation-initiative', 'Is the company implementing RPA, workflow automation, or process mining?', 'A named implementation, rollout, platform, or investment tied to business processes.', 20, 730, 'positive', 'Generic interest in AI or digitalisation without an automation initiative.'),
+      signal('automation-hiring', 'Is the company hiring automation or process-mining specialists?', 'A current role tied to a named automation team, platform, or programme.', 10, 365),
+      signal('process-consolidation', 'Is there a shared-service or process-consolidation initiative?', 'A named shared-service, operating-model, or process-standardisation programme.', 10, 730),
+      signal('internal-automation-capability', 'Does a mature internal automation team reduce the need for external delivery?', 'A scaled automation centre of excellence or an explicit internal-only delivery model.', 10, 730, 'penalty'),
+      signal('incumbent-automation-partner', 'Is a current automation delivery partner a material barrier?', 'A named current provider with overlapping implementation scope.', 10, 730, 'penalty'),
+    ],
+  },
+  {
+    name: 'Cybersecurity specialists', profileName: 'Cybersecurity', title: 'Cybersecurity', short: 'Strengthen security, resilience, and regulatory readiness.', description: 'We provide cybersecurity expertise to assess risk, strengthen security controls, improve operational resilience, and support organisations responding to regulatory and technology change.',
+    signals: [
+      signal('security-incident', 'Has the company confirmed a recent security incident or material vulnerability?', 'A company, regulator, or trusted authority confirms the incident and affected scope.', 20, 365, 'positive', 'Rumours or unattributed breach claims.'),
+      signal('regulatory-readiness', 'Is a regulatory or audit deadline creating a security programme?', 'A named programme tied to NIS2, DORA, an audit finding, or another concrete obligation.', 20, 730),
+      signal('cloud-security-change', 'Is a cloud or platform migration creating new security requirements?', 'A dated migration or architecture programme with security implications.', 15, 730),
+      signal('security-hiring', 'Is the company expanding a security team for a named initiative?', 'Current security roles connected to a programme, capability gap, or transformation.', 10, 365, 'positive', 'Routine replacement hiring without programme context.'),
+      signal('mature-internal-soc', 'Does a mature internal SOC materially reduce the need for external support?', 'A scaled internal SOC with the same delivery scope as the offered service.', 10, 730, 'penalty'),
+      signal('incumbent-security-provider', 'Is an incumbent security provider a material barrier?', 'A current managed-security or consulting contract with overlapping scope.', 10, 730, 'penalty'),
+    ],
+  },
+  {
+    name: 'AI specialists', profileName: 'Applied AI', title: 'Applied AI', short: 'Identify and deliver practical AI use cases.', description: 'We provide AI expertise to identify valuable use cases, design and implement responsible AI solutions, and integrate them into existing business processes and systems.',
+    signals: [
+      signal('ai-programme', 'Has the company announced a funded AI or generative-AI programme?', 'A named programme, budget, implementation, or executive commitment with business scope.', 20, 730, 'positive', 'Generic statements about the importance of AI.'),
+      signal('ai-pilot', 'Is the company piloting or deploying a concrete AI use case?', 'A described pilot or production use case with a business owner or operational objective.', 20, 365),
+      signal('data-modernization', 'Is data-platform modernization enabling new AI delivery?', 'A dated data, cloud, or governance initiative explicitly connected to analytics or AI.', 15, 730),
+      signal('ai-hiring', 'Is the company hiring AI, ML, or data specialists for a named initiative?', 'Current roles tied to an AI product, platform, team, or transformation programme.', 10, 365),
+      signal('mature-internal-ai-team', 'Does a mature internal AI team reduce the need for an external delivery partner?', 'A scaled internal AI organisation with demonstrated end-to-end delivery capability.', 10, 730, 'penalty'),
+      signal('ai-governance-blocker', 'Is an unresolved governance or data-readiness issue blocking implementation?', 'A confirmed regulatory, governance, or data-quality barrier preventing deployment.', 10, 365, 'penalty'),
+    ],
+  },
+  {
+    name: 'Process excellence roles', profileName: 'Process excellence', title: 'Process excellence', short: 'Redesign workflows and deliver measurable operational gains.', description: 'We provide process excellence expertise to analyse and redesign workflows, establish continuous-improvement practices, and deliver measurable gains in quality, speed, and cost.',
+    signals: [
+      signal('operating-model-change', 'Is the company redesigning its operating model or core processes?', 'A named transformation, restructuring, or target-operating-model initiative.', 20, 730),
+      signal('efficiency-target', 'Has the company committed to measurable cost, speed, or quality improvements?', 'A dated target or programme with measurable operational outcomes.', 20, 730),
+      signal('shared-services', 'Is the company consolidating work into shared services or a global business-services model?', 'A named consolidation, centralisation, or shared-services programme.', 15, 730),
+      signal('process-excellence-hiring', 'Is the company hiring process-excellence or continuous-improvement leaders?', 'A current role tied to a named transformation or operational programme.', 10, 365),
+      signal('mature-internal-lean-team', 'Does a mature internal process-excellence function reduce external demand?', 'A scaled internal Lean, Six Sigma, or process-excellence function with delivery ownership.', 10, 730, 'penalty'),
+      signal('incumbent-transformation-partner', 'Is an incumbent transformation consultancy a material barrier?', 'A current consulting engagement with overlapping process-redesign scope.', 10, 730, 'penalty'),
+    ],
+  },
 ]
 const regions = ['Eastern Europe', 'Western Europe', 'Northern Europe', 'Southern Europe', 'Worldwide']
 const industries = ['Financial services', 'Manufacturing', 'Energy & utilities', 'Retail', 'Logistics', 'Telecommunications', 'Healthcare']
@@ -44,7 +85,7 @@ export function ProfileWorkspace({ onReady }: { onReady?: () => void }) {
   const groups = useMemo(() => ({ buying: profile?.signals.filter((item) => item.effect === 'positive') ?? [], negative: profile?.signals.filter((item) => item.effect !== 'positive') ?? [] }), [profile])
   if (state === 'loading') return <div className="rounded-xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading service profile…</div>
   if (!profile) return <div className="rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-10 text-[#8A2F20]"><p>The service profile could not be loaded.</p>{loadError && <p className="mt-2 text-sm">{loadError}</p>}</div>
-  const chooseService = (name: string) => { const service = serviceOptions.find((item) => item.name === name); if (service) setProfile({ ...profile, name: service.profileName, serviceRole: service.name, description: service.description }) }
+  const chooseService = (name: string) => { const service = serviceOptions.find((item) => item.name === name); if (service && service.name !== profile.serviceRole) setProfile({ ...profile, name: service.profileName, serviceRole: service.name, description: service.description, signals: service.signals.map((item) => ({ ...item })) }) }
   const replace = (next: SignalDraft) => setProfile({ ...profile, signals: profile.signals.map((item) => item.id === next.id ? next : item) }); const remove = (id: string) => setProfile({ ...profile, signals: profile.signals.filter((item) => item.id !== id) }); const add = (effect: SignalEffect) => setProfile({ ...profile, signals: [...profile.signals, { id: crypto.randomUUID(), question: '', positiveCriteria: '', exclusions: '', effect, weight: effect === 'positive' ? 20 : 10, freshnessWindowDays: 365 }] })
   const serviceSelected = serviceOptions.some((item) => item.name === profile.serviceRole)
   const continueStep = () => { if (step === 0 && !serviceSelected) return; setState('ready'); setStep((value) => { const next = value + 1; setFurthestStep((furthest) => Math.max(furthest, next)); return next }) }
