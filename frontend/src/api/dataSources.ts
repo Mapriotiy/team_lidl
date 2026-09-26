@@ -17,6 +17,7 @@ export interface SourceHealth {
   name: string
   description: string
   configured: boolean
+  enabled: boolean
   attempts: number
   succeeded: number
   failed: number
@@ -29,6 +30,7 @@ export interface DataSourcesSnapshot {
     assessment_model: string | null
     assessment_configured: boolean
     newsapi_configured: boolean
+    eu_tenders_enabled: boolean
     browser_rendering_enabled: boolean
     source_text_retention_days: number
     worker_concurrency: number

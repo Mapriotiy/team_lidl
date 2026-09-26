@@ -1,4 +1,4 @@
-/* Appearance tokens adapted from v2. The existing sidebar keeps its brand colors. */
+/* Appearance tokens use main's existing palette and typography as their baseline. */
 :root {
   --background: #f7f6f3;
   --foreground: #20242a;
@@ -43,7 +43,7 @@ body, .lr-theme-surface { background-color: var(--background); color: var(--fore
 .lr-breadcrumb svg { flex-shrink: 0; color: var(--muted-foreground); }
 .lr-workspace-label { font-size: 14px; color: var(--muted-foreground); }
 .lr-view-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18px; font-weight: 600; }
-.lr-search-trigger { display: flex; width: 260px; height: 40px; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--muted-foreground); cursor: pointer; font-size: 13px; }
+.lr-search-trigger { display: flex; width: 260px; height: 40px; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--muted-foreground); cursor: pointer; font-size: 14px; }
 .lr-search-trigger > span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .lr-search-trigger svg { flex-shrink: 0; }
 .lr-search-trigger kbd { border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; background: var(--muted); font-size: 11px; }
