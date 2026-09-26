@@ -72,6 +72,10 @@ class BenchmarkPrediction(EvaluationModel):
     signal_id: str
     status: AssessmentStatus | Literal["invalid"]
     evidence: list[PredictionEvidence] = Field(default_factory=list)
+    evidence_strength: str | None = None
+    rationale: str | None = None
+    model_version: str | None = None
+    prompt_version: str | None = None
     validation_errors: list[str] = Field(default_factory=list)
 
 

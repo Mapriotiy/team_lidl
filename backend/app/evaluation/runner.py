@@ -231,6 +231,10 @@ def run_benchmark(
                             )
                             for item in assessment.evidence
                         ],
+                        evidence_strength=assessment.evidence_strength,
+                        rationale=assessment.rationale,
+                        model_version=assessment.model_version,
+                        prompt_version=assessment.prompt_version,
                     )
                 )
         if company_complete:

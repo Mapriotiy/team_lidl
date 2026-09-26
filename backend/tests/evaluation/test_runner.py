@@ -117,3 +117,5 @@ def test_runner_records_headline_only_false_positive() -> None:
     assert report.counts.false_positive_supported == 1
     assert report.counts.headline_only_supported == 1
     assert report.run.provider_cost_usd == 0.001
+    assert predictions[0].rationale == "The headline mentions a possible initiative."
+    assert predictions[0].evidence_strength == EvidenceStrength.WEAK

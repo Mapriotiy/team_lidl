@@ -4,7 +4,10 @@
 
 The reviewed fixture contains 16 real-company cases plus one explicitly synthetic headline-only adversarial case, with 65 company/question labels across Process automation, Cybersecurity, and Software development. It is intentionally independent of generated prose: review decisions concern factual support, company and source attribution, exact excerpts, assessment status, freshness, and event identity.
 
-No model evaluation has been run against this corpus yet. The result fields therefore remain `null`; zeroes in the run template are counters awaiting a run, not reported performance. Do not quote a precision, latency, or cost figure until a completed run is attached to a Git revision, model, and prompt version.
+A baseline was run against revision `4a2591d` with `google/gemini-3.1-flash-lite` and
+`assessment-v2`. It passed the precision and evidence-integrity checks but failed the complete
+quality gate because it missed 10 of 24 reviewed supported signals. The full machine-readable
+artifact is [baseline-4a2591d.json](evaluation-runs/baseline-4a2591d.json).
 
 ## Coverage
 
@@ -66,26 +69,29 @@ an evidence-quality gate, not a second lead score and not a calibrated probabili
 The monetary cap is enforced only when the provider reports cost; `--max-calls` remains the hard
 bound when it does not.
 
-## Pending baseline
+## Baseline at `4a2591d`
 
 | Item | Result |
 | --- | --- |
-| Revision | Not run |
-| Provider model / prompt | Not run |
-| Accounts completed | 0 of 17 |
-| Reviewed labels | 65 available; 0 evaluated |
-| Supported-finding precision | Not available |
-| Missed signals | Not available |
-| Research coverage | Not available |
-| Wrong-company attributions | Not available |
-| Excerpt accuracy | Not available |
-| Duplicate events counted | Not available |
-| Mean latency per account | Not available |
-| Mean cost per account | Not available |
+| Quality gate | **Failed:** missed-signal rate above 20% |
+| Revision | `4a2591d` |
+| Provider model / prompt | `google/gemini-3.1-flash-lite` / `assessment-v2` |
+| Accounts completed | 17 of 17 |
+| Reviewed labels | 65 of 65 evaluated |
+| Supported-finding precision | 93.3% (14/15 supported predictions correct) |
+| Missed signals | 41.7% (10/24 reviewed supported signals missed) |
+| Research coverage | 100% of labels had a usable fixture source; not a live-web coverage claim |
+| Wrong-company attributions | 0 |
+| Excerpt accuracy | 100% under the fixture metric |
+| Duplicate events counted | 0 |
+| Headline-only supported findings | 0 of 15 supported predictions |
+| Mean latency per account | 6.36 seconds |
+| Mean cost per account | Unavailable from provider response; do not infer zero |
 
 ## Known limitations
 
-- This commit provides the evaluation set and reproducible report structure, not a provider benchmark.
+- The baseline is a provider benchmark over bounded reviewed passages, not the full live collection pipeline.
+- The saved `4a2591d` predictions predate rationale persistence; later runs retain rationale and evidence strength for failure review.
 - Fixture excerpts are short and deliberately bounded; they do not test long-document retrieval by themselves.
 - Most labels are insufficient-evidence negatives, reflecting the rule that absence of a cited fact is not a positive finding.
 - Live URL availability, robots directives, and content drift require a fresh pre-release audit.
