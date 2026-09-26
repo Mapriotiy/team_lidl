@@ -1,5 +1,7 @@
 import re
 from datetime import timedelta
+from typing import Literal
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -12,6 +14,7 @@ from app.assessment.providers import (
 )
 from app.assessment.validation import AssessmentValidationError
 from app.collection import CanonicalCompany, CollectedDocument, PublicSourceCollector, SourceTarget
+from app.contracts.data_sources import CrawlLogEntry
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.contracts.research import PartialError
@@ -143,6 +146,27 @@ class IntegratedResearchPipeline:
             if configuration is not None
             else [f'"{company.display_name.strip()}"']
         )
+        crawl_log: list[CrawlLogEntry] = []
+
+        def log_discovery(
+            provider: Literal["gdelt", "newsapi"],
+            status: Literal["ok", "error", "skipped"],
+            detail: str,
+        ) -> None:
+            crawl_log.append(
+                CrawlLogEntry(
+                    id=str(uuid4()),
+                    run_id=run_id,
+                    company_id=company.id,
+                    company_name=company.display_name,
+                    provider=provider,
+                    target="GDELT search batch" if provider == "gdelt" else "NewsAPI search batch",
+                    status=status,
+                    detail=detail,
+                    at=utc_now(),
+                )
+            )
+
         news_candidates: list[NewsCandidate] = []
         seen_news_urls: set[str] = set()
 
@@ -153,11 +177,15 @@ class IntegratedResearchPipeline:
                 )
             else:
                 gdelt_candidates = self.news.discover(company.display_name, limit=8)
+            log_discovery(
+                "gdelt", "ok", f"Search batch returned {len(gdelt_candidates)} article URLs"
+            )
             for c in gdelt_candidates:
                 if c.target.url not in seen_news_urls:
                     news_candidates.append(c)
                     seen_news_urls.add(c.target.url)
         except GdeltError as exc:
+            log_discovery("gdelt", "error", "GDELT search failed; continuing with other sources")
             partial_errors.append(
                 PartialError(
                     stage="collection",
@@ -171,11 +199,17 @@ class IntegratedResearchPipeline:
                 newsapi_candidates = self.newsapi.discover_queries(
                     queries[:3], limit_per_query=5, max_results=10
                 )
+                log_discovery(
+                    "newsapi", "ok", f"Search batch returned {len(newsapi_candidates)} article URLs"
+                )
                 for c in newsapi_candidates:
                     if c.target.url not in seen_news_urls:
                         news_candidates.append(c)
                         seen_news_urls.add(c.target.url)
             except NewsApiError as exc:
+                log_discovery(
+                    "newsapi", "error", "NewsAPI search failed; continuing with other sources"
+                )
                 partial_errors.append(
                     PartialError(
                         stage="collection",
@@ -183,6 +217,9 @@ class IntegratedResearchPipeline:
                         message=f"NewsAPI: {exc}; continuing with other sources",
                     )
                 )
+
+        else:
+            log_discovery("newsapi", "skipped", "NewsAPI is not configured in the worker")
 
         targets.extend(c.target for c in news_candidates)
         result = self.collector.collect(
@@ -192,6 +229,21 @@ class IntegratedResearchPipeline:
                 aliases=tuple(company.aliases),
             ),
             targets,
+        )
+        crawl_log.extend(
+            CrawlLogEntry(
+                id=str(uuid4()),
+                run_id=run_id,
+                company_id=company.id,
+                company_name=company.display_name,
+                provider="websites",
+                target=attempt.target,
+                status=attempt.status,
+                detail=attempt.detail,
+                at=attempt.at,
+                documents=attempt.documents,
+            )
+            for attempt in result.attempts
         )
         partial_errors.extend(
             PartialError(stage="collection", code=error.code, message=error.message)
@@ -243,7 +295,8 @@ class IntegratedResearchPipeline:
                 persisted_documents.append(document)
         return StageResult(
             data={
-                "documents": [document.model_dump(mode="json") for document in persisted_documents]
+                "documents": [document.model_dump(mode="json") for document in persisted_documents],
+                "crawl_log": [entry.model_dump(mode="json") for entry in crawl_log],
             },
             completed=len(result.documents),
             total=result.total or len(targets),

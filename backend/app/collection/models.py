@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from app.collection.observability import CollectionAttempt
 from app.contracts.evidence import SourceDocument, SourceType
 
 
@@ -36,6 +37,7 @@ class CollectionResult:
     # Number of sources considered, including bounded first-party links that
     # are planned while a homepage is fetched; documents can never exceed it.
     total: int = 0
+    attempts: tuple[CollectionAttempt, ...] = ()
 
 
 class CollectionFailure(Exception):

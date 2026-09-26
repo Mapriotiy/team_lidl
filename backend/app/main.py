@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.api.data_sources import router as data_sources_router
 from app.api.discovery import router as discovery_router
 from app.api.outreach import router as outreach_router
 from app.api.profiles import router as profiles_router
@@ -26,6 +27,7 @@ app.include_router(research_router)
 app.include_router(results_router)
 app.include_router(discovery_router)
 app.include_router(outreach_router)
+app.include_router(data_sources_router)
 
 
 class HealthResponse(BaseModel):

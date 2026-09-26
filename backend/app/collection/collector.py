@@ -18,6 +18,7 @@ from app.collection.models import (
     CollectionResult,
     SourceTarget,
 )
+from app.collection.observability import ERROR_DETAILS, CollectionAttempt, safe_target
 from app.collection.planning import plan_first_party_sources
 from app.collection.safety import canonical_domain, canonical_url
 from app.collection.transport import FetchResponse, SafeHTTPTransport
@@ -55,6 +56,7 @@ class PublicSourceCollector:
     def collect(
         self, company: CanonicalCompany, targets: Sequence[SourceTarget] | None = None
     ) -> CollectionResult:
+        attempts: list[CollectionAttempt] = []
         try:
             domains = {
                 canonical_domain(value) for value in (company.canonical_domain, *company.aliases)
@@ -62,7 +64,13 @@ class PublicSourceCollector:
             domain = canonical_domain(company.canonical_domain)
         except CollectionFailure as exc:
             return CollectionResult(
-                (), (CollectionError(company.canonical_domain, exc.code, str(exc)),)
+                (),
+                (CollectionError(company.canonical_domain, exc.code, str(exc)),),
+                attempts=(
+                    CollectionAttempt(
+                        safe_target(company.canonical_domain), "error", "Invalid company domain"
+                    ),
+                ),
             )
         sources = list(targets) if targets is not None else [SourceTarget(f"https://{domain}/")]
         if self.concurrency > 1:
@@ -73,11 +81,19 @@ class PublicSourceCollector:
         seen_hashes: set[str] = set()
         if len(sources) > self.max_pages:
             errors.append(CollectionError("", "page_limit", "Additional sources were not fetched"))
+            attempts.extend(
+                CollectionAttempt(safe_target(target.url), "skipped", "Not fetched: page limit")
+                for target in sources[self.max_pages :]
+            )
             sources = sources[: self.max_pages]
         for target in sources:
+            url = target.url
             try:
                 url = canonical_url(target.url)
                 if url in seen_urls:
+                    attempts.append(
+                        CollectionAttempt(safe_target(url), "skipped", "URL already collected")
+                    )
                     continue
                 deadline = time.monotonic() + self.timeout
                 chain: set[str] = set()
@@ -94,6 +110,13 @@ class PublicSourceCollector:
                     if url in chain:
                         raise CollectionFailure("redirect_loop", "Redirect loop detected")
                     if url in seen_urls:
+                        attempts.append(
+                            CollectionAttempt(
+                                safe_target(url),
+                                "skipped",
+                                "Redirect destination already collected",
+                            )
+                        )
                         break
                     chain.add(url)
                     remaining = deadline - time.monotonic()
@@ -108,7 +131,15 @@ class PublicSourceCollector:
                             raise CollectionFailure("invalid_redirect", "Redirect lacks Location")
                         if hop == self.max_redirects:
                             raise CollectionFailure("redirect_limit", "Redirect limit exceeded")
-                        url = canonical_url(urljoin(url, location))
+                        next_url = canonical_url(urljoin(url, location))
+                        attempts.append(
+                            CollectionAttempt(
+                                safe_target(url),
+                                "ok",
+                                f"HTTP {response.status}; redirected to {safe_target(next_url)}",
+                            )
+                        )
+                        url = next_url
                         continue
                     if not 200 <= response.status < 300:
                         raise CollectionFailure("http_error", f"HTTP {response.status}")
@@ -123,7 +154,8 @@ class PublicSourceCollector:
                     if not extracted.text:
                         raise CollectionFailure("empty_content", "No permitted text extracted")
                     digest = hashlib.sha256(extracted.text.encode()).hexdigest()
-                    if digest not in seen_hashes:
+                    is_duplicate = digest in seen_hashes
+                    if not is_duplicate:
                         documents.append(
                             CollectedDocument(
                                 id=hashlib.sha256(
@@ -141,6 +173,14 @@ class PublicSourceCollector:
                             )
                         )
                         seen_hashes.add(digest)
+                    attempts.append(
+                        CollectionAttempt(
+                            safe_target(url),
+                            "skipped" if is_duplicate else "ok",
+                            "Duplicate content" if is_duplicate else "Public page collected",
+                            documents=0 if is_duplicate else 1,
+                        )
+                    )
                     if (
                         target.source_type
                         in {SourceType.COMPANY, SourceType.CAREERS, SourceType.REPORT}
@@ -159,11 +199,19 @@ class PublicSourceCollector:
                 seen_urls.update(chain)
             except CollectionFailure as exc:
                 errors.append(CollectionError(target.url, exc.code, str(exc)))
+                attempts.append(
+                    CollectionAttempt(
+                        safe_target(url),
+                        "error",
+                        ERROR_DETAILS.get(exc.code, "Source retrieval failed"),
+                    )
+                )
             except (OSError, http.client.HTTPException) as exc:
                 # Do not persist arbitrary server/proxy text or credentials in errors.
                 code = "timeout" if isinstance(exc, TimeoutError) else "fetch_error"
                 errors.append(CollectionError(target.url, code, "Public source retrieval failed"))
-        return CollectionResult(tuple(documents), tuple(errors), len(sources))
+                attempts.append(CollectionAttempt(safe_target(url), "error", ERROR_DETAILS[code]))
+        return CollectionResult(tuple(documents), tuple(errors), len(sources), tuple(attempts))
 
     def _collect_parallel(
         self, company: CanonicalCompany, targets: Sequence[SourceTarget]
@@ -180,6 +228,7 @@ class PublicSourceCollector:
         documents: list[CollectedDocument] = []
         errors: list[CollectionError] = []
         total = 0
+        attempts: list[CollectionAttempt] = []
         parent_transport = self.transport
 
         def fetch(target: SourceTarget) -> tuple[CollectionResult, list[SourceTarget]]:
@@ -220,14 +269,23 @@ class PublicSourceCollector:
                         url = canonical_url(target.url)
                     except CollectionFailure as exc:
                         errors.append(CollectionError(target.url, exc.code, str(exc)))
+                        attempts.append(
+                            CollectionAttempt(
+                                safe_target(target.url), "error", "Source URL failed safety checks"
+                            )
+                        )
                         continue
                     if url in scheduled:
+                        attempts.append(
+                            CollectionAttempt(safe_target(url), "skipped", "URL already scheduled")
+                        )
                         continue
                     scheduled.add(url)
                     wave.append(target)
                 total += len(wave)
                 for result, plans in pool.map(fetch, wave):
                     errors.extend(result.errors)
+                    attempts.extend(result.attempts)
                     for document in result.documents:
                         scheduled.add(document.canonical_url)
                         if document.content_hash not in seen_hashes:
@@ -236,4 +294,9 @@ class PublicSourceCollector:
                     pending.extend(plans)
         if any(target.url not in scheduled for target in pending):
             errors.append(CollectionError("", "page_limit", "Additional sources were not fetched"))
-        return CollectionResult(tuple(documents), tuple(errors), total)
+            attempts.extend(
+                CollectionAttempt(safe_target(target.url), "skipped", "Not fetched: page limit")
+                for target in pending
+                if target.url not in scheduled
+            )
+        return CollectionResult(tuple(documents), tuple(errors), total, tuple(attempts))
