@@ -1,0 +1,154 @@
+[
+  {
+    "domain": "pkobp.pl",
+    "name": "PKO Bank Polski",
+    "aliases": ["Powszechna Kasa Oszczędności Bank Polski S.A.", "PKO BP"],
+    "facts": {
+      "industry": {"value": "Banking", "source_ids": ["pko-annual"]},
+      "geography": {"value": "Poland", "source_ids": ["pko-strategy"]},
+      "company_size": {"value": "Large enterprise", "source_ids": ["pko-annual"]},
+      "operational_complexity": {"value": "Nationwide banking group with high-volume operations", "source_ids": ["pko-q1-results"]}
+    },
+    "sources": [
+      {
+        "key": "pko-ai-centre",
+        "url": "https://www.pkobp.pl/media/aktualnosci/informacje-o-banku/tysiace-pracownikow-pko-banku-polskiego-korzysta-ze-sztucznej-inteligencji-technologie-w-banku-rozwija-centrum-kompetencji-ai",
+        "type": "company",
+        "title": "Tysiące pracowników PKO Banku Polskiego korzysta ze sztucznej inteligencji",
+        "publication_date": "2025-11-20",
+        "excerpt": "Sztuczna inteligencja ma być obecna w każdym bankowym procesie i kanale, wspierać decyzje oraz automatyzować działania.",
+        "translation": "Artificial intelligence is intended to be present in every banking process and channel, supporting decisions and automating activities.",
+        "claim": "PKO Bank Polski intends to apply AI across processes and channels to automate work.",
+        "event": "pko-ai-everywhere"
+      },
+      {
+        "key": "pko-q1-results",
+        "url": "https://www.pkobp.pl/api/default/aa181ae9-587c-4bc4-9b0f-fe46c21d4972.pdf",
+        "type": "report",
+        "title": "PKO Bank Polski Q1 2025 Results",
+        "publication_date": "2025-05-15",
+        "excerpt": "In Q1 2025, robots processed nearly 27 million cases on the automatic path.",
+        "translation": "In Q1 2025, robots processed nearly 27 million cases on the automatic path.",
+        "claim": "PKO robots processed nearly 27 million cases in Q1 2025.",
+        "event": "pko-rpa-scale"
+      },
+      {
+        "key": "pko-strategy",
+        "url": "https://www.pkobp.pl/media_files/70faee06-f4ab-44ab-8525-f27eefbe59ec.pdf",
+        "type": "report",
+        "title": "PKO Bank Polski Strategy 2025–2027",
+        "publication_date": "2024-10-24",
+        "excerpt": "We develop tools that enable hyper-automation of processes through task / process mining and the development of an artificial intelligence team.",
+        "translation": "We develop tools that enable hyper-automation of processes through task and process mining and the development of an artificial intelligence team.",
+        "claim": "The bank's strategy explicitly invests in hyperautomation, process mining and an AI team.",
+        "event": "pko-hyperautomation-strategy"
+      },
+      {
+        "key": "pko-annual",
+        "url": "https://raportroczny2023.pkobp.pl/en/governance/strategy-and-outlook/",
+        "type": "report",
+        "title": "PKO Bank Polski Annual Report 2023 — Strategy and outlook",
+        "publication_date": "2024-03-14",
+        "excerpt": "In total, 65 processes were robotised and 82 were modified in 2023.",
+        "translation": "In total, 65 processes were robotised and 82 were modified in 2023.",
+        "claim": "PKO continued expanding an established portfolio of robotised processes.",
+        "event": "pko-process-robotisation"
+      },
+      {
+        "key": "pko-careers",
+        "url": "https://www.pkobp.pl/kariera/profesjonalisci",
+        "type": "careers",
+        "title": "Kariera w centrali PKO Banku Polskiego",
+        "publication_date": null,
+        "excerpt": "Na co dzień zajmuję się monitoringiem biznesowym botów obsługujących klientów banku.",
+        "translation": "Every day I handle business monitoring of bots serving the bank's customers.",
+        "claim": "PKO employs specialists who monitor customer-service bots in daily operations.",
+        "event": "pko-automation-talent"
+      }
+    ],
+    "assessments": [
+      {"signal_id": "efficiency-program", "status": "supported", "strength": "strong", "source_keys": ["pko-strategy", "pko-q1-results"], "rationale": "The current strategy names hyperautomation as an operations optimisation lever, while reported automation volume demonstrates execution at scale."},
+      {"signal_id": "transformation-initiative", "status": "supported", "strength": "strong", "source_keys": ["pko-ai-centre", "pko-strategy"], "rationale": "Official strategy and newsroom evidence identify active AI, process-mining and hyperautomation initiatives."},
+      {"signal_id": "talent-and-leadership", "status": "supported", "strength": "strong", "source_keys": ["pko-ai-centre", "pko-careers"], "rationale": "The bank has created an AI Competence Centre and publicly describes specialist responsibility for production bot monitoring."},
+      {"signal_id": "process-consolidation", "status": "supported", "strength": "strong", "source_keys": ["pko-strategy", "pko-annual"], "rationale": "The strategy couples centralisation of group operations with continued automation of repetitive processes."},
+      {"signal_id": "internal-capability", "status": "insufficient_evidence", "strength": null, "source_keys": [], "rationale": "Strong internal capability is visible, but public sources do not establish that external delivery support is unnecessary."},
+      {"signal_id": "incumbent-partner", "status": "insufficient_evidence", "strength": null, "source_keys": [], "rationale": "No current exclusive automation delivery partner is confirmed in the reviewed official sources."}
+    ]
+  },
+  {
+    "domain": "cez.cz",
+    "name": "ČEZ Group",
+    "aliases": ["ČEZ, a. s.", "CEZ Group"],
+    "facts": {
+      "industry": {"value": "Energy and utilities", "source_ids": ["cez-annual"]},
+      "geography": {"value": "Czech Republic", "source_ids": ["cez-annual"]},
+      "company_size": {"value": "Large enterprise", "source_ids": ["cez-annual"]},
+      "operational_complexity": {"value": "Integrated energy group with generation, distribution and customer operations", "source_ids": ["cez-digitization"]}
+    },
+    "sources": [
+      {
+        "key": "cez-customer-ai",
+        "url": "https://www.cez.cz/cs/pro-media/tiskove-zpravy/umela-inteligence-pomaha-cez-prodej-kazdy-den-zrychlit-vyrizovani-pozadavku-desitek-tisic-zakazniku-235834",
+        "type": "company",
+        "title": "Umělá inteligence pomáhá ČEZ Prodej zrychlit vyřizování požadavků",
+        "publication_date": "2026-06-29",
+        "excerpt": "Přepisy hovorů s klienty nebo automatické zpracování souhrnů telefonátů výrazně zkracuje čas potřebný k řešení zákaznických požadavků.",
+        "translation": "Call transcripts and automatic processing of call summaries significantly reduce the time needed to resolve customer requests.",
+        "claim": "ČEZ uses AI automation to reduce customer-service handling time.",
+        "event": "cez-customer-service-ai"
+      },
+      {
+        "key": "cez-camunda",
+        "url": "https://www.cez.cz/webpublic/file/edee/ict/vyrocni-zpravy/2025/vz_cez-ict-services_2025.pdf",
+        "type": "report",
+        "title": "ČEZ ICT Services Annual Report 2025",
+        "publication_date": "2026-04-30",
+        "excerpt": "Projekt BPM Camunda si kladl za cíl vybudovat skupinovou BPM platformu pro řízení a automatizaci procesů napříč celou Skupinou ČEZ.",
+        "translation": "The Camunda BPM project aimed to build a group-wide BPM platform for managing and automating processes across the entire ČEZ Group.",
+        "claim": "ČEZ is building a group-wide platform for process management and automation.",
+        "event": "cez-group-bpm-platform"
+      },
+      {
+        "key": "cez-ai-report",
+        "url": "https://www.cez.cz/webpublic/file/edee/esg/documents/sustainability-reports/cez_en_vfz_sr_2024.pdf",
+        "type": "report",
+        "title": "ČEZ Group Sustainability Report 2024",
+        "publication_date": "2025-04-30",
+        "excerpt": "In 2024, CEZ Group successfully continued to implement artificial intelligence (AI) into its processes.",
+        "translation": "In 2024, CEZ Group successfully continued to implement artificial intelligence into its processes.",
+        "claim": "ČEZ continued deploying AI into operational processes in 2024.",
+        "event": "cez-ai-process-implementation"
+      },
+      {
+        "key": "cez-digitization",
+        "url": "https://www.cez.cz/webpublic/file/edee/esg/documents/anual-reports/cez_en_vfz_2024.pdf",
+        "type": "report",
+        "title": "ČEZ Group Annual Financial Report 2024 — Digitization",
+        "publication_date": "2025-04-30",
+        "excerpt": "The aim of the digital transformation of the distribution system is to create a smart automated grid with increased reliability.",
+        "translation": "The aim of the digital transformation of the distribution system is to create a smart automated grid with increased reliability.",
+        "claim": "ČEZ has a defined digital-transformation programme for an automated distribution grid.",
+        "event": "cez-grid-digital-transformation"
+      },
+      {
+        "key": "cez-annual",
+        "url": "https://www.cez.cz/webpublic/file/edee/ospol/fileexport/investori/vz-2025/cez-group-annual-financial-report-2025.pdf",
+        "type": "report",
+        "title": "ČEZ Group Annual Financial Report 2025",
+        "publication_date": "2026-04-28",
+        "excerpt": "In 2025, CEZ Group also achieved success in all three ESG areas of sustainable business: Environmental, Social, and Governance.",
+        "translation": "In 2025, CEZ Group also achieved success in all three ESG areas of sustainable business: environmental, social and governance.",
+        "claim": "ČEZ reports group-wide transformation activity through its current annual reporting cycle.",
+        "event": "cez-current-annual-report"
+      }
+    ],
+    "assessments": [
+      {"signal_id": "efficiency-program", "status": "supported", "strength": "strong", "source_keys": ["cez-customer-ai", "cez-camunda"], "rationale": "Official sources connect deployed automation with shorter handling times and a group-wide process-automation platform."},
+      {"signal_id": "transformation-initiative", "status": "supported", "strength": "strong", "source_keys": ["cez-ai-report", "cez-digitization"], "rationale": "The group documents ongoing AI implementation and a named digital transformation of its distribution system."},
+      {"signal_id": "talent-and-leadership", "status": "supported", "strength": "strong", "source_keys": ["cez-camunda", "cez-ai-report"], "rationale": "ČEZ ICT Services is delivering shared automation infrastructure and training business and IT teams to adopt it."},
+      {"signal_id": "process-consolidation", "status": "supported", "strength": "strong", "source_keys": ["cez-camunda", "cez-customer-ai"], "rationale": "The group-wide BPM platform and shared customer-service automation show cross-process standardisation and consolidation."},
+      {"signal_id": "internal-capability", "status": "insufficient_evidence", "strength": null, "source_keys": [], "rationale": "Internal ICT capability is evident, but the sources do not prove that external automation expertise is unnecessary."},
+      {"signal_id": "incumbent-partner", "status": "insufficient_evidence", "strength": null, "source_keys": [], "rationale": "No exclusive incumbent covering the target automation scope is established by the reviewed public sources."}
+    ]
+  }
+]
