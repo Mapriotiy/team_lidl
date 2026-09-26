@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-const { listProfiles, searchEuTenders } = vi.hoisted(() => ({
+const { analyzeEuTender, listProfiles, searchEuTenders } = vi.hoisted(() => ({
+  analyzeEuTender: vi.fn(),
   listProfiles: vi.fn(),
   searchEuTenders: vi.fn(),
 }))
@@ -10,7 +11,7 @@ vi.mock('../../api/profiles', async (load) => ({
   ...await load<typeof import('../../api/profiles')>(),
   listProfiles,
 }))
-vi.mock('../../api/euTenders', () => ({ searchEuTenders }))
+vi.mock('../../api/euTenders', () => ({ analyzeEuTender, searchEuTenders }))
 
 import { TenderWorkspace } from './TenderWorkspace'
 
@@ -27,6 +28,7 @@ beforeEach(() => {
       ],
     }],
   })
+  analyzeEuTender.mockReset().mockResolvedValue({ decision: 'partner_search', confidence: 67, evidence_coverage: 60, source_url: 'https://example.eu/call', retrieved_at: '2026-09-26T12:00:00Z', warnings: [], blockers: ['Consortium requirements are not evidenced.'], next_actions: ['Find a partner.'], facts: [{ category: 'eligibility', label: 'Applicant eligibility', status: 'supported', finding: 'Eligibility language was found.', excerpt: 'Eligible applicants are SMEs.', source_url: 'https://example.eu/call' }] })
 })
 
 test('turns portal calls into an explainable tender decision brief', async () => {
@@ -44,4 +46,9 @@ test('turns portal calls into an explainable tender decision brief', async () =>
   expect(screen.getByLabelText('Search portfolio')).toHaveTextContent('process automation')
   expect(screen.getByText('Eligibility requirements have not been extracted yet.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /open official call/i })).toHaveAttribute('href', 'https://example.eu/call')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Analyze official source' }))
+  expect(await screen.findByText('Partner search')).toBeInTheDocument()
+  expect(screen.getByText(/eligible applicants are SMEs/i)).toBeInTheDocument()
+  expect(analyzeEuTender).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'DIGITAL-2026' }))
 })

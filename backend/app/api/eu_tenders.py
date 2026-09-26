@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.collection import PublicSourceCollector
 from app.config import Settings, get_settings
 from app.contracts.profile import ProfileConfiguration
 from app.db import get_session
 from app.discovery import EuTendersDiscovery, EuTendersError, TenderCall
 from app.models.profile import ServiceProfile
+from app.tender_intelligence import TenderIntelligence, analyze_tender
 
 router = APIRouter(prefix="/eu-tenders", tags=["eu-tenders"])
 
@@ -78,6 +80,10 @@ class EuTendersSearch(BaseModel):
     opportunities: list[TenderOpportunity] = Field(default_factory=list)
     retrieved_at: datetime
     warnings: list[str] = Field(default_factory=list)
+
+
+class TenderAnalysisRequest(BaseModel):
+    call: TenderCall
 
 
 def profile_query_portfolio(configuration: ProfileConfiguration) -> list[str]:
@@ -171,6 +177,10 @@ def get_tenders(settings: Settings = Depends(get_settings)) -> EuTendersDiscover
     if not settings.eu_tenders_enabled:
         raise HTTPException(status_code=404, detail="EU tenders source is disabled")
     return EuTendersDiscovery()
+
+
+def get_tender_collector() -> PublicSourceCollector:
+    return PublicSourceCollector(max_pages=1, timeout=15, max_bytes=2_000_000)
 
 
 def _fit_opportunity(call: TenderCall, query: str, *, now: datetime) -> TenderOpportunity:
@@ -346,3 +356,14 @@ def search(
             ["Calls are published by EU bodies and never name prospects; treat as market demand."]
         ),
     )
+
+
+@router.post("/analyze", response_model=TenderIntelligence)
+def analyze(
+    request: TenderAnalysisRequest,
+    settings: Settings = Depends(get_settings),
+    collector: PublicSourceCollector = Depends(get_tender_collector),
+) -> TenderIntelligence:
+    if not settings.eu_tenders_enabled:
+        raise HTTPException(status_code=404, detail="EU tenders source is disabled")
+    return analyze_tender(request.call, collector)
