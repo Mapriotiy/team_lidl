@@ -2,7 +2,7 @@ from app.assessment import AssessmentStatus, EvidenceStrength, ProposedAssessmen
 from app.assessment.providers import AssessmentBatch
 from app.contracts.profile import ProfileConfiguration
 from app.evaluation import ReviewedCorpus
-from app.evaluation.runner import run_benchmark
+from app.evaluation.runner import FIXTURE_DIR, _profiles, run_benchmark
 
 
 class FakeProvider:
@@ -36,6 +36,12 @@ class FakeProvider:
             total_tokens=15,
             cost_usd=0.001,
         )
+
+
+def test_product_rpa_profile_resolves_corpus_business_name() -> None:
+    profiles = _profiles(FIXTURE_DIR / "service_profiles.json")
+
+    assert profiles["Process automation"] == profiles["RPA"]
 
 
 def test_runner_records_headline_only_false_positive() -> None:

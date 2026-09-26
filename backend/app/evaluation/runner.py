@@ -32,6 +32,7 @@ SOURCE_TYPES = {
     "company_newsroom": SourceType.COMPANY,
     "news": SourceType.NEWS,
 }
+PROFILE_ALIASES = {"RPA": ("RPA", "Process automation")}
 
 
 class AssessmentProvider(Protocol):
@@ -97,10 +98,13 @@ def _documents(company_id: str, sources: list[dict[str, Any]]) -> list[Collected
 
 def _profiles(path: Path) -> dict[str, ProfileConfiguration]:
     raw = cast(list[dict[str, Any]], _load_json(path))
-    return {
-        str(item["name"]): ProfileConfiguration.model_validate(item["configuration"])
-        for item in raw
-    }
+    profiles: dict[str, ProfileConfiguration] = {}
+    for item in raw:
+        name = str(item["name"])
+        configuration = ProfileConfiguration.model_validate(item["configuration"])
+        for alias in PROFILE_ALIASES.get(name, (name,)):
+            profiles[alias] = configuration
+    return profiles
 
 
 def run_benchmark(
