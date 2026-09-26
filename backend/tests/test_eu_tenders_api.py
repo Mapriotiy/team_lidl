@@ -78,8 +78,7 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
     assert body["warnings"]
     assert tenders.queries == [body["query"]]
-    for term in ("intelligent", "automation", "efficiency", "program"):
-        assert term in body["query"]
+    assert body["query"] == "automation"
     assert "services" not in body["query"].split(" OR ")
 
 

@@ -7,7 +7,13 @@ from app.discovery import EuTendersDiscovery, EuTendersError
 
 
 def portal_item(
-    identifier: str, *, status: str = "31094502", url: str | None = None
+    identifier: str,
+    *,
+    status: str = "31094502",
+    url: str | None = None,
+    deadline: str = "2027-11-13T17:00:00.000+0000",
+    description: str | None = None,
+    programme: str = "DIGITAL",
 ) -> dict[str, object]:
     return {
         "title": "",
@@ -17,9 +23,12 @@ def portal_item(
             "callTitle": ["Support &amp; automation of  public services"],
             "status": [status],
             "startDate": ["2026-09-10T00:00:00.000+0000"],
-            "deadlineDate": ["2026-11-13T17:00:00.000+0000"],
-            "frameworkProgramme": ["DIGITAL"],
-            "description": ["<p>WHO CAN&nbsp;APPLY?</p><ul><li>SMEs</li></ul>" + "x" * 900],
+            "deadlineDate": [deadline],
+            "frameworkProgramme": [programme],
+            "description": [
+                description
+                or "<p>WHO CAN&nbsp;APPLY?</p><ul><li>Automation SMEs</li></ul>" + "x" * 900
+            ],
         },
     }
 
@@ -54,10 +63,10 @@ class FakeTransport:
 
 def test_search_builds_portal_filters_and_sanitizes_results() -> None:
     transport = FakeTransport()
-    result = EuTendersDiscovery(transport).search("cybersecurity", limit=10)
+    result = EuTendersDiscovery(transport).search("automation", limit=10)
 
     assert transport.url.startswith("https://api.tech.ec.europa.eu/search-api/prod/rest/search?")
-    assert "apiKey=SEDIA" in transport.url and "text=cybersecurity" in transport.url
+    assert "apiKey=SEDIA" in transport.url and "text=automation" in transport.url
     assert "sortBy=startDate" in transport.url and "order=DESC" in transport.url
     body, as_file = transport.fields["query"]
     assert as_file
@@ -71,8 +80,8 @@ def test_search_builds_portal_filters_and_sanitizes_results() -> None:
     assert first.title == "Support & automation of public services"
     assert first.url == "https://ec.europa.eu/info/funding-tenders/opportunities/x/DIGITAL-2026-A"
     assert first.status == "open" and second.status == "forthcoming"
-    assert first.deadline is not None and first.deadline.isoformat().startswith("2026-11-13T17:00")
-    assert first.summary.startswith("WHO CAN APPLY? SMEs")
+    assert first.deadline is not None and first.deadline.isoformat().startswith("2027-11-13T17:00")
+    assert first.summary.startswith("WHO CAN APPLY? Automation SMEs")
     assert "<" not in first.summary and len(first.summary) <= 600
 
 
@@ -125,3 +134,38 @@ class InvalidTransport(FakeTransport):
 def test_invalid_payload_is_reported() -> None:
     with pytest.raises(EuTendersError):
         EuTendersDiscovery(InvalidTransport()).search("automation")
+
+
+class NoisyTransport(FakeTransport):
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
+        return {
+            "totalResults": 4,
+            "results": [
+                portal_item("RELEVANT", description="Robotic process automation services"),
+                portal_item("IRRELEVANT", description="Marine biology research"),
+                portal_item(
+                    "EXPIRED",
+                    deadline="2020-01-01T00:00:00.000+0000",
+                    description="Robotic process automation services",
+                ),
+                portal_item(
+                    "NUMERIC-PROGRAMME",
+                    description="Robotic process automation platform",
+                    programme="43108390",
+                ),
+            ],
+        }
+
+
+def test_filters_irrelevant_and_expired_results_and_hides_programme_ids() -> None:
+    result = EuTendersDiscovery(NoisyTransport()).search('"robotic process automation"')
+
+    assert [call.identifier for call in result.calls] == ["RELEVANT", "NUMERIC-PROGRAMME"]
+    assert result.calls[1].programme is None

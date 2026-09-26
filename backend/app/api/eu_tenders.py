@@ -20,8 +20,24 @@ router = APIRouter(prefix="/eu-tenders", tags=["eu-tenders"])
 _STOPWORDS = {
     "about", "company", "does", "from", "have", "into", "that", "their", "there",
     "this", "what", "when", "where", "which", "with", "would", "services", "service",
+    "current", "dated", "evidence", "initiative", "named", "program", "public", "relevant",
 }  # fmt: skip
 MAX_TERMS = 5
+_DOMAIN_PHRASES = (
+    "robotic process automation",
+    "intelligent automation",
+    "process automation",
+    "workflow modernization",
+    "process improvement",
+    "process mining",
+    "digital transformation",
+    "artificial intelligence",
+    "cybersecurity",
+    "cloud migration",
+    "platform modernization",
+    "software development",
+    "product engineering",
+)
 
 
 class EuTendersStatus(BaseModel):
@@ -46,17 +62,26 @@ class EuTendersSearch(BaseModel):
 
 def profile_query(configuration: ProfileConfiguration) -> str:
     text = " ".join(
-        [configuration.service_description]
+        [configuration.service_role or "", configuration.service_description]
         + [signal.question for signal in configuration.signals]
         + [criterion for signal in configuration.signals for criterion in signal.positive_criteria]
     )
+    lowered = text.casefold()
+    acronyms = re.findall(r"\b[A-Z][A-Z0-9]{1,9}\b", text)
+    if "RPA" in acronyms:
+        # SEDIA expands phrases very loosely; the central domain term produces a
+        # smaller candidate pool that can be validated deterministically downstream.
+        return "automation"
+    phrases = [phrase for phrase in _DOMAIN_PHRASES if phrase in lowered]
+    if phrases:
+        return phrases[0]
     terms: list[str] = []
-    for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", text.casefold()):
+    for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", lowered):
         if term not in _STOPWORDS and term not in terms:
             terms.append(term)
         if len(terms) == MAX_TERMS:
             break
-    return " OR ".join(terms) or "digital transformation"
+    return " ".join(terms[:3]) or "digital transformation"
 
 
 def get_tenders(settings: Settings = Depends(get_settings)) -> EuTendersDiscovery:
