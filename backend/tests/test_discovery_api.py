@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.discovery import get_discovery_provider
+from app.api.discovery import RESEARCHABLE_DISCOVERY_STATUS, get_discovery_provider
 from app.db import Base, get_session
 from app.discovery import DiscoveryCandidate, DiscoveryRequest, SizeVerification
 from app.discovery.catalog import store_candidates
@@ -60,6 +60,7 @@ def test_discovery_requires_confirmation_before_import() -> None:
     assert discovered.status_code == 201
     run = discovered.json()
     assert run["candidates"][0]["size_verification"] == "needs_verification"
+    assert run["candidates"][0]["qualification"] == "needs_verification"
 
     with TestingSession() as session:
         assert session.query(Company).count() == 0
@@ -80,6 +81,21 @@ def test_rejects_domain_not_returned_by_discovery() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_rejects_known_out_of_icp_candidate_before_research() -> None:
+    client = TestClient(app)
+    run = client.post(
+        "/discovery-runs", json={"industries": ["Financial services"]}
+    ).json()
+
+    assert run["candidates"][0]["qualification"] == "out_of_icp"
+    response = client.post(
+        f"/discovery-runs/{run['id']}/confirm", json={"domains": ["example.com"]}
+    )
+
+    assert response.status_code == 422
+    assert "Out-of-ICP" in response.json()["detail"]
 
 
 def test_repeated_search_reuses_recent_run_without_provider_call() -> None:
@@ -130,7 +146,7 @@ def test_expired_cache_fallback_preserves_original_timestamp() -> None:
         session.add(
             DiscoveryRun(
                 id="old-run",
-                status="researchable_v1",
+                status=RESEARCHABLE_DISCOVERY_STATUS,
                 created_at=recorded,
                 request=request.model_dump(mode="json"),
                 candidates=[FakeDiscovery().discover(request)[0].model_dump(mode="json")],
@@ -175,7 +191,7 @@ def test_uses_matching_cached_results_when_provider_is_unavailable() -> None:
     with TestingSession.begin() as session:
         session.add(
             DiscoveryRun(
-                status="researchable_v1",
+                status=RESEARCHABLE_DISCOVERY_STATUS,
                 request=request.model_dump(mode="json"),
                 candidates=[candidate.model_dump(mode="json")],
             )
