@@ -63,6 +63,27 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(headings.indexOf('Collected sources')).toBeGreaterThan(headings.indexOf('Signals and supporting facts'))
 })
 
+test('queues fresh research without deleting previous runs', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+    const payload = init?.method === 'POST'
+      ? { id: 'run-refresh', status: 'queued' }
+      : [{ id: companyFixture.id }]
+    return Promise.resolve(new Response(JSON.stringify(payload), { status: init?.method === 'POST' ? 202 : 200, headers: { 'Content-Type': 'application/json' } }))
+  })
+  render(<ResearchActivityWorkspace />)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Open research' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Run fresh research' }))
+
+  expect(await screen.findByText(/Existing sources, scores, and run history are preserved/)).toBeInTheDocument()
+  const submission = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
+  expect(submission?.[0]).toEqual(expect.stringContaining('/research-runs'))
+  expect(JSON.parse(String(submission?.[1]?.body))).toMatchObject({
+    company_id: companyFixture.id,
+    profile_version_id: 'profile-version-rpa-1',
+  })
+})
+
 test('allows all saved research for a company to be deleted', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200, headers: { 'Content-Type': 'application/json' } })))
   render(<ResearchActivityWorkspace />)
