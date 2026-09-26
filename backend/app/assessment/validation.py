@@ -56,17 +56,34 @@ def validate_assessment(
             raise AssessmentValidationError(f"unknown source: {evidence.source_id}")
         if source.company_id != company_id:
             raise AssessmentValidationError("source belongs to a different company")
-        if evidence.end_offset > len(source.normalized_text):
-            raise AssessmentValidationError("evidence offsets exceed source text")
-
-        source_excerpt = source.normalized_text[evidence.start_offset : evidence.end_offset]
-        if source_excerpt != evidence.excerpt:
-            raise AssessmentValidationError("evidence excerpt does not match source text")
+        matches: list[int] = []
+        offset = source.normalized_text.find(evidence.excerpt)
+        while offset >= 0:
+            matches.append(offset)
+            offset = source.normalized_text.find(evidence.excerpt, offset + 1)
+        if not matches:
+            raise AssessmentValidationError("evidence excerpt does not occur in source text")
+        if len(matches) == 1:
+            start_offset = matches[0]
+        elif evidence.start_offset in matches:
+            start_offset = evidence.start_offset
+        else:
+            raise AssessmentValidationError("evidence excerpt is ambiguous in source text")
+        end_offset = start_offset + len(evidence.excerpt)
 
         if evidence.event_group_key in seen_events:
             continue
         seen_events.add(evidence.event_group_key)
-        validated.append(ValidatedEvidence.model_validate(evidence.model_dump()))
+        validated.append(
+            ValidatedEvidence(
+                source_id=evidence.source_id,
+                excerpt=evidence.excerpt,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                factual_claim=evidence.factual_claim,
+                event_group_key=evidence.event_group_key,
+            )
+        )
 
     if not validated:
         raise AssessmentValidationError("assessment has no unique validated evidence")

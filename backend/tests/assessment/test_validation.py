@@ -58,12 +58,44 @@ def test_accepts_exact_excerpt_for_the_correct_company() -> None:
     assert assessment.evidence[0].excerpt == "operational efficiency program"
 
 
-def test_rejects_excerpt_not_present_at_offsets() -> None:
-    with pytest.raises(AssessmentValidationError, match="does not match"):
+def test_reanchors_exact_excerpt_when_model_offsets_are_wrong() -> None:
+    proposed = proposal().model_copy(
+        update={"evidence": [proposal().evidence[0].model_copy(update={"start_offset": 0})]}
+    )
+
+    assessment = validate_assessment(proposed, company_id="company-1", sources=sources())
+
+    expected = SOURCE_TEXT.index("operational efficiency program")
+    assert assessment.evidence[0].start_offset == expected
+    assert assessment.evidence[0].end_offset == expected + len("operational efficiency program")
+
+
+def test_rejects_excerpt_missing_from_source() -> None:
+    with pytest.raises(AssessmentValidationError, match="does not occur"):
         validate_assessment(
             proposal(excerpt="automation program"),
             company_id="company-1",
             sources=sources(),
+        )
+
+
+def test_rejects_ambiguous_excerpt_without_a_valid_disambiguating_offset() -> None:
+    repeated_text = f"{SOURCE_TEXT} {SOURCE_TEXT}"
+    with pytest.raises(AssessmentValidationError, match="ambiguous"):
+        validate_assessment(
+            proposal().model_copy(
+                update={
+                    "evidence": [proposal().evidence[0].model_copy(update={"start_offset": 0})]
+                }
+            ),
+            company_id="company-1",
+            sources={
+                "source-1": SourceText(
+                    id="source-1",
+                    company_id="company-1",
+                    normalized_text=repeated_text,
+                )
+            },
         )
 
 

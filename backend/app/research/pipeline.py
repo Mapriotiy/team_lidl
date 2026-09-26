@@ -9,6 +9,7 @@ from app.assessment.providers import (
     OpenRouterAssessmentProvider,
     OpenRouterTransientError,
 )
+from app.assessment.validation import AssessmentValidationError
 from app.collection import CanonicalCompany, CollectedDocument, PublicSourceCollector, SourceTarget
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
@@ -162,17 +163,29 @@ class IntegratedResearchPipeline:
             )
             for document in documents
         }
-        assessments = [
-            validate_assessment(proposal, company_id=company.id, sources=source_texts)
-            for proposal in batch.assessments
-        ]
+        assessments: list[SignalAssessment] = []
+        partial_errors: list[PartialError] = []
+        for proposal in batch.assessments:
+            try:
+                assessments.append(
+                    validate_assessment(proposal, company_id=company.id, sources=source_texts)
+                )
+            except AssessmentValidationError as exc:
+                partial_errors.append(
+                    PartialError(
+                        stage="assessment",
+                        code="invalid_evidence",
+                        message=f"{proposal.signal_id}: {exc}",
+                    )
+                )
+        assessments_by_signal = {item.signal_id: item for item in assessments}
         documents_by_id = {document.id: document for document in documents}
         signal_inputs: list[SignalScoringInput] = []
         for definition in configuration.signals:
-            assessment = next(item for item in assessments if item.signal_id == definition.id)
+            assessment = assessments_by_signal.get(definition.id)
             cited_documents = [
                 documents_by_id[evidence.source_id]
-                for evidence in assessment.evidence
+                for evidence in (assessment.evidence if assessment is not None else [])
                 if evidence.source_id in documents_by_id
             ]
             event_dates = [item.event_date for item in cited_documents if item.event_date]
@@ -242,6 +255,7 @@ class IntegratedResearchPipeline:
             data={"score": score.model_dump(mode="json"), "evidence_ids": evidence_ids},
             completed=len(assessments),
             total=len(configuration.signals),
+            errors=partial_errors,
             links={"company": f"/companies/{company.id}"},
         )
 
