@@ -11,7 +11,7 @@ export const settingsDestinations: SettingsDestination[] = [
   { id: 'model', label: 'Connected model', keywords: 'ai llm openrouter provider model api key credentials' },
   { id: 'team', label: 'Team', keywords: 'members invitations invite access roles users' },
   { id: 'notifications', label: 'Notifications', keywords: 'alerts digest email crawl failures updates preferences' },
-  { id: 'scoring', label: 'Prospect scoring', keywords: 'dynamic weights signals readiness likelihood buy buying prioritize penalties disqualification rules' },
+  { id: 'scoring', label: 'ICP & Scoring', keywords: 'icp ideal customer industry geography company size dynamic weights signals readiness likelihood buy buying prioritize penalties disqualification rules' },
   { id: 'sources', label: 'Data sources & crawl log', keywords: 'collection providers attempts errors failures websites news fallback' },
   { id: 'runtime', label: 'Backend runtime', keywords: 'worker concurrency retention rendering configuration server' },
 ]

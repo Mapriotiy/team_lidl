@@ -135,7 +135,7 @@ describe('global search destinations', () => {
     render(<TopBar {...callbacks} />)
     fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Profile search is unavailable. Profile API unavailable')
-    expect(screen.getByRole('option', { name: 'Prospect scoring' })).toBeEnabled()
+    expect(screen.getByRole('option', { name: 'ICP & Scoring' })).toBeEnabled()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'legacy example' } })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
     expect(callbacks.onOpenCompany).toHaveBeenCalledWith('company-42')

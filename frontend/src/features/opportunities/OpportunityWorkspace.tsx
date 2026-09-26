@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
 import { LeadsWorkspace } from '../leads/LeadsWorkspace'
+import { IcpScoringWorkspace } from '../scoring/IcpScoringWorkspace'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
 import { getProfile } from '../profiles/repository'
 import { TopBar } from '../../components/TopBar'
@@ -12,7 +13,7 @@ import { useDataSources } from '../settings/useDataSources'
 import sidebarResearcher from '../../assets/sidebar-researcher.png'
 
 type WorkflowView = 'profiles' | 'discovery' | 'activity'
-type View = WorkflowView | 'leads' | 'settings'
+type View = WorkflowView | 'leads' | 'scoring' | 'settings'
 
 const navigation: Array<{ id: WorkflowView; label: string }> = [
   { id: 'profiles', label: 'Service Profile' },
@@ -46,7 +47,7 @@ export function OpportunityWorkspace() {
 
   const openSources = () => { setSettingsSection('sources'); setView('settings') }
   const openCompany = (id: string) => { setOpenCompanyId(id); setView('activity') }
-  const screens = [...navigation, { id: 'leads', label: 'Leads' }, { id: 'settings', label: 'Settings' }].map((item) => ({ ...item, disabled: !canOpen(item.id as View) }))
+  const screens = [...navigation, { id: 'leads', label: 'Leads' }, { id: 'scoring', label: 'ICP & Scoring' }, { id: 'settings', label: 'Settings' }].map((item) => ({ ...item, disabled: !canOpen(item.id as View) }))
 
   return (
     <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">
@@ -72,7 +73,8 @@ export function OpportunityWorkspace() {
         </nav>
 
         <button aria-label="Leads" aria-current={view === 'leads' ? 'page' : undefined} onClick={() => setView('leads')} className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${view === 'leads' ? 'bg-[#3B2419] text-[#FFB58F]' : 'text-[#D5D0C9] hover:bg-[#292725] hover:text-white'}`}><svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>Leads</button>
-        <button aria-label="Settings" aria-current={view === 'settings' ? 'page' : undefined} onClick={() => setView('settings')} className={`mx-3 mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${view === 'settings' ? 'bg-[#3B2419] text-[#FFB58F]' : 'text-[#D5D0C9] hover:bg-[#292725] hover:text-white'}`}><svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="m9 3-1 3-3 1-2 4 2 2 1 4 3 1 2 3 4-1 1-3 3-1 2-4-2-2-1-4-3-1-2-3Z"/><circle cx="12" cy="12" r="3"/></svg>Settings</button>
+        <button aria-label="ICP & Scoring" aria-current={view === 'scoring' ? 'page' : undefined} onClick={() => setView('scoring')} className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${view === 'scoring' ? 'bg-[#3B2419] text-[#FFB58F]' : 'text-[#D5D0C9] hover:bg-[#292725] hover:text-white'}`}><svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>ICP & Scoring</button>
+        <button aria-label="Settings" aria-current={view === 'settings' ? 'page' : undefined} onClick={() => setView('settings')} className={`mx-3 mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${view === 'settings' ? 'bg-[#3B2419] text-[#FFB58F]' : 'text-[#D5D0C9] hover:bg-[#292725] hover:text-white'}`}><svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>Settings</button>
         <div className="pointer-events-none px-5" aria-hidden="true">
           <img className="mx-auto max-h-64 w-full object-contain object-bottom" src={sidebarResearcher} alt="" />
         </div>
@@ -80,7 +82,7 @@ export function OpportunityWorkspace() {
       </aside>
 
       <main className="lr-theme-surface lg:pl-64">
-        <TopBar viewLabel={view === 'settings' ? `Settings / ${settingsSection === 'sources' ? 'Data sources' : settingsSection === 'scoring' ? 'Prospect scoring' : settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1)}` : view === 'leads' ? 'Leads' : navigation.find((item) => item.id === view)?.label ?? ''} screens={screens} onNavigate={(id) => { if (screens.some((item) => item.id === id && !item.disabled)) setView(id as View) }} onOpenCompany={openCompany} onOpenSources={openSources} onOpenSetting={(section) => { setSettingsSection(section); setView('settings') }} appearance={appearance} setAppearance={setAppearance} notifications={{ loading: sources.loading && !sources.snapshot, error: sources.error, entryCount: sources.snapshot?.crawl_log.length ?? 0, failures: (sources.snapshot?.crawl_log ?? []).filter((entry) => entry.status === 'error').slice(0, 8).map((entry) => ({ id: entry.id, sourceName: entry.provider, detail: entry.detail, at: entry.at })) }} />
+        <TopBar viewLabel={view === 'settings' ? `Settings / ${settingsSection === 'sources' ? 'Data sources' : settingsSection === 'scoring' ? 'Prospect scoring' : settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1)}` : view === 'leads' ? 'Leads' : view === 'scoring' ? 'ICP & Scoring' : navigation.find((item) => item.id === view)?.label ?? ''} screens={screens} onNavigate={(id) => { if (screens.some((item) => item.id === id && !item.disabled)) setView(id as View) }} onOpenCompany={openCompany} onOpenSources={openSources} onOpenSetting={(section) => { if (section === 'scoring') { setView('scoring'); return } setSettingsSection(section); setView('settings') }} appearance={appearance} setAppearance={setAppearance} notifications={{ loading: sources.loading && !sources.snapshot, error: sources.error, entryCount: sources.snapshot?.crawl_log.length ?? 0, failures: (sources.snapshot?.crawl_log ?? []).filter((entry) => entry.status === 'error').slice(0, 8).map((entry) => ({ id: entry.id, sourceName: entry.provider, detail: entry.detail, at: entry.at })) }} />
         <nav aria-label="Mobile navigation" className="flex gap-2 overflow-x-auto border-b border-[#DED9D1] bg-white p-3 lg:hidden">
           <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view} onChange={(event) => setView(event.target.value as View)}>
             {screens.map(({ id, label }) => <option disabled={!canOpen(id as View)} key={id} value={id}>{label}</option>)}
@@ -89,6 +91,7 @@ export function OpportunityWorkspace() {
         <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           {view === 'profiles' && <ProfileWorkspace onReady={finishProfile} />}
           {view === 'discovery' && <DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
+          {view === 'scoring' && <IcpScoringWorkspace onEditProfile={() => setView('profiles')} />}
           {view === 'leads' && <LeadsWorkspace onOpenCompany={openCompany} />}
           {view === 'activity' && <ResearchActivityWorkspace initialCompanyId={openCompanyId} onInitialCompanyOpened={() => setOpenCompanyId(null)} />}
           <div hidden={view !== 'settings'}><SettingsWorkspace section={settingsSection} onSection={setSettingsSection} appearance={appearance} setAppearance={setAppearance} {...sources} limit={logLimit} setLimit={setLogLimit} /></div>
