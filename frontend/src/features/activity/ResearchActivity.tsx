@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { errorMessage } from '../../api/errors'
-import { deleteCompanyResearch, listCompanies } from '../../api/research'
+import { deleteCompanyResearch, listCompanies, submitResearch } from '../../api/research'
 import { getCompany } from '../companies/repository'
 import type { Assessment, CompanyDetail, Evidence, ResearchRun } from '../companies/types'
 import { OutreachDrafts } from './OutreachDrafts'
@@ -179,8 +179,20 @@ function CollectedSources({ company }: { company: CompanyDetail }) {
 }
 
 function CompanyResearch({ company, onBack }: { company: CompanyDetail; onBack: () => void }) {
+  const [refreshState, setRefreshState] = useState<'idle' | 'submitting' | 'queued'>('idle')
+  const [refreshError, setRefreshError] = useState('')
   const status = displayStatus(company)
   const confidence = researchConfidence(company)
+  const latestRun = [...company.researchRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0]
+  const researchActive = company.researchRuns.some((run) => run.status === 'queued' || run.status === 'running')
+  const refreshResearch = async () => {
+    if (!latestRun || researchActive) return
+    setRefreshState('submitting'); setRefreshError('')
+    try {
+      await submitResearch(company.id, latestRun.profileVersionId, `manual-refresh-${company.id}-${crypto.randomUUID()}`)
+      setRefreshState('queued')
+    } catch (reason) { setRefreshError(errorMessage(reason)); setRefreshState('idle') }
+  }
   const evidenceById = new Map(company.evidence.map((item) => [item.id, item]))
   const findings = company.assessments.flatMap((assessment) => {
     const evidence = assessment.evidenceIds.flatMap((id) => {
@@ -191,7 +203,9 @@ function CompanyResearch({ company, onBack }: { company: CompanyDetail; onBack: 
   })
   return <div className="text-[#20242A]"><button className="text-sm font-semibold text-[#A64212] hover:text-[#742D0D]" onClick={onBack}>← Back to company research</button>
     {status === 'Not enough data' && <div className="mt-6 rounded-xl border border-[#D9D4CC] bg-[#FAF8F5] p-5 text-sm text-[#625D57]">Research finished with {sourceCount(company)} collected source{sourceCount(company) === 1 ? '' : 's'}. At least {minimumSources} distinct sources are required to assess this company. Available findings are retained; collect more sources and rerun research to continue.</div>}
-    <div className="mt-6 flex flex-col justify-between gap-5 border-b border-[#DDD8D0] pb-7 md:flex-row md:items-end"><div><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Research findings</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{company.name}</h1><p className="mt-2 text-sm text-[#716C65]">{company.domain}</p></div><div className="flex items-center gap-3"><div id="research-header-gmail-action"/><div className="text-right"><p className="text-lg font-semibold text-[#2F5F43]">{status === 'Not enough data' ? 'Confidence unavailable' : `${confidence.score}% confidence`}</p><p className="text-xs text-[#68645F]">{confidence.label} research confidence</p></div><span className={`h-fit rounded-full px-3 py-1.5 text-sm font-semibold ${statusClasses[status]}`}>{status}</span></div></div>
+    <div className="mt-6 flex flex-col justify-between gap-5 border-b border-[#DDD8D0] pb-7 md:flex-row md:items-end"><div><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Research findings</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{company.name}</h1><p className="mt-2 text-sm text-[#716C65]">{company.domain}</p></div><div className="flex flex-wrap items-center justify-end gap-3"><button className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8] disabled:cursor-wait disabled:opacity-50" disabled={!latestRun || researchActive || refreshState !== 'idle'} onClick={() => void refreshResearch()} type="button">{researchActive || refreshState === 'queued' ? 'Research queued' : refreshState === 'submitting' ? 'Queuing…' : 'Run fresh research'}</button><div id="research-header-gmail-action"/><div className="text-right"><p className="text-lg font-semibold text-[#2F5F43]">{status === 'Not enough data' ? 'Confidence unavailable' : `${confidence.score}% confidence`}</p><p className="text-xs text-[#68645F]">{confidence.label} research confidence</p></div><span className={`h-fit rounded-full px-3 py-1.5 text-sm font-semibold ${statusClasses[status]}`}>{status}</span></div></div>
+    {refreshState === 'queued' && <p className="mt-4 rounded-lg bg-[#EAF6EE] px-4 py-3 text-sm text-[#25613E]" role="status">Fresh research was queued. Existing sources, scores, and run history are preserved.</p>}
+    {refreshError && <p className="mt-4 rounded-lg bg-[#FFF4F1] px-4 py-3 text-sm text-[#8A2F20]" role="alert">Research could not be queued: {refreshError}</p>}
     {findings.length > 0 && <OutreachDrafts companyId={company.id} />}
     <section aria-label="Research summary" className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[[`${company.sources?.length ?? 0}`, 'Public sources'], [`${company.evidence.length}`, 'Verified facts'], [`${findings.length}`, 'Signals with facts'], [`${Math.round(company.coverage * 100)}%`, 'Signal coverage']].map(([value, label]) => <article className="rounded-xl border border-[#DED9D1] bg-white p-4" key={label}><p className="text-2xl font-semibold text-[#30343A]">{value}</p><p className="mt-1 text-xs font-semibold uppercase tracking-wider text-[#716C65]">{label}</p></article>)}</section>
     <section className="mt-8"><h2 className="text-lg font-semibold">Signals and supporting facts</h2><p className="mt-1 text-sm text-[#716C65]">Each conclusion stays attached to the exact public facts behind it. Signals guide account validation; they do not claim confirmed buying intent.</p>{findings.length ? <div className="mt-5 space-y-5">{findings.map(({ assessment, evidence }) => <SignalFactCard assessment={assessment} evidence={evidence} key={assessment.id} />)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">No signals with verified facts were found for this company.</div>}</section>
