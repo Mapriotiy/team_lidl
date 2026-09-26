@@ -119,6 +119,13 @@ class IntegratedResearchPipeline:
                         )
                     )
                 else:
+                    stored.research_run_id = run_id
+                    stored.canonical_url = document.canonical_url
+                    stored.source_type = document.source_type
+                    stored.title = document.title
+                    stored.retrieved_at = document.retrieved_at
+                    stored.publication_date = document.publication_date
+                    stored.event_date = document.event_date
                     stored.normalized_text = document.normalized_text
                     stored.text_expires_at = expires_at
         return StageResult(

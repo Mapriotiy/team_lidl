@@ -166,7 +166,13 @@ def test_pipeline_persists_sources_assessments_score_and_opportunity() -> None:
             profile_version_id=version.id,
             idempotency_key="pipeline-test",
         )
-        session.add_all([company, profile, run])
+        retry_run = ResearchRun(
+            id="run-2",
+            company_id=company.id,
+            profile_version_id=version.id,
+            idempotency_key="pipeline-test-retry",
+        )
+        session.add_all([company, profile, run, retry_run])
 
     pipeline = IntegratedResearchPipeline(
         sessions,
@@ -189,6 +195,11 @@ def test_pipeline_persists_sources_assessments_score_and_opportunity() -> None:
         opportunity = session.scalar(select(Opportunity))
         assert snapshot is not None and snapshot.score > 0
         assert opportunity is not None and opportunity.latest_snapshot_id == snapshot.id
+
+    pipeline.collect("run-2", company)
+    with sessions() as session:
+        source = session.get_one(StoredSourceDocument, "source-1")
+        assert source.research_run_id == "run-2"
 
 
 def test_transient_provider_overload_is_retryable() -> None:
