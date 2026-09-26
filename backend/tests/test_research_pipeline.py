@@ -7,10 +7,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.assessment import AssessmentStatus, EvidenceStrength, ProposedAssessment, ProposedEvidence
 from app.assessment.providers import AssessmentBatch, OpenRouterTransientError
-from app.collection.models import CollectedDocument, CollectionResult
+from app.collection.models import CollectedDocument, CollectionResult, SourceTarget
 from app.contracts.evidence import SourceType
 from app.contracts.profile import ProfileConfiguration
 from app.db import Base
+from app.discovery import NewsApiError, NewsCandidate
 from app.jobs.runner import RetryableResearchError
 from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
@@ -463,3 +464,92 @@ def test_unconfigured_pipeline_names_required_environment() -> None:
 
     with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
         UnconfiguredPipeline().collect("run-1", None)  # type: ignore[arg-type]
+
+
+def test_newsapi_targets_merge_with_gdelt_and_failures_stay_partial() -> None:
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine, expire_on_commit=False)
+    with sessions.begin() as session:
+        profile = ServiceProfile(id="profile-1", name="Automation")
+        version = ServiceProfileVersion(
+            id="profile-v1",
+            version=1,
+            configuration={"service_description": "Automation", "icp": {}, "signals": []},
+        )
+        profile.versions.append(version)
+        session.add_all(
+            [
+                Company(id="company-1", canonical_domain="example.com", display_name="Example"),
+                profile,
+                ResearchRun(
+                    id="run-news",
+                    company_id="company-1",
+                    profile_version_id=version.id,
+                    idempotency_key="news-merge",
+                ),
+            ]
+        )
+
+    def candidate(url: str) -> NewsCandidate:
+        return NewsCandidate(
+            target=SourceTarget(url, SourceType.NEWS), title=url, language=None, seen_date=None
+        )
+
+    class GdeltStub:
+        def discover_queries(self, queries: list[str], **kwargs: object) -> list[NewsCandidate]:
+            return [candidate("https://news.example/shared"), candidate("https://news.example/a")]
+
+    class NewsApiStub:
+        def discover_queries(self, queries: list[str], **kwargs: object) -> list[NewsCandidate]:
+            return [candidate("https://news.example/shared"), candidate("https://news.example/b")]
+
+    class FailingNewsApi:
+        def discover_queries(self, queries: list[str], **kwargs: object) -> list[NewsCandidate]:
+            raise NewsApiError("NewsAPI rejected the API key or plan")
+
+    class RecordingCollector(EmptyCollector):
+        def __init__(self) -> None:
+            self.targets: list[SourceTarget] = []
+
+        def collect(self, company: object, targets: object) -> CollectionResult:
+            self.targets = list(targets)  # type: ignore[call-overload]
+            return super().collect(company, targets)
+
+    with sessions() as session:
+        company = session.get_one(Company, "company-1")
+        session.expunge(company)
+
+    collector = RecordingCollector()
+    pipeline = IntegratedResearchPipeline(
+        sessions,
+        FakeAssessmentProvider(),  # type: ignore[arg-type]
+        collector=collector,  # type: ignore[arg-type]
+        news=GdeltStub(),  # type: ignore[arg-type]
+        newsapi=NewsApiStub(),  # type: ignore[arg-type]
+    )
+    collected = pipeline.collect("run-news", company)
+
+    news_urls = [t.url for t in collector.targets if t.source_type == SourceType.NEWS]
+    assert news_urls == [
+        "https://news.example/shared",
+        "https://news.example/a",
+        "https://news.example/b",
+    ]
+    assert collected.errors == []
+
+    collector = RecordingCollector()
+    pipeline = IntegratedResearchPipeline(
+        sessions,
+        FakeAssessmentProvider(),  # type: ignore[arg-type]
+        collector=collector,  # type: ignore[arg-type]
+        news=GdeltStub(),  # type: ignore[arg-type]
+        newsapi=FailingNewsApi(),  # type: ignore[arg-type]
+    )
+    collected = pipeline.collect("run-news", company)
+
+    news_urls = [t.url for t in collector.targets if t.source_type == SourceType.NEWS]
+    assert news_urls == ["https://news.example/shared", "https://news.example/a"]
+    assert [error.code for error in collected.errors] == ["newsapi_discovery_failed"]
