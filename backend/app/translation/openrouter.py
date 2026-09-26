@@ -77,7 +77,7 @@ class OpenRouterTranslationProvider:
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json",
-                    "X-OpenRouter-Title": "Team LIDL Evidence Translation",
+                    "X-OpenRouter-Title": "LeadRadar Evidence Translation",
                 },
                 timeout=self.timeout,
             )

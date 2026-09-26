@@ -73,7 +73,7 @@ class GdeltNewsDiscovery:
         return self.transport.get_json(
             GDELT_ENDPOINT,
             params=params,
-            headers={"User-Agent": "TeamLIDLResearch/0.1 (public news discovery)"},
+            headers={"User-Agent": "LeadRadarResearch/0.1 (public news discovery)"},
             timeout=self.timeout,
         )
 

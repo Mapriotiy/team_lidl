@@ -1,4 +1,4 @@
-# Team LIDL
+# LeadRadar
 
 B2B sales intelligence for prioritizing companies across process automation, cybersecurity, and software development. The product connects configurable business questions to public evidence, explainable scores, and sales actions.
 

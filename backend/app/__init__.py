@@ -1,2 +1,1 @@
-"""Team LIDL API package."""
-
+"""LeadRadar API package."""

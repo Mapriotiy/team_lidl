@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Team LIDL API"
+    app_name: str = "LeadRadar API"
     app_version: str = "0.1.0"
     database_url: str = "postgresql+psycopg://lidl:lidl@localhost:5432/lidl"
     api_host: str = "127.0.0.1"

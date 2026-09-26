@@ -236,7 +236,7 @@ class OpenRouterAssessmentProvider:
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json",
-                    "X-OpenRouter-Title": "Team LIDL Sales Intelligence",
+                    "X-OpenRouter-Title": "LeadRadar Sales Intelligence",
                 },
                 timeout=self.timeout,
             )

@@ -8,7 +8,7 @@ from app.discovery.models import DiscoveryCandidate, DiscoveryRequest, SizeVerif
 
 WIKIDATA_ENDPOINT = "https://qlever.dev/api/wikidata"
 WIKIDATA_ENTITY_API = "https://www.wikidata.org/w/api.php"
-USER_AGENT = "TeamLIDLResearch/0.1 (public company discovery)"
+USER_AGENT = "LeadRadarResearch/0.1 (public company discovery)"
 LABEL_LANGUAGES = "en|uk|pl|cs|sk|hu|ro|bg|et|lv|lt|ru"
 
 # Employee totals on Wikidata are sourced facts, not values this pipeline has

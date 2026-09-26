@@ -191,8 +191,8 @@ export function OpportunityWorkspace() {
         <div className="flex h-20 items-center gap-3 border-b border-[#E4E0D9] px-6">
           <div className="grid size-9 place-items-center rounded-lg bg-[#E86722] font-black text-white">L</div>
           <div>
-            <p className="font-semibold tracking-tight text-[#20242A]">SignalDesk</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#827C74]">Team LIDL</p>
+            <p className="font-semibold tracking-tight text-[#20242A]">LeadRadar</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#827C74]">Sales intelligence</p>
           </div>
         </div>
 
@@ -230,13 +230,6 @@ export function OpportunityWorkspace() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C65318]">Sales intelligence</p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#20242A]">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Service Profile'}</h1>
             </div>
-            <button
-              className="rounded-lg bg-[#E86722] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#C94F12] focus:outline-none focus:ring-2 focus:ring-[#E86722]/30"
-              onClick={() => setView('discovery')}
-              type="button"
-            >
-              Import companies
-            </button>
           </div>
         </header>
 

@@ -5,6 +5,9 @@ import { App } from './App'
 
 test('opens on the guided service profile', async () => {
   render(<App />)
+  expect(screen.getByText('LeadRadar')).toBeInTheDocument()
+  expect(screen.queryByText('Team LIDL')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Import companies' })).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Service Profile' })).toBeInTheDocument()
   expect(await screen.findByRole('heading', { name: 'Define who your service is for' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /Ideal customer/ })).toBeInTheDocument()
