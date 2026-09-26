@@ -12,12 +12,6 @@ const navigation: Array<{ id: View; label: string }> = [
   { id: 'activity', label: 'Research' },
 ]
 
-const headings: Record<View, string> = {
-  profiles: 'Service Profile',
-  discovery: 'Company sourcing',
-  activity: 'Research',
-}
-
 export function OpportunityWorkspace() {
   const [view, setView] = useState<View>('profiles')
 
@@ -28,7 +22,7 @@ export function OpportunityWorkspace() {
           <div className="grid size-9 place-items-center rounded-lg bg-[#E86722] font-black text-white">L</div>
           <div>
             <p className="font-semibold tracking-tight text-[#20242A]">LeadRadar</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#827C74]">Sales intelligence</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#6B665E]">Sales intelligence</p>
           </div>
         </div>
 
@@ -40,13 +34,13 @@ export function OpportunityWorkspace() {
               onClick={() => setView(id)}
               type="button"
             >
-              <span className={`size-1.5 rounded-full ${view === id ? 'bg-[#E86722]' : 'bg-[#B9B2A9]'}`} />
+              <span className={`size-1.5 rounded-full ${view === id ? 'bg-[#C94F12]' : 'bg-[#8F877D]'}`} />
               {label}
             </button>
           ))}
         </nav>
 
-        <p className="m-5 text-xs leading-5 text-[#89837B]">Research uses saved profile criteria and public evidence.</p>
+        <p className="m-5 text-xs leading-5 text-[#6B665E]">Research uses saved profile criteria and public evidence.</p>
       </aside>
 
       <main className="lg:pl-64">
@@ -55,15 +49,6 @@ export function OpportunityWorkspace() {
             {navigation.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
           </select>
         </nav>
-        <header className="border-b border-[#E1DDD6] bg-[#F7F6F3]/95 px-5 py-5 backdrop-blur sm:px-8 lg:px-10">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C65318]">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#20242A]">{headings[view]}</h1>
-            </div>
-          </div>
-        </header>
-
         <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           {view === 'profiles' && <ProfileWorkspace />}
           {view === 'discovery' && <DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} />}

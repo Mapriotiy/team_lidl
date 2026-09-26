@@ -8,9 +8,9 @@ import { match, profileSearch, words } from './matching'
 export interface ConfirmedCompany { id: string; name: string; domain: string }
 type Snapshot = { run: DiscoveryRun; selected: string[]; visible: number }
 const cache = new Map<string, Snapshot>()
-const field = 'rounded-lg border border-[#D8D3CB] bg-white px-3 py-2.5 text-sm text-[#353A40] focus:outline-none focus:ring-2 focus:ring-orange-200'
-const button = 'rounded-lg border border-[#D8D3CB] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-[#F7F6F3] disabled:opacity-50'
-const primary = 'rounded-lg bg-[#E86722] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#C94F12] disabled:opacity-50'
+const field = 'rounded-lg border border-[#8E867C] bg-white px-3 py-2.5 text-sm text-[#353A40] focus:outline-none focus:ring-2 focus:ring-[#C94F12]/25'
+const button = 'rounded-lg border border-[#8E867C] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-[#F7F6F3] disabled:opacity-50'
+const primary = 'rounded-lg bg-[#C94F12] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#A73F0E] disabled:opacity-50'
 const cacheKey = (profile: Profile) => `leadradar.discovery.${profile.current_version.id}`
 function readCache(key: string): Snapshot | undefined {
   if (cache.has(key)) return cache.get(key)
