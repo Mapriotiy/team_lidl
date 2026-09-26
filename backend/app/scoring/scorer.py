@@ -108,6 +108,10 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
         weighted_value = signal.definition.weight * strength.factor * freshness
         source_ids = list(dict.fromkeys(item.source_id for item in assessment.evidence))
+        source_independence_keys = {
+            signal.source_independence_keys.get(source_id, source_id)
+            for source_id in source_ids
+        }
         event_keys = set(item.event_group_key for item in assessment.evidence)
 
         # One public event may answer more than one broad profile question. It is still
@@ -136,7 +140,7 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         if signal.definition.effect == SignalEffect.POSITIVE:
             positive_numerator += weighted_value
             if weighted_value > 0:
-                independent_positive_sources.update(source_ids)
+                independent_positive_sources.update(source_independence_keys)
                 positive_strength_factors.append(strength.factor)
             if strength.factor >= 0.7 and weighted_value > 0:
                 has_credible_positive = True

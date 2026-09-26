@@ -24,12 +24,13 @@ class SignalScoringInput(ScoringModel):
     assessment: SignalAssessment | None = None
     event_date: datetime | None = None
     publication_date: datetime | None = None
+    source_independence_keys: dict[str, str] = Field(default_factory=dict)
 
 
 class ScoringInput(ScoringModel):
     company_id: str
     profile_version_id: str
-    calculation_version: str = "v3-evidence-gated"
+    calculation_version: str = "v4-publisher-corroborated"
     icp_criteria: list[IcpCriterion] = Field(default_factory=list)
     signals: list[SignalScoringInput]
     calculated_at: datetime

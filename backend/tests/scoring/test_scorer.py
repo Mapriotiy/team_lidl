@@ -106,7 +106,7 @@ def test_calculates_evidence_gated_score_without_icp_inflation() -> None:
     )
 
     assert result.icp_fit == 0.5
-    assert result.calculation_version == "v3-evidence-gated"
+    assert result.calculation_version == "v4-publisher-corroborated"
     assert result.positive_strength == 0.5
     assert result.evidence_confidence == 0.5
     assert result.independent_positive_sources == 1
@@ -233,6 +233,39 @@ def test_two_independent_sources_can_qualify_an_opportunity() -> None:
     assert result.evidence_confidence == 1
     assert result.independent_positive_sources == 2
     assert result.eligibility == Eligibility.ELIGIBLE
+
+
+def test_two_pages_from_same_publisher_count_as_one_independent_source() -> None:
+    supported = assessment("positive")
+    supported = supported.model_copy(
+        update={
+            "evidence": [
+                supported.evidence[0],
+                supported.evidence[0].model_copy(
+                    update={"source_id": "source-2", "event_group_key": "event-2"}
+                ),
+            ]
+        }
+    )
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition("positive"),
+                    assessment=supported,
+                    event_date=NOW,
+                    source_independence_keys={
+                        "source-positive": "publisher.example",
+                        "source-2": "publisher.example",
+                    },
+                )
+            ]
+        )
+    )
+
+    assert result.independent_positive_sources == 1
+    assert result.score == 49
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
 
 
 def test_same_event_cannot_inflate_multiple_positive_signals() -> None:
