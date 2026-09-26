@@ -477,7 +477,21 @@ def test_newsapi_targets_merge_with_gdelt_and_failures_stay_partial() -> None:
         version = ServiceProfileVersion(
             id="profile-v1",
             version=1,
-            configuration={"service_description": "Automation", "icp": {}, "signals": []},
+            configuration={
+                "service_description": "Automation",
+                "icp": {},
+                "signals": [
+                    {
+                        "id": "efficiency",
+                        "question": "Is there an efficiency program?",
+                        "positive_criteria": ["Named program"],
+                        "exclusions": [],
+                        "weight": 20,
+                        "effect": "positive",
+                        "freshness_window_days": 365,
+                    }
+                ],
+            },
         )
         profile.versions.append(version)
         session.add_all(
