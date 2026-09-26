@@ -156,4 +156,4 @@ class PublicSourceCollector:
                 # Do not persist arbitrary server/proxy text or credentials in errors.
                 code = "timeout" if isinstance(exc, TimeoutError) else "fetch_error"
                 errors.append(CollectionError(target.url, code, "Public source retrieval failed"))
-        return CollectionResult(tuple(documents), tuple(errors))
+        return CollectionResult(tuple(documents), tuple(errors), len(sources))

@@ -123,7 +123,7 @@ class IntegratedResearchPipeline:
         return StageResult(
             data={"documents": [document.model_dump(mode="json") for document in result.documents]},
             completed=len(result.documents),
-            total=len(targets),
+            total=result.total or len(targets),
             errors=partial_errors,
         )
 
