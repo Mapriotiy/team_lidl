@@ -107,6 +107,7 @@
 .crawl-table th { padding: 12px 10px; font-weight: 500; color: var(--muted-foreground); border-bottom: 1px solid var(--border); white-space: nowrap; }
 .crawl-table td { padding: 15px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .crawl-table small { display: block; color: var(--muted-foreground); margin-top: 5px; }
+.crawl-table .crawl-provenance { color: var(--primary); font-weight: 600; }
 .crawl-table time { white-space: nowrap; }
 .crawl-target { max-width: 220px; overflow-wrap: anywhere; }
 .crawl-detail { min-width: 165px; overflow-wrap: anywhere; }

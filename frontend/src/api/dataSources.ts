@@ -11,6 +11,7 @@ export interface CrawlEntry {
   detail: string
   at: string
   documents: number | null
+  provenance: 'crawl_log' | 'stored_source'
 }
 export interface SourceHealth {
   id: string
