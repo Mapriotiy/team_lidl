@@ -236,6 +236,30 @@ def test_pipeline_persists_sources_assessments_score_and_opportunity() -> None:
         source = session.get_one(StoredSourceDocument, "source-1")
         assert source.research_run_id == "run-2"
 
+    class MirrorCollector(FakeCollector):
+        def collect(self, company: object, targets: object) -> CollectionResult:
+            result = super().collect(company, targets)
+            return CollectionResult(
+                tuple(
+                    document.model_copy(
+                        update={
+                            "id": "mirror-source",
+                            "canonical_url": "https://example.com/mirror",
+                        }
+                    )
+                    for document in result.documents
+                ),
+                (),
+            )
+
+    pipeline.collector = MirrorCollector()  # type: ignore[assignment]
+    mirror = pipeline.collect("run-2", company)
+    assert isinstance(mirror.data, dict)
+    assert mirror.data["documents"][0]["id"] == "source-1"
+    pipeline.assess("run-2", company, version, mirror.data)
+    with sessions() as session:
+        assert len(session.scalars(select(StoredSourceDocument)).all()) == 1
+
 
 def test_transient_provider_overload_is_retryable() -> None:
     engine = create_engine(
@@ -325,16 +349,18 @@ def test_empty_collection_finishes_with_actionable_assessment_error() -> None:
             },
         )
         profile.versions.append(version)
-        session.add_all([
-            company,
-            profile,
-            ResearchRun(
-                id="run-empty",
-                company_id=company.id,
-                profile_version_id=version.id,
-                idempotency_key="empty-collection",
-            ),
-        ])
+        session.add_all(
+            [
+                company,
+                profile,
+                ResearchRun(
+                    id="run-empty",
+                    company_id=company.id,
+                    profile_version_id=version.id,
+                    idempotency_key="empty-collection",
+                ),
+            ]
+        )
     pipeline = IntegratedResearchPipeline(
         sessions,
         FakeAssessmentProvider(),  # type: ignore[arg-type]
@@ -395,16 +421,18 @@ def test_pipeline_keeps_valid_signals_when_one_citation_is_invalid() -> None:
             },
         )
         profile.versions.append(version)
-        session.add_all([
-            company,
-            profile,
-            ResearchRun(
-                id="run-1",
-                company_id=company.id,
-                profile_version_id=version.id,
-                idempotency_key="partial-validation",
-            ),
-        ])
+        session.add_all(
+            [
+                company,
+                profile,
+                ResearchRun(
+                    id="run-1",
+                    company_id=company.id,
+                    profile_version_id=version.id,
+                    idempotency_key="partial-validation",
+                ),
+            ]
+        )
     pipeline = IntegratedResearchPipeline(
         sessions,
         PartiallyInvalidAssessmentProvider(),  # type: ignore[arg-type]

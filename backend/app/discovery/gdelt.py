@@ -32,9 +32,7 @@ class UrlLibGdeltTransport:
     ) -> object:
         request = Request(f"{url}?{urlencode(params)}", headers=dict(headers))
         try:
-            with urlopen(
-                request, timeout=timeout
-            ) as response:  # noqa: S310 - fixed HTTPS endpoint
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed HTTPS endpoint
                 if response.status != 200:
                     raise GdeltError(f"GDELT returned HTTP {response.status}")
                 return json.loads(response.read().decode("utf-8"))
@@ -73,12 +71,12 @@ class GdeltNewsDiscovery:
                 if remaining > 0:
                     time.sleep(remaining)
             self._last_request_at = time.monotonic()
-            return self.transport.get_json(
-                GDELT_ENDPOINT,
-                params=params,
-                headers={"User-Agent": "LeadRadarResearch/0.1 (public news discovery)"},
-                timeout=self.timeout,
-            )
+        return self.transport.get_json(
+            GDELT_ENDPOINT,
+            params=params,
+            headers={"User-Agent": "LeadRadarResearch/0.1 (public news discovery)"},
+            timeout=self.timeout,
+        )
 
     def _discover_query(
         self, query: str, *, limit: int, timespan: str = "3months"

@@ -47,8 +47,22 @@ def _icp_criteria(company: Company, configuration: ProfileConfiguration) -> list
 
 
 _QUERY_STOPWORDS = {
-    "about", "company", "does", "from", "have", "into", "that", "their", "there",
-    "this", "what", "when", "where", "which", "with", "would",
+    "about",
+    "company",
+    "does",
+    "from",
+    "have",
+    "into",
+    "that",
+    "their",
+    "there",
+    "this",
+    "what",
+    "when",
+    "where",
+    "which",
+    "with",
+    "would",
 }
 
 
@@ -104,8 +118,8 @@ class IntegratedResearchPipeline:
     ) -> None:
         self.sessions = sessions
         self.assessment_provider = assessment_provider
-        self.collector = collector or PublicSourceCollector(max_pages=16, timeout=6)
-        self.news = news or GdeltNewsDiscovery()
+        self.collector = collector or PublicSourceCollector(max_pages=16, timeout=6, concurrency=4)
+        self.news = news or GdeltNewsDiscovery(timeout=8)
         self.retention_days = retention_days
         self.budget_usd = budget_usd
 
@@ -136,7 +150,7 @@ class IntegratedResearchPipeline:
             )
             if hasattr(self.news, "discover_queries"):
                 candidates = self.news.discover_queries(
-                    queries, limit_per_query=4, max_results=13
+                    queries[:2], limit_per_query=4, max_results=8
                 )
             else:
                 candidates = self.news.discover(company.display_name, limit=8)
@@ -162,7 +176,11 @@ class IntegratedResearchPipeline:
             for error in result.errors
         )
         expires_at = utc_now() + timedelta(days=self.retention_days)
+        persisted_documents: list[CollectedDocument] = []
         with self.sessions.begin() as session:
+            # Serialize repeated research for one company across worker slots, so
+            # deduplication cannot race against the unique company/content key.
+            session.execute(select(Company.id).where(Company.id == company.id).with_for_update())
             for document in result.documents:
                 stored = session.get(StoredSourceDocument, document.id)
                 if stored is None:
@@ -199,8 +217,12 @@ class IntegratedResearchPipeline:
                     stored.event_date = document.event_date
                     stored.normalized_text = document.normalized_text
                     stored.text_expires_at = expires_at
+                    document = document.model_copy(update={"id": stored.id})
+                persisted_documents.append(document)
         return StageResult(
-            data={"documents": [document.model_dump(mode="json") for document in result.documents]},
+            data={
+                "documents": [document.model_dump(mode="json") for document in persisted_documents]
+            },
             completed=len(result.documents),
             total=result.total or len(targets),
             errors=partial_errors,
