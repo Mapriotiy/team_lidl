@@ -22,8 +22,8 @@ class EvidenceStrength(StrEnum):
     def factor(self) -> float:
         return {
             EvidenceStrength.STRONG: 1.0,
-            EvidenceStrength.MODERATE: 0.6,
-            EvidenceStrength.WEAK: 0.3,
+            EvidenceStrength.MODERATE: 0.7,
+            EvidenceStrength.WEAK: 0.4,
         }[self]
 
 

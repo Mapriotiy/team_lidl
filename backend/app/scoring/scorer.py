@@ -28,7 +28,7 @@ def _freshness(
 ) -> tuple[float, str | None]:
     evidence_date = signal.event_date or signal.publication_date
     if evidence_date is None:
-        return 0.25, f"{signal.definition.id}: evidence date is unknown"
+        return 0.5, f"{signal.definition.id}: evidence date is unknown"
 
     age_days = (_as_utc(calculated_at) - _as_utc(evidence_date)).total_seconds() / 86_400
     if age_days < 0:

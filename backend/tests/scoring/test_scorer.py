@@ -154,9 +154,9 @@ def test_applies_strength_freshness_and_penalty_once_per_question() -> None:
         )
     )
 
-    assert result.positive_strength == pytest.approx(0.3)
+    assert result.positive_strength == pytest.approx(0.35)
     assert result.penalty_points == 10
-    assert result.score == pytest.approx(26)
+    assert result.score == pytest.approx(29.5)
 
 
 def test_supported_disqualifier_excludes_account() -> None:
@@ -195,7 +195,7 @@ def test_unknown_date_uses_visible_provisional_factor() -> None:
         )
     )
 
-    assert result.contributions[0].freshness == 0.25
+    assert result.contributions[0].freshness == 0.5
     assert result.warnings == ["positive: evidence date is unknown"]
 
 
