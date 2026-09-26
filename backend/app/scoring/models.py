@@ -29,7 +29,7 @@ class SignalScoringInput(ScoringModel):
 class ScoringInput(ScoringModel):
     company_id: str
     profile_version_id: str
-    calculation_version: str = "v1"
+    calculation_version: str = "v2-precision"
     icp_criteria: list[IcpCriterion] = Field(default_factory=list)
     signals: list[SignalScoringInput]
     calculated_at: datetime

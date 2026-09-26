@@ -123,11 +123,16 @@ def test_requests_strict_structured_output_and_tracks_usage() -> None:
     messages = transport.payload["messages"]
     assert isinstance(messages, list)
     system_prompt = messages[0]["content"]
-    assert "Optimize for useful lead discovery" in system_prompt
-    assert "weak for a credible directional indicator" in system_prompt
+    assert "Optimize for precision and a low false-positive rate" in system_prompt
+    assert "A missed prospect is preferable" in system_prompt
+    assert "weak evidence must not be described as buying intent" in system_prompt
     assert "services sold to clients do not establish" in system_prompt
     assert "dates, quantities, money" in system_prompt
     assert "material conflicts between sources" in system_prompt
+    assert "strongest alternative explanation" in system_prompt
+    assert "absence of proof is insufficient_evidence" in system_prompt
+    user_prompt = messages[1]["content"]
+    assert '"priority": "precision_over_recall"' in user_prompt
 
 
 def test_rejects_missing_or_duplicate_signal_results() -> None:

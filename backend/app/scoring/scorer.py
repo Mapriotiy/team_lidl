@@ -80,7 +80,7 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     exclusion_reasons: list[str] = []
     positive_numerator = 0.0
     penalty_points = 0.0
-    has_supported_evidence = False
+    has_credible_positive = False
 
     for signal in scoring_input.signals:
         assessment = signal.assessment
@@ -93,7 +93,6 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         if assessment.status != AssessmentStatus.SUPPORTED:
             continue
 
-        has_supported_evidence = True
         strength = assessment.evidence_strength
         if strength is None:
             raise ScoringConfigurationError(
@@ -120,6 +119,8 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
 
         if signal.definition.effect == SignalEffect.POSITIVE:
             positive_numerator += weighted_value
+            if strength.factor >= 0.7:
+                has_credible_positive = True
         elif signal.definition.effect == SignalEffect.PENALTY:
             penalty_points += weighted_value
         elif signal.definition.effect == SignalEffect.DISQUALIFIER:
@@ -131,9 +132,16 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         max(0.0, 100 * (0.30 * icp_fit + 0.70 * positive_strength) - penalty_points),
     )
 
+    target_mismatch = bool(decided) and not any(item.matched is True for item in decided)
+
     if exclusion_reasons:
         eligibility = Eligibility.EXCLUDED
-    elif coverage < 0.5 or not has_supported_evidence:
+    elif (
+        coverage < 0.5
+        or not has_credible_positive
+        or positive_strength < 0.35
+        or target_mismatch
+    ):
         eligibility = Eligibility.NEEDS_RESEARCH
     else:
         eligibility = Eligibility.ELIGIBLE
@@ -150,6 +158,10 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     for criterion in scoring_input.icp_criteria:
         if criterion.matched is False and criterion.reason is not None:
             warnings.append(f"{criterion.key}: {criterion.reason}")
+    if target_mismatch:
+        warnings.append("No verified company fact matches the configured target criteria")
+    if positive_numerator > 0 and not has_credible_positive:
+        warnings.append("Only weak positive evidence was found; buying intent is not established")
 
     return ScoringResult(
         company_id=scoring_input.company_id,

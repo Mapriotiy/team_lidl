@@ -106,6 +106,7 @@ def test_calculates_fixed_denominator_score_without_rounding() -> None:
     )
 
     assert result.icp_fit == 0.5
+    assert result.calculation_version == "v2-precision"
     assert result.positive_strength == 0.5
     assert result.score == 50.0
     assert result.coverage == 0.5
@@ -216,6 +217,68 @@ def test_low_coverage_is_separated_as_needs_research() -> None:
 
     assert result.coverage == pytest.approx(1 / 3)
     assert result.eligibility == Eligibility.NEEDS_RESEARCH
+
+
+def test_weak_positive_evidence_does_not_make_a_prospect_eligible() -> None:
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition("directional"),
+                    assessment=assessment("directional", strength=EvidenceStrength.WEAK),
+                    event_date=NOW,
+                )
+            ]
+        )
+    )
+
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
+    assert result.warnings[-1] == (
+        "Only weak positive evidence was found; buying intent is not established"
+    )
+
+
+def test_negative_evidence_alone_does_not_make_a_prospect_eligible() -> None:
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition(
+                        "internal-capability", effect=SignalEffect.PENALTY
+                    ),
+                    assessment=assessment("internal-capability"),
+                    event_date=NOW,
+                ),
+                SignalScoringInput(definition=definition("positive")),
+            ]
+        )
+    )
+
+    assert result.coverage == 0.5
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
+
+
+def test_verified_target_mismatch_does_not_make_a_prospect_eligible() -> None:
+    result = calculate_score(
+        ScoringInput(
+            company_id="company-1",
+            profile_version_id="profile-v1",
+            icp_criteria=[IcpCriterion(key="geography", matched=False)],
+            signals=[
+                SignalScoringInput(
+                    definition=definition("positive"),
+                    assessment=assessment("positive"),
+                    event_date=NOW,
+                )
+            ],
+            calculated_at=NOW,
+        )
+    )
+
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
+    assert result.warnings[-1] == (
+        "No verified company fact matches the configured target criteria"
+    )
 
 
 def test_rejects_profiles_without_positive_weight() -> None:
