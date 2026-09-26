@@ -127,7 +127,7 @@ function EmptyState() {
 }
 
 export function OpportunityWorkspace() {
-  const [view, setView] = useState<'opportunities' | 'companies' | 'company' | 'activity' | 'profiles' | 'discovery'>('opportunities')
+  const [view, setView] = useState<'opportunities' | 'companies' | 'company' | 'activity' | 'profiles' | 'discovery'>('profiles')
   const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
@@ -186,58 +186,52 @@ export function OpportunityWorkspace() {
   )
 
   return (
-    <div className="min-h-screen bg-[#080d17] text-slate-100">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-800/80 bg-[#0b111e] lg:flex lg:flex-col">
-        <div className="flex h-20 items-center gap-3 border-b border-slate-800/80 px-6">
-          <div className="grid size-9 place-items-center rounded-xl bg-cyan-300 font-black text-slate-950">L</div>
+    <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[#DED9D1] bg-[#FBFAF7] lg:flex lg:flex-col">
+        <div className="flex h-20 items-center gap-3 border-b border-[#E4E0D9] px-6">
+          <div className="grid size-9 place-items-center rounded-lg bg-[#E86722] font-black text-white">L</div>
           <div>
-            <p className="font-semibold tracking-tight text-white">SignalDesk</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Team LIDL</p>
+            <p className="font-semibold tracking-tight text-[#20242A]">SignalDesk</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#827C74]">Team LIDL</p>
           </div>
         </div>
 
         <nav aria-label="Primary" className="flex-1 space-y-1 px-3 py-6">
           {([
+            ['profiles', 'Service Profile'],
+            ['discovery', 'Discover companies'],
+            ['activity', 'Research activity'],
             ['opportunities', 'Opportunities'],
             ['companies', 'Companies'],
-            ['activity', 'Research activity'],
-            ['profiles', 'Service profiles'],
-            ['discovery', 'Discover companies'],
           ] as const).map(([id, label]) => (
             <button
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
                 view === id
-                  ? 'bg-cyan-300/10 text-cyan-200'
-                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
+                  ? 'bg-[#FFF1E8] text-[#A64212]'
+                  : 'text-[#68645F] hover:bg-[#F0EDE8] hover:text-[#20242A]'
               }`}
               key={id}
               onClick={() => setView(id)}
               type="button"
             >
-              <span className={`size-1.5 rounded-full ${view === id ? 'bg-cyan-300' : 'bg-slate-600'}`} />
+              <span className={`size-1.5 rounded-full ${view === id ? 'bg-[#E86722]' : 'bg-[#B9B2A9]'}`} />
               {label}
             </button>
           ))}
         </nav>
 
-        <div className="m-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p className="text-xs font-semibold text-slate-300">Research capacity</p>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
-            <div className="h-full w-[36%] rounded-full bg-cyan-300" />
-          </div>
-          <p className="mt-2 text-xs text-slate-500">18 of 50 accounts this batch</p>
-        </div>
+        <p className="m-5 text-xs leading-5 text-[#89837B]">Research uses saved profile criteria and public evidence.</p>
       </aside>
 
       <main className="lg:pl-64">
-        <header className="border-b border-slate-800/80 bg-[#080d17]/90 px-5 py-5 backdrop-blur sm:px-8 lg:px-10">
+        <header className="border-b border-[#E1DDD6] bg-[#F7F6F3]/95 px-5 py-5 backdrop-blur sm:px-8 lg:px-10">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Sales intelligence</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Configuration'}</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#C65318]">Sales intelligence</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#20242A]">{view === 'opportunities' ? 'Opportunities' : view === 'companies' ? 'Companies' : view === 'company' ? 'Company evidence' : view === 'activity' ? 'Research activity' : view === 'discovery' ? 'Company sourcing' : 'Service Profile'}</h1>
             </div>
             <button
-              className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
+              className="rounded-lg bg-[#E86722] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#C94F12] focus:outline-none focus:ring-2 focus:ring-[#E86722]/30"
               onClick={() => setView('discovery')}
               type="button"
             >
