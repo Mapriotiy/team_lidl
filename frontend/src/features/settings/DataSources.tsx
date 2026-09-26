@@ -1,0 +1,31 @@
+import { useState } from 'react'
+import type { DataSourcesSnapshot } from '../../api/dataSources'
+
+interface Props { snapshot: DataSourcesSnapshot | null; loading: boolean; error: string; refresh: () => void; limit: number; setLimit: (limit: number) => void }
+const date = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+const providerName = (id: string) => ({ gdelt: 'GDELT', newsapi: 'NewsAPI', websites: 'Websites' })[id] ?? id
+
+export function DataSources({ snapshot, loading, error, refresh, limit, setLimit }: Props) {
+  const [onlyProblems, setOnlyProblems] = useState(false)
+  const [provider, setProvider] = useState('all')
+  const [query, setQuery] = useState('')
+  const rows = snapshot?.crawl_log ?? []
+  const shown = rows.filter((row) => (!onlyProblems || row.status === 'error') && (provider === 'all' || row.provider === provider) && `${row.company_name} ${row.target} ${row.run_id}`.toLowerCase().includes(query.toLowerCase()))
+  const attempts = rows.filter((row) => row.status !== 'skipped')
+  const succeeded = attempts.filter((row) => row.status === 'ok').length
+  const rate = attempts.length ? Math.round(succeeded / attempts.length * 100) : null
+  return <div className="settings-stack">
+    <div className="settings-heading-row"><div><h2>Data sources</h2><p>Where evidence comes from, what succeeded, and what needs attention.</p></div><button className="settings-button" disabled={loading} onClick={refresh}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+    {error && <div role="alert" className="settings-notice error">Could not load source health. {error} {snapshot && 'Showing the last loaded snapshot.'}</div>}
+    {loading && !snapshot && !error && <p role="status" className="settings-empty">Reading source health and crawl log…</p>}
+    {snapshot && <div className="sources-overview"><div className="settings-stack">{snapshot.sources.map((source) => <section className="settings-card source-card" key={source.id}>
+      <div className="settings-heading-row"><div className="source-heading"><span className="source-symbol" aria-hidden="true">{source.id === 'websites' ? '◎' : '▤'}</span><div><h3>{source.name}</h3><p>{source.description}</p></div></div><span className={`settings-badge ${!source.configured ? '' : source.failed ? 'warning' : source.attempts ? 'positive' : ''}`}>{!source.configured ? 'Not configured' : source.failed ? `${source.failed} failed` : source.attempts ? 'Collecting' : 'Ready'}</span></div>
+      <div className="source-stats"><span><strong>{source.attempts}</strong> recorded attempts</span><span><strong>{source.succeeded}</strong> succeeded</span><span><strong>{source.failed}</strong> failed</span></div><p className="settings-small">{source.last_attempt_at ? `Last attempt ${date(source.last_attempt_at)}` : 'No recorded attempts yet'}</p>
+    </section>)}</div><aside className="settings-card source-health"><span className="settings-eyebrow">Sync health</span><h3>Collection outcomes</h3><p>In the latest {rows.length} recorded log entries.</p><div className="health-number">{rate === null ? '—' : `${rate}%`}</div><p>{attempts.length ? `${succeeded} of ${attempts.length} attempts succeeded` : 'No recorded attempts yet'}</p><div className="health-meter" aria-hidden="true"><span style={{ width: `${rate ?? 0}%` }} /></div><div className="health-strip" aria-label="Recent recorded collection outcomes">{[...rows].reverse().slice(-36).map((row) => <span title={`${providerName(row.provider)}: ${row.status}`} className={row.status} key={row.id} />)}</div><p className="settings-small">Skipped sources are excluded from the success rate. News discovery and website retrieval are separate attempts.</p></aside></div>}
+    <section className="settings-card crawl-card"><div className="settings-heading-row"><div><h3>Crawl log</h3><p>Provider results and website retrieval outcomes, including failures.</p></div><label className="settings-inline-label">Show<select aria-label="Log size" value={limit} onChange={(event) => setLimit(Number(event.target.value))}>{[50, 100, 250].map((n) => <option value={n} key={n}>Last {n}</option>)}</select></label></div>
+      <div className="crawl-filters"><input aria-label="Search crawl log" placeholder="Filter company, URL or run…" value={query} onChange={(event) => setQuery(event.target.value)} /><select aria-label="Filter source" value={provider} onChange={(event) => setProvider(event.target.value)}><option value="all">All sources</option>{snapshot?.sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select><label className="settings-inline-label"><input type="checkbox" checked={onlyProblems} onChange={(event) => setOnlyProblems(event.target.checked)} /> Only problems</label></div>
+      <p className="settings-small">Logs appear after a collection stage completes. Earlier runs without telemetry are not reconstructed. Refreshes every 15 seconds.</p>
+      {!snapshot ? <p className="settings-empty">{error ? 'Crawl log unavailable.' : 'Loading crawl log…'}</p> : shown.length === 0 ? <div className="settings-empty"><strong>{rows.length ? 'No matching attempts' : 'No crawl attempts recorded yet'}</strong><p>{rows.length ? 'Adjust your filters to see other attempts.' : 'Start research from Discover companies. Completed collection attempts will appear here.'}</p></div> : <div className="crawl-table-wrap"><table className="crawl-table"><caption className="sr-only">Recent crawl attempts</caption><thead><tr>{['When / run', 'Source / company', 'Target', 'Status', 'Docs', 'Detail'].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{shown.map((row) => <tr key={row.id}><td><time dateTime={row.at}>{date(row.at)}</time><small title={row.run_id}>{row.run_id.slice(0, 8)}</small></td><td><strong>{providerName(row.provider)}</strong><small>{row.company_name}</small></td><td className="crawl-target">{row.target || '—'}</td><td><span className={`settings-badge ${row.status === 'ok' ? 'positive' : row.status === 'error' ? 'negative' : ''}`}>{row.status}</span></td><td>{row.documents ?? '—'}</td><td className="crawl-detail">{row.detail}</td></tr>)}</tbody></table></div>}
+    </section>
+  </div>
+}
