@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 
 import { errorMessage } from '../../api/errors'
 import { discoverOutreachContact, generateOutreachDrafts, type DraftChannel, type OutreachContact, type OutreachDraftBundle } from '../../api/outreach'
-import { gmailComposeUrl, isEmailAddress } from './gmail'
+import { ensureLetterParagraphs, gmailComposeUrl, isEmailAddress } from './gmail'
 
 const labels: Record<DraftChannel, string> = { email: 'Email', linkedin_inmail: 'LinkedIn InMail', connection_note: 'Connection note', call_brief: 'Call brief' }
 
@@ -30,7 +30,12 @@ export function OutreachDrafts({ companyId }: { companyId: string }) {
     try {
       const drafts = await generateOutreachDrafts(companyId, recipientRole, channels)
       const foundContact = await discoverOutreachContact(companyId).catch(() => null)
-      setBundle(drafts); setContact(foundContact)
+      setBundle({
+        ...drafts,
+        drafts: drafts.drafts.map((draft) => draft.channel === 'email'
+          ? { ...draft, body: ensureLetterParagraphs(draft.body) }
+          : draft),
+      }); setContact(foundContact)
       if (foundContact) {
         setRecipientEmail(foundContact.email)
         setRecipientName(foundContact.name ?? '')
