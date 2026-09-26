@@ -34,7 +34,8 @@ Settings never makes provider requests or changes configuration.
       "status": "error",
       "detail": "GDELT search failed; continuing with other sources",
       "at": "2026-09-26T10:00:00Z",
-      "documents": null
+      "documents": null,
+      "provenance": "crawl_log"
     }
   ],
   "runtime": {
@@ -50,7 +51,9 @@ Settings never makes provider requests or changes configuration.
 
 - Sources always include `gdelt`, `newsapi`, `websites`. These same IDs appear in
   `crawl_log.provider`. Status is `ok`, `error`, or `skipped`.
-- Events are newest first. Times reflect actual collection outcomes, not the API read.
+- Events are newest first. Times reflect actual collection outcomes or stored-source
+  retrieval timestamps, not the API read. `provenance` is `crawl_log` for recorded collector
+  events and `stored_source` for historical activity derived from a saved source row.
 - Counts summarize the returned log window, not all historical runs. `attempts` counts
   non-skipped events, including followed redirects. `succeeded`/`failed` count ok/error.
   Last attempt excludes skipped events and is null when no attempt appears in the window.
@@ -82,10 +85,21 @@ The company research deletion endpoint removes these logs with the owning run.
 Logs become visible **after collection completes and its checkpoint commits**, not while
 individual requests are running. Collection interrupted before that checkpoint creates no
 persisted log. Retries that reuse the checkpoint do not invent repeated collection events.
-Older research runs have no telemetry and produce no inferred/fabricated crawl history.
-The endpoint reads only the JSON log projection, never normalized source documents, and
+Older research runs have no full crawl trace. When a terminal run has persisted source
+rows but no `crawl_log` key, the endpoint derives clearly labeled `stored_source` events
+from their IDs, URLs and `retrieved_at` timestamps. These prove that a source was collected;
+they do not reconstruct provider calls, failed attempts, redirects, or prior retrievals
+overwritten by deduplication. The stable ID is `stored-source:<source_id>`. A saved empty
+`crawl_log` suppresses derivation, as does an in-flight run. This is a read-only projection:
+repeated GETs never write synthetic telemetry, and deletion removes the source activity
+alongside the original research. Expired normalized text does not erase source provenance.
+The endpoint reads only the JSON log projection and source metadata, never normalized
+source documents, and
 bounds work to the latest 250 runs (ordered by queue time) that contain telemetry. It then
-returns the newest requested events within that run window. No migration/backfill.
+also reads at most `limit` historical source rows ordered by retrieval time. It merges
+these with telemetry and returns the newest requested events within those windows.
+Summary counts include the displayed historical source successes, whose explicit
+provenance distinguishes them from instrumented attempts. No migration/backfill.
 
 ## Validation
 
@@ -105,3 +119,11 @@ Validated: full backend suite 170 passed, 9 skipped (optional browser/PostgreSQL
 `mypy app tests` passed; ruff passed for changed files. Existing unused imports in
 `app/worker.py` are outside this change. Focused telemetry tests also verify assessment
 checkpoint preservation and rejection of stale lease tokens.
+
+## Historical activity follow-up validation
+
+Tests cover stable IDs across repeated reads, no database mutation, sanitized URLs,
+correct recorded retrieval times, no invented news-provider attribution, expired-text
+metadata, historical window bounds, removal with research, and suppression when a real
+(including empty) crawl log exists. In-flight collection remains hidden until its existing
+checkpoint is committed.

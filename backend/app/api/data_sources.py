@@ -1,10 +1,13 @@
 """Diagnostics from committed collection checkpoints, with no provider calls."""
 
+from datetime import UTC
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.collection.observability import safe_target
 from app.config import Settings, get_settings
 from app.contracts.data_sources import (
     CrawlLogEntry,
@@ -13,7 +16,8 @@ from app.contracts.data_sources import (
     SourceRuntime,
 )
 from app.db import get_session
-from app.models.research import ResearchRun
+from app.models.research import Company, ResearchRun
+from app.models.results import StoredSourceDocument
 
 router = APIRouter(tags=["data-sources"])
 
@@ -42,6 +46,47 @@ def get_data_sources(
                 entries.append(CrawlLogEntry.model_validate(item))
             except ValidationError:
                 continue  # Ignore incompatible historical metadata; never invent records.
+    # Legacy source rows prove that text was collected, but do not prove which
+    # news provider found the URL, nor previous failed attempts or redirect chains.
+    # Derive read-only activity with explicit provenance; do not backfill run logs.
+    # Exclude in-flight runs so a newly saved page is not mistaken for old history
+    # before the collector's lease-fenced checkpoint has committed.
+    historical = session.execute(
+        select(
+            StoredSourceDocument.id,
+            StoredSourceDocument.research_run_id,
+            StoredSourceDocument.company_id,
+            Company.display_name,
+            StoredSourceDocument.canonical_url,
+            StoredSourceDocument.retrieved_at,
+        )
+        .join(ResearchRun, ResearchRun.id == StoredSourceDocument.research_run_id)
+        .join(Company, Company.id == StoredSourceDocument.company_id)
+        .where(
+            saved_log.as_string().is_(None),
+            ResearchRun.status.in_(("completed", "partial", "failed")),
+        )
+        .order_by(StoredSourceDocument.retrieved_at.desc(), StoredSourceDocument.id.desc())
+        .limit(limit)
+    )
+    for source_id, run_id, company_id, company_name, url, retrieved_at in historical:
+        # PostgreSQL preserves timezone information; SQLite test databases do not.
+        at = retrieved_at if retrieved_at.tzinfo else retrieved_at.replace(tzinfo=UTC)
+        entries.append(
+            CrawlLogEntry(
+                id=f"stored-source:{source_id}",
+                run_id=run_id,
+                company_id=company_id,
+                company_name=company_name,
+                provider="websites",
+                target=safe_target(url),
+                status="ok",
+                detail="Historical stored source; original crawl trace unavailable",
+                at=at,
+                documents=1,
+                provenance="stored_source",
+            )
+        )
     entries.sort(key=lambda entry: (entry.at, entry.id), reverse=True)
     newsapi_configured = bool(settings.newsapi_key) or any(
         entry.provider == "newsapi" and entry.status != "skipped" for entry in entries

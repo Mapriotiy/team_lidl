@@ -242,3 +242,121 @@ def test_newsapi_configuration_is_inferred_from_persisted_worker_attempts() -> N
     assert body["runtime"]["newsapi_configured"] is True
     newsapi = next(source for source in body["sources"] if source["id"] == "newsapi")
     assert newsapi["enabled"] is True
+
+
+def test_historical_source_activity_is_safe_stable_and_not_an_inferred_provider_attempt() -> None:
+    from app.models.results import StoredSourceDocument
+
+    client = TestClient(app)
+    company_id, run_id = make_run(client)
+    retrieved = utc_now() - timedelta(days=7)
+    with TestingSession.begin() as session:
+        run = session.get_one(ResearchRun, run_id)
+        run.status = "completed"
+        # Older checkpoints may simply mark the stage complete.
+        run.stage_results = {"collection": "completed", "assessment": "completed"}
+        session.add(
+            StoredSourceDocument(
+                id="legacy-source",
+                research_run_id=run_id,
+                company_id=company_id,
+                canonical_url="https://user:password@example.com/news?apiKey=SECRET#hidden",
+                source_type="news",
+                title="A stored article",
+                retrieved_at=retrieved,
+                content_hash="legacy-hash",
+                normalized_text="PRIVATE_FULL_TEXT",
+                text_expires_at=retrieved + timedelta(days=30),
+            )
+        )
+    response = client.get("/data-sources")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["crawl_log"]) == 1
+    event = body["crawl_log"][0]
+    assert event["id"] == "stored-source:legacy-source"
+    assert event["provenance"] == "stored_source"
+    assert event["provider"] == "websites"
+    assert event["target"] == "https://example.com/news"
+    assert event["documents"] == 1
+    assert event["status"] == "ok"
+    assert event["company_id"] == company_id
+    assert event["run_id"] == run_id
+    assert "Historical stored source" in event["detail"]
+    assert "original crawl trace unavailable" in event["detail"]
+    assert event["at"].replace("Z", "+00:00") == retrieved.isoformat()
+    for private in ("SECRET", "password", "PRIVATE_FULL_TEXT", "hidden"):
+        assert private not in response.text
+    assert next(s for s in body["sources"] if s["id"] == "websites")["succeeded"] == 1
+    assert next(s for s in body["sources"] if s["id"] == "gdelt")["attempts"] == 0
+    assert next(s for s in body["sources"] if s["id"] == "newsapi")["attempts"] == 0
+    assert client.get("/data-sources").json()["crawl_log"] == body["crawl_log"]
+    with TestingSession() as session:
+        assert session.get_one(ResearchRun, run_id).stage_results == {
+            "collection": "completed",
+            "assessment": "completed",
+        }
+        assert session.get_one(StoredSourceDocument, "legacy-source").normalized_text == (
+            "PRIVATE_FULL_TEXT"
+        )
+    assert client.delete(f"/companies/{company_id}/research").status_code == 200
+    assert client.get("/data-sources").json()["crawl_log"] == []
+
+
+def test_historical_sources_are_bounded_sorted_and_excluded_when_real_telemetry_exists() -> None:
+    from app.models.results import StoredSourceDocument
+
+    client = TestClient(app)
+    company_id, run_id = make_run(client)
+    now = utc_now()
+    with TestingSession.begin() as session:
+        run = session.get_one(ResearchRun, run_id)
+        run.status = "partial"
+        session.add_all(
+            [
+                StoredSourceDocument(
+                    id=f"legacy-{i}",
+                    research_run_id=run_id,
+                    company_id=company_id,
+                    canonical_url=f"https://example.com/news/{i}",
+                    source_type="company",
+                    title="Article",
+                    retrieved_at=now - timedelta(days=i),
+                    content_hash=f"legacy-hash-{i}",
+                    normalized_text=None,
+                    text_expires_at=now - timedelta(days=1),
+                )
+                for i in range(3)
+            ]
+        )
+    assert [e["id"] for e in client.get("/data-sources?limit=2").json()["crawl_log"]] == [
+        "stored-source:legacy-0",
+        "stored-source:legacy-1",
+    ]
+    with TestingSession.begin() as session:
+        run = session.get_one(ResearchRun, run_id)
+        run.stage_results = {
+            "collection": {
+                "crawl_log": [
+                    {
+                        "id": "real-event",
+                        "run_id": run_id,
+                        "company_id": company_id,
+                        "company_name": "Example",
+                        "provider": "websites",
+                        "target": "https://example.com/news/0",
+                        "status": "ok",
+                        "detail": "Public page collected",
+                        "at": now.isoformat(),
+                        "documents": 1,
+                    }
+                ]
+            }
+        }
+    body = client.get("/data-sources").json()
+    assert [e["id"] for e in body["crawl_log"]] == ["real-event"]
+    assert body["crawl_log"][0]["provenance"] == "crawl_log"
+    with TestingSession.begin() as session:
+        run = session.get_one(ResearchRun, run_id)
+        run.stage_results = {"collection": {"crawl_log": []}}
+    assert client.get("/data-sources").json()["crawl_log"] == []

@@ -17,6 +17,7 @@ class CrawlLogEntry(BaseModel):
     detail: str
     at: datetime
     documents: int | None = Field(default=None, ge=0)
+    provenance: Literal["crawl_log", "stored_source"] = "crawl_log"
 
 
 class DataSourceSummary(BaseModel):
