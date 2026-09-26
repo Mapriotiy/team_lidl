@@ -9,7 +9,13 @@ from app.db import get_session
 from app.models.profile import ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import StoredEvidence, StoredSignalAssessment, StoredSourceDocument
-from app.outreach import DraftRequest, OutreachDraftBundle, OutreachEvidence, generate_fallback
+from app.outreach import (
+    CURATED_EMAIL_DOMAINS,
+    DraftRequest,
+    OutreachDraftBundle,
+    OutreachEvidence,
+    generate_fallback,
+)
 from app.outreach.contacts import find_contacts
 from app.outreach.openrouter import OpenRouterOutreachProvider
 
@@ -107,12 +113,17 @@ def generate_outreach_drafts(
     bundle = generate_fallback(
         company_id=company.id,
         company_name=company.display_name,
+        company_domain=company.canonical_domain,
         service_description=service_description,
         request=payload,
         evidence=evidence,
     )
     settings = get_settings()
-    if settings.openrouter_api_key and settings.assessment_model:
+    if (
+        company.canonical_domain.casefold() not in CURATED_EMAIL_DOMAINS
+        and settings.openrouter_api_key
+        and settings.assessment_model
+    ):
         try:
             drafts = OpenRouterOutreachProvider(
                 api_key=settings.openrouter_api_key,
