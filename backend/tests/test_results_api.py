@@ -175,6 +175,57 @@ def test_company_detail_exposes_excerpt_but_not_private_source_text() -> None:
     assert body["scores"][0]["score"] == 82
 
 
+def test_company_detail_returns_assessments_from_latest_scored_run_only() -> None:
+    company_id, _ = seed_result()
+    with TestingSession.begin() as session:
+        company = session.get(Company, company_id)
+        latest = session.query(StoredScoreSnapshot).one()
+        profile = session.get(ServiceProfileVersion, latest.profile_version_id)
+        assert company is not None and profile is not None
+        newer_run = ResearchRun(
+            company_id=company.id,
+            profile_version_id=profile.id,
+            idempotency_key="newer-result-test",
+            status="completed",
+            progress=[],
+            partial_errors=[],
+            usage={},
+        )
+        session.add(newer_run)
+        session.flush()
+        newer_assessment = StoredSignalAssessment(
+            research_run_id=newer_run.id,
+            company_id=company.id,
+            profile_version_id=profile.id,
+            signal_id="latest-signal",
+            status="insufficient_evidence",
+            evidence_strength=None,
+            evidence_ids=[],
+            rationale="Latest run only.",
+            model_version="test-model",
+            prompt_version="v1",
+        )
+        newer_snapshot = StoredScoreSnapshot(
+            research_run_id=newer_run.id,
+            company_id=company.id,
+            profile_version_id=profile.id,
+            calculation_version="v1",
+            score=0,
+            eligibility="needs_research",
+            coverage=1,
+            icp_fit=0,
+            positive_strength=0,
+            penalty_points=0,
+            contributions=[],
+            exclusion_reasons=[],
+            warnings=[],
+        )
+        session.add_all([newer_assessment, newer_snapshot])
+
+    body = TestClient(app).get(f"/companies/{company_id}").json()
+    assert [item["signal_id"] for item in body["assessments"]] == ["latest-signal"]
+
+
 def test_csv_neutralizes_formula_prefixes() -> None:
     seed_result(company_name="=HYPERLINK('bad')")
     response = TestClient(app).get("/exports/opportunities.csv")
