@@ -130,8 +130,34 @@ def test_rejects_invalid_country_codes() -> None:
         DiscoveryRequest(country_codes=["Eastern Europe"])
 
 
+def test_unrestricted_geography_keeps_missing_employee_counts() -> None:
+    company = binding(entity_id="Q1", website="https://unknown.example", employees="0")
+    del company["employees"]
+    transport = FakeTransport({"results": {"bindings": [company]}})
+    candidates = WikidataDiscovery(transport, FakeLabels()).discover(
+        DiscoveryRequest(country_codes=[], include_unknown_size=True)
+    )
+    assert len(candidates) == 1
+    assert candidates[0].employee_count is None
+    assert "VALUES ?countryCode" not in transport.params["query"]
+    assert "OPTIONAL { ?company wdt:P1128 ?employees. }" in transport.params["query"]
+    assert "!BOUND(?employees)" in transport.params["query"]
+
+
 def test_rejects_invalid_provider_response() -> None:
     with pytest.raises(WikidataError, match="no bindings"):
         WikidataDiscovery(FakeTransport({"results": {}}), FakeLabels()).discover(
             DiscoveryRequest()
         )
+
+
+def test_filters_multiple_profile_industries_but_keeps_unknowns() -> None:
+    known = binding(entity_id="Q1", website="https://known.example", employees="2500")
+    unknown = binding(entity_id="Q2", website="https://unknown.example", employees="2500")
+    del unknown["industry"]
+    transport = FakeTransport({"results": {"bindings": [known, unknown]}})
+    provider = WikidataDiscovery(transport, FakeLabels())
+    assert len(provider.discover(DiscoveryRequest(industries=["Logistics", "Manufacturing"]))) == 2
+    assert [item.domain for item in provider.discover(
+        DiscoveryRequest(industries=["Software"])
+    )] == ["unknown.example"]

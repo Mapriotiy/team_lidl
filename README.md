@@ -6,6 +6,28 @@ B2B sales intelligence for prioritizing companies across process automation, cyb
 
 48-hour hackathon, five contributors. The initial application scaffold includes a React frontend, FastAPI service, PostgreSQL database, and separate worker process. Product features are divided into parallel workstreams so each contributor can deliver an independently reviewable part of the complete flow.
 
+## Company discovery
+
+Discover companies searches automatically using the first saved Service Profile, matching
+the single-profile editor. Results and selections are retained in the browser tab for that
+profile version; saving a new version starts a new search. Refresh replaces the result set.
+The table displays 25 rows at a time from a bounded pool of up to 50 sourced companies.
+Search and filters operate on that pool. Multiple profile industries are matched against
+source labels; unknown industries remain available for review. Industry fit and reported size determine the
+display order; public buying signals and disqualifiers require the research step.
+
+Geographies accept country names, ISO codes, and supported regions (Europe, Eastern
+Europe, Central and Eastern Europe, Western Europe, North America). Empty geography means
+unrestricted sourcing (`country_codes: []`); unsupported geography prompts a profile edit.
+Recognizable employee minimums are used for sourcing. Free-text size preferences remain
+visible for review, and missing employee counts are retained. Source coverage is incomplete;
+discovery does not verify employee counts or establish sales qualification.
+
+Select up to ten companies and choose Research selected to confirm and queue them against
+the saved profile version. Retries reuse submission keys so accepted requests are not
+duplicated; failed submissions stay selected. Research activity shows progress. Manual
+website addition remains a secondary action and adds the record to Companies.
+
 ## Local setup
 
 Copy `.env.example` to `.env`, then start the development stack:

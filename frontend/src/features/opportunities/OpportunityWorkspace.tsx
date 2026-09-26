@@ -4,8 +4,7 @@ import { CompanyWorkspace } from '../companies/CompanyWorkspace'
 import { CompanyListWorkspace } from '../companies/CompanyListWorkspace'
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
-import { DiscoveryWorkspace, type ConfirmedCompany } from '../discovery/DiscoveryWorkspace'
-import { ResearchLauncher } from '../activity/ResearchLauncher'
+import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
 import { listProfiles } from '../../api/profiles'
 import { downloadOpportunities } from '../../api/exports'
 import { serviceOptions } from './fixtures'
@@ -128,7 +127,6 @@ function EmptyState() {
 
 export function OpportunityWorkspace() {
   const [view, setView] = useState<'opportunities' | 'companies' | 'company' | 'activity' | 'profiles' | 'discovery'>('profiles')
-  const [confirmedCompanies, setConfirmedCompanies] = useState<ConfirmedCompany[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState('company-lufthansa')
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
   const testMode = import.meta.env.MODE === 'test'
@@ -224,6 +222,9 @@ export function OpportunityWorkspace() {
       </aside>
 
       <main className="lg:pl-64">
+        <nav aria-label="Mobile navigation" className="flex gap-2 overflow-x-auto border-b border-[#DED9D1] bg-white p-3 lg:hidden">
+          <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view === 'company' ? 'companies' : view} onChange={(event) => setView(event.target.value as typeof view)}>{(['profiles', 'discovery', 'activity', 'opportunities', 'companies'] as const).map((id) => <option key={id} value={id}>{id === 'profiles' ? 'Service Profile' : id === 'discovery' ? 'Discover companies' : id === 'activity' ? 'Research activity' : id === 'opportunities' ? 'Opportunities' : 'Companies'}</option>)}</select>
+        </nav>
         <header className="border-b border-[#E1DDD6] bg-[#F7F6F3]/95 px-5 py-5 backdrop-blur sm:px-8 lg:px-10">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
@@ -237,7 +238,7 @@ export function OpportunityWorkspace() {
         {view === 'companies' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><CompanyListWorkspace onOpen={(companyId) => { setSelectedCompanyId(companyId); setSelectedOpportunity(null); setView('company') }} /></div>}
         {view === 'activity' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ResearchActivityWorkspace /></div>}
         {view === 'profiles' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><ProfileWorkspace /></div>}
-        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onConfirmed={setConfirmedCompanies} /><ResearchLauncher companies={confirmedCompanies} onOpenCompany={(companyId) => { setSelectedCompanyId(companyId); setSelectedOpportunity(null); setView('company') }} /></div>}
+        {view === 'discovery' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10"><DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} /></div>}
         {view === 'opportunities' && <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           <section aria-labelledby="service-heading" className="mt-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

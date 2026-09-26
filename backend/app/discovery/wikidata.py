@@ -88,18 +88,27 @@ class WikidataLabelResolver:
 def _sparql(request: DiscoveryRequest) -> str:
     country_values = " ".join(f'"{code}"' for code in request.country_codes)
     fetch_limit = min(request.limit * 4, 200)
+    countries = f"VALUES ?countryCode {{ {country_values} }}" if country_values else ""
+    employees = (
+        "OPTIONAL { ?company wdt:P1128 ?employees. }"
+        if request.include_unknown_size else "?company wdt:P1128 ?employees."
+    )
+    employee_filter = (
+        f"!BOUND(?employees) || ?employees >= {request.minimum_employees}"
+        if request.include_unknown_size else f"?employees >= {request.minimum_employees}"
+    )
     return f"""
 PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees WHERE {{
   ?company wdt:P31/wdt:P279* wd:Q783794;
            wdt:P17 ?country;
-           wdt:P856 ?website;
-           wdt:P1128 ?employees.
+           wdt:P856 ?website.
+  {employees}
   ?country wdt:P297 ?countryCode.
-  VALUES ?countryCode {{ {country_values} }}
+  {countries}
   OPTIONAL {{ ?company wdt:P452 ?industry. }}
-  FILTER(?employees >= {request.minimum_employees})
+  FILTER({employee_filter})
   FILTER NOT EXISTS {{
     VALUES ?excludedType {{
       wd:Q327333 wd:Q192350 wd:Q732717 wd:Q8473 wd:Q163740 wd:Q708676
@@ -217,6 +226,10 @@ class WikidataDiscovery:
                 continue
 
             industry = labels.get(_entity_id(_value(binding, "industry")) or "")
+            if request.industries and industry and not any(
+                term.casefold() in industry.casefold() for term in request.industries
+            ):
+                continue
             if request.industry and (
                 industry is None or request.industry.casefold() not in industry.casefold()
             ):
