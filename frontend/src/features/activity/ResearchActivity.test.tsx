@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { ResearchActivityWorkspace } from './ResearchActivity'
@@ -47,7 +47,10 @@ test('opens company research and links facts to original excerpts', async () => 
   const source = screen.getByRole('link', { name: /Open original: Lufthansa Group outlines efficiency programme/ })
   expect(source).toHaveAttribute('href', 'https://example.com/lufthansa/efficiency')
   expect(screen.getByText(/The Group announced a two-year operational-efficiency programme/)).toBeInTheDocument()
-  expect(screen.getByText(/No verified public fact currently supports or contradicts this signal/)).toBeInTheDocument()
+  expect(screen.queryByText('Is an exclusive incumbent partner confirmed?')).not.toBeInTheDocument()
+  const summary = screen.getByRole('region', { name: 'Research summary' })
+  expect(within(summary).getByText('2')).toBeInTheDocument()
+  expect(within(summary).getByText('Signals with facts')).toBeInTheDocument()
 
   const sourceInventory = screen.getByText('Collected sources').closest('details')
   expect(sourceInventory).not.toHaveAttribute('open')
@@ -55,8 +58,9 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(sourceInventory).toHaveAttribute('open')
   expect(screen.getByText('3 public documents · 1 company · 1 careers · 1 report')).toBeInTheDocument()
 
+  expect(screen.queryByRole('heading', { name: 'Research history and diagnostics' })).not.toBeInTheDocument()
   const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
-  expect(headings.indexOf('Collected sources')).toBeGreaterThan(headings.indexOf('Research history and diagnostics'))
+  expect(headings.indexOf('Collected sources')).toBeGreaterThan(headings.indexOf('Signals and supporting facts'))
 })
 
 test('allows all saved research for a company to be deleted', async () => {
