@@ -1,0 +1,81 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { listCompanies } from '../api/research'
+import { TopBar, type TopBarProps } from './TopBar'
+vi.mock('../api/research', () => ({ listCompanies: vi.fn() }))
+const props = (): TopBarProps => ({
+  viewLabel: 'Research', screens: [{ id: 'profile', label: 'Service Profile' }, { id: 'discovery', label: 'Discover companies', disabled: true }, { id: 'settings', label: 'Settings' }],
+  onNavigate: vi.fn(), onOpenCompany: vi.fn(), onOpenSources: vi.fn(), appearance: 'light', setAppearance: vi.fn(), notifications: { loading: false, failures: [], entryCount: 0 },
+})
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(listCompanies).mockResolvedValue([]) })
+describe('TopBar', () => {
+  it('opens by shortcut, skips locked screens and navigates by keyboard', async () => {
+    const callbacks = props()
+    render(<TopBar {...callbacks} />)
+    expect(listCompanies).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    const input = screen.getByRole('combobox', { name: 'Search companies or screens' })
+    await waitFor(() => expect(input).toHaveFocus())
+    expect(screen.getByRole('option', { name: /Discover companies/ })).toBeDisabled()
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(callbacks.onNavigate).toHaveBeenCalledWith('settings')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Search companies and screens' })).toHaveFocus()
+  })
+  it('searches persisted companies by domain and opens the chosen company', async () => {
+    vi.mocked(listCompanies).mockResolvedValue([{ id: 'company-42', canonical_domain: 'example.com', display_name: 'Example Ltd', aliases: [], industry: null, geography: null, company_size: null, operational_complexity: null }])
+    const callbacks = props()
+    render(<TopBar {...callbacks} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    await screen.findByRole('option', { name: 'Example Ltd example.com' })
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'example.com' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(callbacks.onOpenCompany).toHaveBeenCalledWith('company-42')
+    expect(callbacks.onNavigate).not.toHaveBeenCalled()
+  })
+  it('reports company API failure while keeping screen navigation usable', async () => {
+    vi.mocked(listCompanies).mockRejectedValue(new Error('Network is offline'))
+    render(<TopBar {...props()} />)
+    fireEvent.keyDown(window, { key: 'k', metaKey: true })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Company search is unavailable. Network is offline')
+    expect(screen.getByRole('option', { name: 'Settings' })).toBeEnabled()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+  it('keeps focus inside the palette and restores it on dismissal', async () => {
+    render(<TopBar {...props()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    const input = screen.getByRole('combobox')
+    await act(async () => { fireEvent.keyDown(input, { key: 'Tab', shiftKey: true }) })
+    expect(screen.getByRole('option', { name: 'Settings' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
+    expect(input).toHaveFocus()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Search companies and screens' })).toHaveFocus()
+  })
+  it('does not portray unavailable notifications as successful collection', () => {
+    render(<TopBar {...props()} notifications={{ loading: false, error: 'API unavailable', failures: [], entryCount: 0 }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Crawl notifications unavailable' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Crawl notifications are unavailable. API unavailable')
+    expect(screen.queryByText(/No problems|No source attempts/)).not.toBeInTheDocument()
+  })
+  it('shows recorded failures and opens Data sources', () => {
+    const callbacks = props()
+    render(<TopBar {...callbacks} notifications={{ loading: false, entryCount: 2, failures: [{ id: 'attempt-1', sourceName: 'GDELT', detail: 'Provider timed out; NewsAPI also queried.' }] }} />)
+    fireEvent.click(screen.getByRole('button', { name: '1 recorded crawl problems' }))
+    expect(screen.getByText('GDELT')).toBeInTheDocument()
+    expect(screen.getByText('Provider timed out; NewsAPI also queried.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Data sources' }))
+    expect(callbacks.onOpenSources).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('region', { name: 'Crawl notifications' })).not.toBeInTheDocument()
+  })
+  it('provides a theme toggle without adding a service selector', () => {
+    const callbacks = props()
+    render(<TopBar {...callbacks} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to dark appearance' }))
+    expect(callbacks.setAppearance).toHaveBeenCalledWith('dark')
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+})
