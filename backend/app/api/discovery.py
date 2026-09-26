@@ -16,6 +16,7 @@ from app.discovery import (
     WikidataError,
     store_candidates,
 )
+from app.discovery.regions import DISCOVERY_REGIONS
 from app.jobs.imports import import_company
 from app.models.profile import new_id, utc_now
 from app.models.results import DiscoveryRun
@@ -42,8 +43,26 @@ class DiscoveryConfirmationResult(ContractModel):
     company_ids: list[str]
 
 
+class DiscoveryRegionRead(ContractModel):
+    id: str
+    name: str
+    country_codes: list[str]
+
+
 def get_discovery_provider() -> WikidataDiscovery:
     return WikidataDiscovery(timeout=15)
+
+
+@router.get("/regions", response_model=list[DiscoveryRegionRead])
+def list_discovery_regions() -> list[DiscoveryRegionRead]:
+    return [
+        DiscoveryRegionRead(
+            id=region.id,
+            name=region.name,
+            country_codes=list(region.country_codes),
+        )
+        for region in DISCOVERY_REGIONS
+    ]
 
 
 def _read(run: DiscoveryRun) -> DiscoveryRunRead:

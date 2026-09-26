@@ -34,7 +34,7 @@ class DiscoveryRequest(DiscoveryModel):
     include_unknown_size: bool = True
     industry: str | None = Field(default=None, max_length=120)
     industries: list[str] = Field(default_factory=list, max_length=50)
-    limit: int = Field(default=25, ge=1, le=50)
+    limit: int = Field(default=25, ge=1, le=100)
 
     @field_validator("country_codes")
     @classmethod

@@ -2,24 +2,34 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { DiscoveryWorkspace } from './DiscoveryWorkspace'
 import { listProfiles } from '../../api/profiles'
-import { createDiscoveryRun, confirmDiscoveryRun } from '../../api/discovery'
+import { createDiscoveryRun, confirmDiscoveryRun, listDiscoveryRegions } from '../../api/discovery'
 import { submitResearch } from '../../api/research'
 
 vi.mock('../../api/profiles', () => ({
   listProfiles: vi.fn(),
   selectDefaultProfile: (profiles: unknown[]) => profiles[0],
 }))
-vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn() }))
+vi.mock('../../api/discovery', () => ({ createDiscoveryRun: vi.fn(), confirmDiscoveryRun: vi.fn(), listDiscoveryRegions: vi.fn() }))
 vi.mock('../../api/research', () => ({ submitResearch: vi.fn(), importCompanies: vi.fn() }))
 let version = 0
 const candidate = { entity_id: 'Q1', name: 'Example SA', domain: 'example.ro', country_code: 'RO', country_name: 'Romania', industry: 'Logistics', employee_count: 2500, size_verification: 'needs_verification' as const, discovery_confidence: 0.55, source_url: 'https://www.wikidata.org/wiki/Q1' }
-const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], minimum_employees: 1000, include_unknown_size: true, industry: null, limit: 50 }, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }
+const run = { id: 'run', status: 'completed', request: { country_codes: ['RO'], minimum_employees: 1000, include_unknown_size: true, industry: null, limit: 100 }, candidates: [candidate], confirmed_domains: [], created_at: '2026-09-25T00:00:00Z' }
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); version++
   vi.mocked(listProfiles).mockResolvedValue([{ id: 'profile', name: 'Automation', current_version: { id: `version-${version}`, version: 1, configuration: { service_description: 'Automation', icp: { geographies: ['Romania'], industries: ['Logistics'], company_size: '1,000+ employees' }, signals: [] }, created_at: '' }, created_at: '', updated_at: '' }])
+  vi.mocked(listDiscoveryRegions).mockResolvedValue([{ id: 'eastern-europe', name: 'Eastern Europe', country_codes: ['RO'] }, { id: 'north-america', name: 'North America', country_codes: ['US', 'CA'] }])
   vi.mocked(createDiscoveryRun).mockResolvedValue(run)
   vi.mocked(confirmDiscoveryRun).mockResolvedValue({ run, company_ids: ['company'] })
   vi.mocked(submitResearch).mockResolvedValue({ id: 'research' } as never)
+})
+
+test('switches discovery region and sends its country set to the API', async () => {
+  render(<DiscoveryWorkspace />)
+  await screen.findByRole('button', { name: 'Example SA' })
+
+  fireEvent.change(screen.getByRole('combobox', { name: 'Region for discovery' }), { target: { value: 'north-america' } })
+
+  expect(createDiscoveryRun).toHaveBeenLastCalledWith(expect.objectContaining({ country_codes: ['US', 'CA'] }), expect.any(AbortSignal))
 })
 
 test('automatically uses the saved profile and queues selected research', async () => {

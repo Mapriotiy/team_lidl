@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { confirmDiscoveryRun, createDiscoveryRun, type DiscoveryCandidate, type DiscoveryRun } from '../../api/discovery'
+import { confirmDiscoveryRun, createDiscoveryRun, listDiscoveryRegions, type DiscoveryCandidate, type DiscoveryRegion, type DiscoveryRun } from '../../api/discovery'
 import { listProfiles, selectDefaultProfile, type Profile } from '../../api/profiles'
 import { importCompanies, submitResearch } from '../../api/research'
 import { errorMessage } from '../../api/errors'
@@ -13,7 +13,7 @@ const cache = new Map<string, Snapshot>()
 const field = 'rounded-lg border border-[#8E867C] bg-white px-3 py-2.5 text-sm text-[#353A40] focus:outline-none focus:ring-2 focus:ring-[#C94F12]/25'
 const button = 'rounded-lg border border-[#8E867C] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-[#F7F6F3] disabled:opacity-50'
 const primary = 'rounded-lg bg-[#C94F12] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#A73F0E] disabled:opacity-50'
-const cacheKey = (profile: Profile) => `leadradar.discovery.${profile.current_version.id}`
+const cacheKey = (profile: Profile, region: DiscoveryRegion) => `leadradar.discovery.${profile.current_version.id}.${region.id}`
 const selectedProfileKey = 'leadradar.discovery.selected-profile'
 function readCache(key: string): Snapshot | undefined {
   if (cache.has(key)) return cache.get(key)
@@ -24,6 +24,8 @@ const employeeLabel = (item: DiscoveryCandidate) => item.employee_count === null
 export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: { onActivity?: () => void; onProfile?: () => void; onResearchQueued?: () => void }) {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [regions, setRegions] = useState<DiscoveryRegion[]>([])
+  const [region, setRegion] = useState<DiscoveryRegion | null>(null)
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,38 +44,41 @@ export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: 
   const closePanel = useRef<HTMLButtonElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
 
-  const search = async (current: Profile, signal: AbortSignal) => {
+  const search = async (current: Profile, currentRegion: DiscoveryRegion, signal: AbortSignal) => {
     setLoading(true); setError(''); setNotice('')
     try {
       const settings = profileSearch(current)
       setNotes(settings.notes)
-      const run = await createDiscoveryRun(settings.request, signal)
+      const run = await createDiscoveryRun({ ...settings.request, country_codes: currentRegion.country_codes }, signal)
       if (!signal.aborted) setSnapshot({ run, selected: [], visible: 25 })
     } catch (failure) { if (!signal.aborted) setError(errorMessage(failure)) }
     finally { if (!signal.aborted) setLoading(false) }
   }
   useEffect(() => {
     const controller = new AbortController(); request.current = controller
-    void listProfiles(controller.signal).then(async (profiles) => {
+    void Promise.all([listProfiles(controller.signal), listDiscoveryRegions(controller.signal)]).then(async ([profiles, availableRegions]) => {
       if (controller.signal.aborted) return
       setProfiles(profiles)
       let preferredId = ''
       try { preferredId = sessionStorage.getItem(selectedProfileKey) ?? '' } catch { /* Storage may be disabled. */ }
       const current = profiles.find((item) => item.id === preferredId) ?? selectDefaultProfile(profiles)
       if (!current) { setError('Save a Service Profile before discovering companies.'); setLoading(false); return }
+      const currentRegion = availableRegions[0]
+      if (!currentRegion) { setError('No discovery regions are configured.'); setLoading(false); return }
       setProfile(current)
+      setRegions(availableRegions); setRegion(currentRegion)
       const settings = profileSearch(current); setNotes(settings.notes)
-      const saved = readCache(cacheKey(current))
+      const saved = readCache(cacheKey(current, currentRegion))
       if (saved) { setSnapshot(saved); setLoading(false) }
-      else await search(current, controller.signal)
+      else await search(current, currentRegion, controller.signal)
     }).catch((failure) => { if (!controller.signal.aborted) { setError(errorMessage(failure)); setLoading(false) } })
     return () => { controller.abort(); request.current?.abort() }
   }, [])
   useEffect(() => {
-    if (!profile || !snapshot) return
-    const key = cacheKey(profile); cache.set(key, snapshot)
+    if (!profile || !region || !snapshot) return
+    const key = cacheKey(profile, region); cache.set(key, snapshot)
     try { sessionStorage.setItem(key, JSON.stringify(snapshot)) } catch { /* In-memory results still persist during navigation. */ }
-  }, [profile, snapshot])
+  }, [profile, region, snapshot])
   useEffect(() => {
     if (!detail) return
     previousFocus.current = document.activeElement as HTMLElement
@@ -82,20 +87,30 @@ export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: 
   }, [detail])
 
   const refresh = () => {
-    if (!profile) return
+    if (!profile || !region) return
     request.current?.abort(); const controller = new AbortController(); request.current = controller
-    void search(profile, controller.signal)
+    void search(profile, region, controller.signal)
   }
   const chooseProfile = (profileId: string) => {
     const current = profiles.find((item) => item.id === profileId)
-    if (!current || current.id === profile?.id) return
+    if (!current || current.id === profile?.id || !region) return
     request.current?.abort(); const controller = new AbortController(); request.current = controller
     setProfile(current); setQuery(''); setCountry(''); setIndustry(''); setSize(''); setDetail(null); setNotice(''); setError('')
     try { sessionStorage.setItem(selectedProfileKey, current.id) } catch { /* Selection still works for this visit. */ }
     const settings = profileSearch(current); setNotes(settings.notes)
-    const saved = readCache(cacheKey(current))
+    const saved = readCache(cacheKey(current, region))
     if (saved) { setSnapshot(saved); setLoading(false) }
-    else { setSnapshot(null); void search(current, controller.signal) }
+    else { setSnapshot(null); void search(current, region, controller.signal) }
+  }
+  const chooseRegion = (regionId: string) => {
+    if (!profile) return
+    const current = regions.find((item) => item.id === regionId)
+    if (!current || current.id === region?.id) return
+    request.current?.abort(); const controller = new AbortController(); request.current = controller
+    setRegion(current); setQuery(''); setCountry(''); setIndustry(''); setSize(''); setDetail(null); setNotice(''); setError('')
+    const saved = readCache(cacheKey(profile, current))
+    if (saved) { setSnapshot(saved); setLoading(false) }
+    else { setSnapshot(null); void search(profile, current, controller.signal) }
   }
   const toggle = (domain: string) => setSnapshot((current) => current ? { ...current, selected: current.selected.includes(domain) ? current.selected.filter((item) => item !== domain) : current.selected.length < 10 ? [...current.selected, domain] : current.selected } : current)
   const research = async () => {
@@ -140,7 +155,7 @@ export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: 
   const hiddenSelected = selected.filter((domain) => !shown.some((item) => item.domain === domain)).length
 
   return <section className="pb-28 text-[#20242A]" aria-label="Discover companies">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold">Discover companies</h2><p className="mt-2 text-sm text-[#68645F]">Choose a service profile, review its matching companies, then select who to research.</p></div><div className="flex flex-wrap items-end gap-2">{profiles.length > 1 && <label className="text-xs font-semibold text-[#68645F]">Service profile<select aria-label="Service profile for discovery" className={`${field} mt-1 block min-w-48`} disabled={busy} value={profile?.id ?? ''} onChange={(event) => chooseProfile(event.target.value)}>{profiles.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}<button className={button} onClick={() => setAdding(!adding)}>Add company by website</button><button className={button} disabled={loading || busy || !profile} onClick={refresh}>Refresh results</button></div></div>
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold">Discover companies</h2><p className="mt-2 text-sm text-[#68645F]">Choose a region and service profile, review matching companies, then select who to research.</p></div><div className="flex flex-wrap items-end gap-2"><label className="text-xs font-semibold text-[#68645F]">Region<select aria-label="Region for discovery" className={`${field} mt-1 block min-w-48`} disabled={busy || loading} value={region?.id ?? ''} onChange={(event) => chooseRegion(event.target.value)}>{regions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{profiles.length > 1 && <label className="text-xs font-semibold text-[#68645F]">Service profile<select aria-label="Service profile for discovery" className={`${field} mt-1 block min-w-48`} disabled={busy} value={profile?.id ?? ''} onChange={(event) => chooseProfile(event.target.value)}>{profiles.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}<button className={button} onClick={() => setAdding(!adding)}>Add company by website</button><button className={button} disabled={loading || busy || !profile || !region} onClick={refresh}>Refresh results</button></div></div>
     {profile && <div className="mt-5 rounded-xl border border-[#DED9D1] bg-white p-4 text-sm"><p><span className="font-semibold">Saved criteria: </span>{words(profile.current_version.configuration.icp.geographies).join(', ') || 'All geographies'} · {words(profile.current_version.configuration.icp.industries).join(', ') || 'All industries'}</p><p className="mt-1 text-xs text-[#73706A]">Ordered by available company facts. Buying signals and disqualifiers are assessed during research.</p>{notes.map((note) => <p className="mt-1 text-xs text-[#73706A]" key={note}>{note}</p>)}{onProfile && <button className="mt-2 text-sm font-semibold text-[#B64B16]" onClick={onProfile}>Edit Service Profile</button>}</div>}
     {adding && <form className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-[#DED9D1] bg-white p-4" onSubmit={(event) => { event.preventDefault(); void addCompany() }}><label className="flex-1 text-sm font-semibold">Company website<input className={`${field} mt-2 block w-full`} placeholder="example.com" value={website} required onChange={(event) => setWebsite(event.target.value)} /></label><button className={primary} disabled={busy || !website.trim()}>Add company</button><button type="button" className={button} onClick={() => setAdding(false)}>Cancel</button></form>}
     {error && <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}{!loading && <button className="ml-3 underline" onClick={profile ? refresh : onProfile}>{profile ? 'Retry search' : 'Open Service Profile'}</button>}</div>}

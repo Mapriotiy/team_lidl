@@ -34,7 +34,7 @@ export function profileSearch(profile: Profile): { request: DiscoveryRequest; no
   const size = String(icp.company_size ?? icp.company_sizes ?? '')
   if (size) notes.push(`Company size preference: ${size}. Check the linked source before qualifying a company.`)
   if (icp.operational_complexity && icp.operational_complexity !== 'unknown') notes.push('Operational characteristics and buying signals are checked during research.')
-  return { request: { country_codes: [...new Set(codes)], minimum_employees: minimumSize(profile), include_unknown_size: true, industry: null, industries: words(icp.industries), limit: 50 }, industries: words(icp.industries), notes }
+  return { request: { country_codes: [...new Set(codes)], minimum_employees: minimumSize(profile), include_unknown_size: true, industry: null, industries: words(icp.industries), limit: 100 }, industries: words(icp.industries), notes }
 }
 
 export function match(candidate: DiscoveryCandidate, profile: Profile) {
