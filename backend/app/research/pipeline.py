@@ -16,7 +16,7 @@ from app.assessment.validation import AssessmentValidationError
 from app.collection import CanonicalCompany, CollectedDocument, PublicSourceCollector, SourceTarget
 from app.contracts.data_sources import CrawlLogEntry
 from app.contracts.evidence import SourceType
-from app.contracts.profile import ProfileConfiguration
+from app.contracts.profile import ProfileConfiguration, SignalEffect
 from app.contracts.research import PartialError
 from app.discovery import (
     GdeltError,
@@ -62,6 +62,25 @@ _QUERY_STOPWORDS = {
     "would",
 }
 
+_SIGNAL_QUERY_STOPWORDS = _QUERY_STOPWORDS | {
+    "active",
+    "announced",
+    "clear",
+    "concrete",
+    "confirmed",
+    "current",
+    "dated",
+    "establish",
+    "evidence",
+    "explicit",
+    "named",
+    "programme",
+    "program",
+    "relevant",
+    "specific",
+}
+_SHORT_SIGNAL_TERMS = {"ai", "ml", "rpa", "soc"}
+
 
 def _research_queries(company_name: str, configuration: ProfileConfiguration) -> list[str]:
     """Build repeatable search angles from the selected company and saved profile."""
@@ -87,20 +106,51 @@ def _research_queries(company_name: str, configuration: ProfileConfiguration) ->
     ]
 
 
-_TRANSFORMATION_TERMS = '"digital transformation" OR "shared services" OR outsourcing'
+def _signal_query_terms(text: str, *, limit: int = 5) -> list[str]:
+    terms: list[str] = []
+    for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{1,}", text.casefold()):
+        if (
+            (len(term) >= 4 or term in _SHORT_SIGNAL_TERMS)
+            and term not in _SIGNAL_QUERY_STOPWORDS
+            and term not in terms
+        ):
+            terms.append(term)
+        if len(terms) == limit:
+            break
+    return terms
 
 
-def _newsapi_queries(company: Company) -> list[str]:
-    """Identity query, then themed ones; each query spends one request of the daily quota."""
+def _newsapi_queries(
+    company: Company, configuration: ProfileConfiguration
+) -> list[str]:
+    """Use the immutable service profile for two bounded, high-priority news angles."""
     names = [company.display_name.strip(), *(alias.strip() for alias in company.aliases)]
     unique_names = [n for n in dict.fromkeys(names) if len(n) >= 3][:3]
     identity = " OR ".join(f'"{name}"' for name in unique_names)
     scoped = f"({identity})" if len(unique_names) > 1 else identity
-    return [
-        identity,
-        f"{scoped} AND (hiring OR recruiting OR vacancies OR jobs)",
-        f"{scoped} AND (automation OR {_TRANSFORMATION_TERMS})",
-    ]
+    ranked_signals = sorted(
+        enumerate(configuration.signals),
+        key=lambda item: (-item[1].weight, item[0]),
+    )
+    clauses: list[str] = []
+    for _, signal in ranked_signals:
+        if signal.effect != SignalEffect.POSITIVE or signal.weight <= 0:
+            continue
+        terms = _signal_query_terms(
+            " ".join([signal.question, *signal.positive_criteria])
+        )
+        clause = " OR ".join(terms)
+        if clause and clause not in clauses:
+            clauses.append(clause)
+        if len(clauses) == 2:
+            break
+    if len(clauses) < 2:
+        service_clause = " OR ".join(
+            _signal_query_terms(configuration.service_description)
+        )
+        if service_clause and service_clause not in clauses:
+            clauses.append(service_clause)
+    return [identity, *(f"{scoped} AND ({clause})" for clause in clauses[:2])]
 
 
 def _fact_source_targets(company: Company) -> list[SourceTarget]:
@@ -212,8 +262,15 @@ class IntegratedResearchPipeline:
 
         if self.newsapi is not None:
             try:
+                newsapi_queries = (
+                    _newsapi_queries(company, configuration)
+                    if configuration is not None
+                    else [f'"{company.display_name.strip()}"']
+                )
                 newsapi_candidates = self.newsapi.discover_queries(
-                    _newsapi_queries(company), limit_per_query=30, max_results=12
+                    newsapi_queries,
+                    limit_per_query=30,
+                    max_results=12,
                 )
                 new_urls = 0
                 for c in newsapi_candidates:
