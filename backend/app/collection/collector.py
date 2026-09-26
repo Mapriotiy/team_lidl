@@ -70,6 +70,7 @@ class PublicSourceCollector:
         for target in sources:
             try:
                 url = canonical_url(target.url)
+                target_is_homepage = urlsplit(url).path in {"", "/"}
                 if url in seen_urls:
                     continue
                 deadline = time.monotonic() + self.timeout
@@ -136,7 +137,7 @@ class PublicSourceCollector:
                         seen_hashes.add(digest)
                     if (
                         target.source_type == SourceType.COMPANY
-                        and urlsplit(url).path in {"", "/"}
+                        and target_is_homepage
                         and "html" in response.headers.get("content-type", "").lower()
                     ):
                         remaining_slots = self.max_pages - len(sources)

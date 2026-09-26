@@ -79,6 +79,35 @@ def test_homepage_planning_fetches_bounded_first_party_links() -> None:
     assert len(result.documents) <= result.total
 
 
+def test_homepage_planning_survives_locale_redirect() -> None:
+    landing = FetchResponse(
+        200,
+        {"content-type": "text/html"},
+        b"<h1>Company</h1><a href='/en/careers'>Careers</a>",
+    )
+    transport = SavedTransport(
+        {
+            "https://example.com/": FetchResponse(302, {"location": "/en"}, b""),
+            "https://example.com/en": landing,
+            "https://example.com/en/careers": FetchResponse(
+                200, {"content-type": "text/html"}, b"<h1>Open roles</h1>"
+            ),
+        }
+    )
+
+    result = PublicSourceCollector(transport, max_pages=2).collect(COMPANY)
+
+    assert transport.calls == [
+        "https://example.com/",
+        "https://example.com/en",
+        "https://example.com/en/careers",
+    ]
+    assert [item.source_type for item in result.documents] == [
+        SourceType.COMPANY,
+        SourceType.CAREERS,
+    ]
+
+
 def test_news_dates_remain_unknown_and_text_is_not_executed() -> None:
     transport = SavedTransport({"https://news.example.net/": html("news.html")})
     result = PublicSourceCollector(transport).collect(
