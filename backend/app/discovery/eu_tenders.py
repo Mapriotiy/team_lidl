@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Protocol
 from urllib.error import HTTPError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
@@ -27,6 +27,7 @@ STATUS_OPEN = "31094502"
 MAX_PAGE_SIZE = 50
 _TAG = re.compile(r"<[^>]+>")
 _SPACE = re.compile(r"\s+")
+_HREF = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
 
 
 class EuTendersError(RuntimeError):
@@ -132,6 +133,25 @@ def _portal_url(value: object) -> str | None:
     return url.split("#", 1)[0]
 
 
+def _external_call_url(metadata: Mapping[str, object]) -> str | None:
+    for field in ("furtherInformation", "beneficiaryAdministration", "destinationDetails"):
+        raw = _first(metadata.get(field)) or ""
+        for candidate in _HREF.findall(html.unescape(raw)):
+            parsed = urlparse(candidate)
+            if parsed.scheme == "https" and parsed.hostname and parsed.hostname != PORTAL_HOST:
+                return candidate.split("#", 1)[0]
+    return None
+
+
+def _public_call_url(item: Mapping[str, object], metadata: Mapping[str, object]) -> str | None:
+    portal_url = _portal_url(item.get("url"))
+    if portal_url is None:
+        return None
+    if "/competitive-calls-cs/" in portal_url:
+        return _external_call_url(metadata)
+    return portal_url
+
+
 def _programme(value: object) -> str | None:
     programme = _first(value)
     if programme is None or programme.isdigit():
@@ -215,7 +235,7 @@ class EuTendersDiscovery:
             if not isinstance(metadata, dict):
                 continue
             identifier = _first(metadata.get("identifier"))
-            url = _portal_url(item.get("url"))
+            url = _public_call_url(item, metadata)
             title = _first(metadata.get("callTitle")) or _first(item.get("title"))
             if identifier is None or url is None or title is None or identifier in seen:
                 continue

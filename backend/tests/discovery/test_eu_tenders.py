@@ -169,3 +169,34 @@ def test_filters_irrelevant_and_expired_results_and_hides_programme_ids() -> Non
 
     assert [call.identifier for call in result.calls] == ["RELEVANT", "NUMERIC-PROGRAMME"]
     assert result.calls[1].programme is None
+
+
+class CompetitiveCallTransport(FakeTransport):
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
+        item = portal_item(
+            "CASCADE",
+            url=(
+                "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/"
+                "opportunities/competitive-calls-cs/48401785"
+            ),
+            description="Software automation and security",
+        )
+        metadata = item["metadata"]
+        assert isinstance(metadata, dict)
+        metadata["furtherInformation"] = [
+            '<p>Read the call at <a href="https://nlnet.nl/codesupply#apply">CodeSupply</a></p>'
+        ]
+        return {"totalResults": 1, "results": [item]}
+
+
+def test_competitive_call_uses_official_external_page_instead_of_broken_spa_route() -> None:
+    result = EuTendersDiscovery(CompetitiveCallTransport()).search("automation")
+
+    assert result.calls[0].url == "https://nlnet.nl/codesupply"
