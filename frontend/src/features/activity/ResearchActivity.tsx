@@ -88,7 +88,7 @@ export function ResearchActivityWorkspace() {
 
 type DisplayStatus = 'Waiting' | 'Researching' | 'Promising' | 'Researched' | 'Sources found' | 'Not enough data' | 'Needs attention' | 'Failed'
 
-const statusClasses: Record<DisplayStatus, string> = { Waiting: 'bg-[#EEEAE4] text-[#6F6961]', Researching: 'bg-[#FFF0E5] text-[#A94616]', Promising: 'bg-[#E4F5E9] text-[#24623F]', Researched: 'bg-[#E8F3EC] text-[#326B4B]', 'Sources found': 'bg-[#E9F1FA] text-[#315F8B]', 'Not enough data': 'bg-[#EEEAE4] text-[#6F6961]', 'Needs attention': 'bg-[#FFF4D9] text-[#8A6414]', Failed: 'bg-[#FBE9E5] text-[#9A3828]' }
+const statusClasses: Record<DisplayStatus, string> = { Waiting: 'bg-[#EEEAE4] text-[#6F6961]', Researching: 'bg-[#FFF0E5] text-[#A94616]', Promising: 'bg-[#C9F7D8] text-[#096B34]', Researched: 'bg-[#D7F4E1] text-[#116B39]', 'Sources found': 'bg-[#E9F1FA] text-[#315F8B]', 'Not enough data': 'bg-[#EEEAE4] text-[#6F6961]', 'Needs attention': 'bg-[#FFF4D9] text-[#8A6414]', Failed: 'bg-[#FBE9E5] text-[#9A3828]' }
 
 const minimumSources = 2
 const sourceCount = (company: CompanyDetail) => new Set(company.sources?.map((source) => source.id) ?? company.evidence.map((item) => item.sourceId)).size
@@ -145,7 +145,7 @@ function ResearchCompanyList({ companies, deleting, onDelete, onOpen }: { compan
 }
 
 const assessmentPresentation = (assessment: Assessment) => {
-  if (assessment.status === 'supported') return { label: assessment.strength === 'strong' ? 'Strong signal' : assessment.strength === 'moderate' ? 'Promising signal' : 'Early signal', tone: 'border-[#B9DDC5] bg-[#F4FBF6] text-[#285D3D]' }
+  if (assessment.status === 'supported') return { label: assessment.strength === 'strong' ? 'Strong signal' : assessment.strength === 'moderate' ? 'Promising signal' : 'Early signal', tone: 'border-[#4FC47B] bg-[#DDF9E7] text-[#096B34]' }
   if (assessment.status === 'contradicted') return { label: 'Counter-signal', tone: 'border-[#E6B8AE] bg-[#FFF7F5] text-[#8A2F20]' }
   return { label: 'Open question', tone: 'border-[#D9D4CC] bg-[#FAF8F5] text-[#625D57]' }
 }
