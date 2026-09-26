@@ -6,7 +6,9 @@ import pytest
 from app.discovery import EuTendersDiscovery, EuTendersError
 
 
-def portal_item(identifier: str, *, status: str = "31094502", url: str | None = None) -> dict:
+def portal_item(
+    identifier: str, *, status: str = "31094502", url: str | None = None
+) -> dict[str, object]:
     return {
         "title": "",
         "url": url or f"https://ec.europa.eu/info/funding-tenders/opportunities/x/{identifier}#top",
@@ -87,11 +89,18 @@ def test_open_only_filter_and_validation() -> None:
 
 
 class FlakyTransport(FakeTransport):
-    def post_multipart(self, url: str, **kwargs: object) -> object:  # type: ignore[override]
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
         if self.calls == 0:
             self.calls += 1
             raise EuTendersError("EU tenders portal returned HTTP 500", retryable=True)
-        return super().post_multipart(url, **kwargs)  # type: ignore[arg-type]
+        return super().post_multipart(url, fields=fields, headers=headers, timeout=timeout)
 
 
 def test_retries_once_on_retryable_error() -> None:
@@ -102,7 +111,14 @@ def test_retries_once_on_retryable_error() -> None:
 
 
 class InvalidTransport(FakeTransport):
-    def post_multipart(self, url: str, **kwargs: object) -> object:  # type: ignore[override]
+    def post_multipart(
+        self,
+        url: str,
+        *,
+        fields: Mapping[str, tuple[str, bool]],
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> object:
         return {"unexpected": True}
 
 
