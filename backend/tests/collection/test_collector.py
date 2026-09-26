@@ -185,7 +185,7 @@ def test_size_media_and_http_errors() -> None:
     )
     assert [error.code for error in result.errors] == [
         "content_too_large",
-        "unsupported_content",
+        "invalid_pdf",
         "http_error",
     ]
 

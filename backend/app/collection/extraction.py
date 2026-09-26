@@ -3,6 +3,10 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+from io import BytesIO
+
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from app.collection.models import CollectionFailure
 
@@ -90,10 +94,28 @@ def extract(body: bytes, content_type: str) -> ExtractedText:
     except LookupError:
         decoded = body.decode("utf-8", errors="replace")
     media_type = content_type.split(";", 1)[0].strip().lower()
+    if media_type == "application/pdf":
+        try:
+            reader = PdfReader(BytesIO(body), strict=False)
+            if reader.is_encrypted:
+                raise CollectionFailure("encrypted_pdf", "Encrypted PDF cannot be extracted")
+            text = " ".join(
+                value
+                for page in reader.pages
+                if (value := " ".join((page.extract_text() or "").split()))
+            )
+            title = str(reader.metadata.title or "") if reader.metadata else ""
+        except CollectionFailure:
+            raise
+        except (PdfReadError, OSError, ValueError) as exc:
+            raise CollectionFailure("invalid_pdf", "PDF could not be extracted") from exc
+        return ExtractedText(text, title, None, None)
     if media_type == "text/plain":
         return ExtractedText(" ".join(decoded.split()), "", None, None)
     if media_type not in {"text/html", "application/xhtml+xml"}:
-        raise CollectionFailure("unsupported_content", "Only HTML and plain text are supported")
+        raise CollectionFailure(
+            "unsupported_content", "Only HTML, PDF and plain text are supported"
+        )
     parser = TextParser()
     try:
         parser.feed(decoded)
