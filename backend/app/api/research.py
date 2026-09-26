@@ -118,11 +118,17 @@ def delete_company_research(
         .where(Opportunity.latest_snapshot_id.in_(snapshot_ids))
         .values(latest_snapshot_id=None)
     )
-    session.execute(delete(EvidenceTranslation).where(EvidenceTranslation.evidence_id.in_(evidence_ids)))
+    session.execute(
+        delete(EvidenceTranslation).where(EvidenceTranslation.evidence_id.in_(evidence_ids))
+    )
     session.execute(delete(StoredEvidence).where(StoredEvidence.id.in_(evidence_ids)))
     session.execute(delete(StoredSourceDocument).where(StoredSourceDocument.id.in_(source_ids)))
-    session.execute(delete(StoredSignalAssessment).where(StoredSignalAssessment.research_run_id.in_(run_ids)))
+    session.execute(
+        delete(StoredSignalAssessment).where(StoredSignalAssessment.research_run_id.in_(run_ids))
+    )
     session.execute(delete(StoredScoreSnapshot).where(StoredScoreSnapshot.id.in_(snapshot_ids)))
-    result = session.execute(delete(ResearchRun).where(ResearchRun.company_id == company_id))
+    removed_ids = session.scalars(
+        delete(ResearchRun).where(ResearchRun.company_id == company_id).returning(ResearchRun.id)
+    ).all()
     session.commit()
-    return {"deleted_runs": result.rowcount or 0}
+    return {"deleted_runs": len(removed_ids)}

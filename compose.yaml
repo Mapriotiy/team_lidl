@@ -29,6 +29,12 @@ services:
       RESEARCH_BUDGET_USD: ${RESEARCH_BUDGET_USD:-5}
       SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
     command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      start_period: 30s
+      retries: 6
     depends_on:
       db:
         condition: service_healthy
@@ -50,8 +56,9 @@ services:
       SOURCE_TEXT_RETENTION_DAYS: ${SOURCE_TEXT_RETENTION_DAYS:-30}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
     command: python -m app.worker
+    restart: unless-stopped
     depends_on:
-      db:
+      api:
         condition: service_healthy
     volumes:
       - ./backend:/app
