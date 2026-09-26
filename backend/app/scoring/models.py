@@ -29,7 +29,7 @@ class SignalScoringInput(ScoringModel):
 class ScoringInput(ScoringModel):
     company_id: str
     profile_version_id: str
-    calculation_version: str = "v2-precision"
+    calculation_version: str = "v3-evidence-gated"
     icp_criteria: list[IcpCriterion] = Field(default_factory=list)
     signals: list[SignalScoringInput]
     calculated_at: datetime
@@ -55,6 +55,8 @@ class ScoringResult(ScoringModel):
     icp_fit: float
     icp_configured: bool
     positive_strength: float
+    evidence_confidence: float
+    independent_positive_sources: int
     penalty_points: float
     contributions: list[ScoreContributionResult]
     exclusion_reasons: list[str]

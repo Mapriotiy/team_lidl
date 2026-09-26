@@ -84,7 +84,7 @@ def scoring_input(signals: list[SignalScoringInput]) -> ScoringInput:
     )
 
 
-def test_calculates_fixed_denominator_score_without_rounding() -> None:
+def test_calculates_evidence_gated_score_without_icp_inflation() -> None:
     result = calculate_score(
         scoring_input(
             [
@@ -106,11 +106,13 @@ def test_calculates_fixed_denominator_score_without_rounding() -> None:
     )
 
     assert result.icp_fit == 0.5
-    assert result.calculation_version == "v2-precision"
+    assert result.calculation_version == "v3-evidence-gated"
     assert result.positive_strength == 0.5
-    assert result.score == 50.0
+    assert result.evidence_confidence == 0.5
+    assert result.independent_positive_sources == 1
+    assert result.score == 25.0
     assert result.coverage == 0.5
-    assert result.eligibility == Eligibility.ELIGIBLE
+    assert result.eligibility == Eligibility.NEEDS_RESEARCH
 
 
 def test_insufficient_evidence_does_not_inflate_coverage() -> None:
@@ -157,7 +159,7 @@ def test_applies_strength_freshness_and_penalty_once_per_question() -> None:
 
     assert result.positive_strength == pytest.approx(0.35)
     assert result.penalty_points == 10
-    assert result.score == pytest.approx(29.5)
+    assert result.score == pytest.approx(2.25)
 
 
 def test_supported_disqualifier_excludes_account() -> None:
@@ -197,7 +199,62 @@ def test_unknown_date_uses_visible_provisional_factor() -> None:
     )
 
     assert result.contributions[0].freshness == 0.5
-    assert result.warnings == ["positive: evidence date is unknown"]
+    assert result.warnings == [
+        "positive: evidence date is unknown",
+        "Fewer than two independent sources support the opportunity; score is capped at 49",
+    ]
+
+
+def test_two_independent_sources_can_qualify_an_opportunity() -> None:
+    supported = assessment("positive")
+    supported = supported.model_copy(
+        update={
+            "evidence": [
+                supported.evidence[0],
+                supported.evidence[0].model_copy(
+                    update={"source_id": "source-independent", "event_group_key": "event-2"}
+                ),
+            ]
+        }
+    )
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition("positive"),
+                    assessment=supported,
+                    event_date=NOW,
+                )
+            ]
+        )
+    )
+
+    assert result.score == 100
+    assert result.evidence_confidence == 1
+    assert result.independent_positive_sources == 2
+    assert result.eligibility == Eligibility.ELIGIBLE
+
+
+def test_same_event_cannot_inflate_multiple_positive_signals() -> None:
+    first = assessment("first", event_group_key="shared-event")
+    second = assessment("second", event_group_key="shared-event")
+    result = calculate_score(
+        scoring_input(
+            [
+                SignalScoringInput(
+                    definition=definition("first", weight=50), assessment=first, event_date=NOW
+                ),
+                SignalScoringInput(
+                    definition=definition("second", weight=50), assessment=second, event_date=NOW
+                ),
+            ]
+        )
+    )
+
+    assert result.positive_strength == 0.5
+    assert result.independent_positive_sources == 1
+    assert result.score == 25
+    assert any("not scored twice" in warning for warning in result.warnings)
 
 
 def test_low_coverage_is_separated_as_needs_research() -> None:
@@ -233,8 +290,8 @@ def test_weak_positive_evidence_does_not_make_a_prospect_eligible() -> None:
     )
 
     assert result.eligibility == Eligibility.NEEDS_RESEARCH
-    assert result.warnings[-1] == (
-        "Only weak positive evidence was found; buying intent is not established"
+    assert "Only weak positive evidence was found; buying intent is not established" in (
+        result.warnings
     )
 
 
@@ -276,9 +333,7 @@ def test_verified_target_mismatch_does_not_make_a_prospect_eligible() -> None:
     )
 
     assert result.eligibility == Eligibility.NEEDS_RESEARCH
-    assert result.warnings[-1] == (
-        "No verified company fact matches the configured target criteria"
-    )
+    assert "No verified company fact matches the configured target criteria" in result.warnings
 
 
 def test_rejects_profiles_without_positive_weight() -> None:
