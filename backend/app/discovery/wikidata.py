@@ -101,9 +101,9 @@ class WikidataLabelResolver:
         return labels
 
 
-def _sparql(request: DiscoveryRequest) -> str:
+def _sparql(request: DiscoveryRequest, *, fetch_limit: int | None = None, offset: int = 0) -> str:
     country_values = " ".join(f'"{code}"' for code in request.country_codes)
-    fetch_limit = min(request.limit * 4, 200)
+    fetch_limit = fetch_limit or min(request.limit * 4, 200)
     countries = f"VALUES ?countryCode {{ {country_values} }}" if country_values else ""
     employees = (
         "OPTIONAL { ?company wdt:P1128 ?employees. }"
@@ -139,6 +139,7 @@ SELECT DISTINCT ?company ?website ?country ?countryCode ?industry ?employees ?st
 }}
 ORDER BY DESC(BOUND(?employees)) DESC(?employees)
 LIMIT {fetch_limit}
+OFFSET {offset}
 """.strip()
 
 
@@ -176,12 +177,21 @@ class WikidataDiscovery:
         self.label_resolver = label_resolver or WikidataLabelResolver()
         self.timeout = timeout
 
-    def discover(self, request: DiscoveryRequest) -> list[DiscoveryCandidate]:
+    def discover(
+        self, request: DiscoveryRequest, *, page_limit: int | None = None, offset: int = 0
+    ) -> list[DiscoveryCandidate]:
+        result_limit = page_limit or request.limit
+        fetch_limit = page_limit or min(request.limit * 4, 200)
+        if not 1 <= result_limit <= 500 or offset < 0:
+            raise ValueError("Wikidata page limit must be 1–500 and offset cannot be negative")
         deadline = time.monotonic() + self.timeout
         try:
             payload = self.transport.get_json(
                 WIKIDATA_ENDPOINT,
-                params={"query": _sparql(request), "format": "json"},
+                params={
+                    "query": _sparql(request, fetch_limit=fetch_limit, offset=offset),
+                    "format": "json",
+                },
                 headers={"Accept": "application/sparql-results+json", "User-Agent": USER_AGENT},
                 timeout=self.timeout,
             )
@@ -291,4 +301,4 @@ class WikidataDiscovery:
         # into an empty page. Keep the provider order within each group and put
         # explicit industry matches first for the UI to qualify further.
         ranked_candidates.sort(key=lambda item: item[0], reverse=True)
-        return [candidate for _, candidate in ranked_candidates[: request.limit]]
+        return [candidate for _, candidate in ranked_candidates[:result_limit]]
