@@ -9,7 +9,12 @@ export interface TenderCall {
   deadline: string | null
   programme: string | null
   summary: string
+  opportunity_type: 'public_procurement' | 'funding_call' | 'cascade_funding' | 'market_consultation' | 'unknown'
+  budget: number | null
 }
+
+export interface TenderFitDimension { id: string; label: string; score: number | null; explanation: string }
+export interface TenderOpportunity { call: TenderCall; fit_score: number; recommendation: 'bid' | 'partner' | 'monitor' | 'reject' | 'needs_review'; dimensions: TenderFitDimension[]; matched_terms: string[]; risks: string[] }
 
 export interface EuTendersSearch {
   profile_id: string
@@ -17,6 +22,7 @@ export interface EuTendersSearch {
   query: string
   total: number
   calls: TenderCall[]
+  opportunities: TenderOpportunity[]
   retrieved_at: string
   warnings: string[]
 }
