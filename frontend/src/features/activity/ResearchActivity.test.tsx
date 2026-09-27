@@ -38,6 +38,31 @@ test.each([0, 1])('shows Not enough data for a finished run with %i sources desp
   expect(screen.queryByText(/One careers page was blocked/)).not.toBeInTheDocument()
 })
 
+test('does not turn completed checks without evidence into research confidence', async () => {
+  const company = {
+    ...structuredClone(companyFixture),
+    id: 'company-without-signals',
+    name: 'No Signal Company',
+    coverage: 0,
+    evidence: [],
+    assessments: Array.from({ length: 6 }, (_, index) => ({ id: `assessment-${index}`, question: `Signal ${index}`, status: 'insufficient_evidence' as const, strength: null, interpretation: 'No direct evidence found.', evidenceIds: [] })),
+    sources: Array.from({ length: 7 }, (_, index) => ({ id: `source-${index}`, title: `Source ${index}`, url: `https://example.com/${index}`, type: 'company', retrievedAt: '2026-09-26T12:00:00Z', publicationDate: null })),
+    researchRuns: [{ id: 'partial-run', status: 'partial' as const, startedAt: '2026-09-26T12:00:00Z', finishedAt: '2026-09-26T12:05:00Z', collected: 7, collectionTotal: 11, assessed: 6, assessmentTotal: 6, warning: 'Four pages could not be collected.' }],
+  }
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: company.id }]), { status: 200 }))
+  vi.spyOn(repository, 'getCompany').mockResolvedValue(company)
+
+  render(<ResearchActivityWorkspace />)
+
+  expect(await screen.findByText('Needs attention')).toBeInTheDocument()
+  expect(screen.getByText('0%')).toBeInTheDocument()
+  expect(screen.getByText('No verified signals')).toBeInTheDocument()
+  expect(screen.queryByText('60%')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Open research for No Signal Company' }))
+  expect(screen.getByText('0% confidence')).toBeInTheDocument()
+  expect(screen.getByText('No signals with verified facts were found for this company.')).toBeInTheDocument()
+})
+
 test('opens company research and links facts to original excerpts', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{
     id: 'company-lufthansa',
