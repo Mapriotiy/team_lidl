@@ -56,6 +56,25 @@ test('keeps results and selections when returning, and opens source details', as
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
+test('selects a company from its full row while the company name opens details', async () => {
+  render(<DiscoveryWorkspace />)
+  const companyButton = await screen.findByRole('button', { name: 'Example SA' })
+  const row = companyButton.closest('tr')
+  const checkbox = screen.getByRole('checkbox', { name: 'Select Example SA' })
+
+  expect(row).not.toBeNull()
+  fireEvent.click(row!)
+  expect(checkbox).toBeChecked()
+  expect(row).toHaveAttribute('aria-selected', 'true')
+
+  fireEvent.keyDown(row!, { key: ' ' })
+  expect(checkbox).not.toBeChecked()
+
+  fireEvent.click(companyButton)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(checkbox).not.toBeChecked()
+})
+
 test('keeps failed research selected for retry', async () => {
   vi.mocked(submitResearch).mockRejectedValue(new Error('Unavailable'))
   render(<DiscoveryWorkspace />)
