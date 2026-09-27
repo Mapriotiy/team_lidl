@@ -6,6 +6,7 @@ import { LeadsWorkspace } from './LeadsWorkspace'
 const lead = (overrides: Record<string, unknown>) => ({
   id: 'o1', company_id: 'c1', company_name: 'Acme', canonical_domain: 'acme.ro', profile_id: 'p1', profile_name: 'RPA',
   profile_version_id: 'v1', status: 'new', note: null, score: 80, eligibility: 'eligible', coverage: 0.5,
+  icp_matched_count: 2, icp_mismatched_count: 0, icp_unknown_count: 1, icp_total_count: 3,
   collection_completion: 1, strongest_signal: 'hiring-rpa', last_researched_at: '2026-09-26T10:00:00Z', ...overrides,
 })
 
@@ -24,9 +25,10 @@ function stub(records = items) {
 test('ranks leads by score and counts each filter', async () => {
   stub()
   render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
-  expect((await screen.findAllByText('50% signals supported')).length).toBe(2)
-  expect(screen.queryByText('50% match')).not.toBeInTheDocument()
-  expect(screen.getByText(/evidence coverage shows the share of profile signals/i)).toBeInTheDocument()
+  expect((await screen.findAllByText('2/3 confirmed')).length).toBe(3)
+  expect(screen.queryByText(/signals supported/i)).not.toBeInTheDocument()
+  expect(screen.getByText(/target fit shows how many configured customer criteria are confirmed/i)).toBeInTheDocument()
+  expect(screen.getAllByTitle('2 match · 0 outside · 1 unknown')).toHaveLength(3)
   const names = (await screen.findAllByRole('listitem')).filter((node) => node.closest('ul')).map((node) => node.querySelector('h2')?.textContent)
   expect(names).toEqual(['Acme', 'Gamma', 'Beta'])
   const group = screen.getByRole('group', { name: 'Lead filters' })

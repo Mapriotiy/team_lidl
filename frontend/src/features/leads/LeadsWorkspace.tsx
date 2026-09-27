@@ -6,7 +6,7 @@ import { listOpportunityRecords, type OpportunityRecord } from '../../api/opport
 import { LeadsFunnel } from './LeadsInsights'
 
 type FilterId = 'all' | 'eligible' | 'needs_research' | 'excluded' | 'shortlisted'
-type SortKey = 'company' | 'score' | 'coverage' | 'updated'
+type SortKey = 'company' | 'score' | 'target_fit' | 'updated'
 type Direction = 'asc' | 'desc'
 
 const PAGE_SIZE = 100
@@ -29,6 +29,9 @@ const eligibility: Record<OpportunityRecord['eligibility'], { label: string; ton
 const formatDate = (value: string) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value))
 const humanize = (value: string) => value.replace(/[-_]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase())
 const displayedScore = (lead: OpportunityRecord) => Math.round(lead.score)
+const targetFit = (lead: OpportunityRecord) => lead.icp_total_count && lead.icp_matched_count !== null
+  ? lead.icp_matched_count / lead.icp_total_count
+  : -1
 
 async function loadAllOpportunities(signal: AbortSignal) {
   const items: OpportunityRecord[] = []
@@ -71,7 +74,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
     const needle = query.trim().toLowerCase()
     const test = filters.find((item) => item.id === filter)?.test ?? (() => true)
     const value = (lead: OpportunityRecord) => sort.key === 'company' ? lead.company_name.toLowerCase()
-      : sort.key === 'coverage' ? lead.coverage
+      : sort.key === 'target_fit' ? targetFit(lead)
       : sort.key === 'updated' ? lead.last_researched_at
       : lead.score
     return inProfile
@@ -112,7 +115,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-[#20242A]">Leads</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#625D57]">
-            {leads ? `${rows.length} researched ${rows.length === 1 ? 'company' : 'companies'}, ranked by score. Scores rest on quoted public evidence; evidence coverage shows the share of profile signals with verified evidence. It is not a fit or buying-intent score.` : 'Researched companies, ranked by score.'}
+            {leads ? `${rows.length} researched ${rows.length === 1 ? 'company' : 'companies'}, ranked by score. Score reflects current buying signals; target fit shows how many configured customer criteria are confirmed.` : 'Researched companies, ranked by score.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -175,14 +178,25 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
             </div>
             <span className="font-bold uppercase tracking-wider">Status</span>
             <span className="font-bold uppercase tracking-wider">Strongest signal</span>
-            {header('coverage', 'Evidence coverage')}
+            {header('target_fit', 'Target fit')}
             {header('updated', 'Researched')}
             <span className="text-right font-bold uppercase tracking-wider">Evidence</span>
           </div>
           <ul className="divide-y divide-[#D8D0C6]">
             {visible.map((lead) => {
               const state = eligibility[lead.eligibility]
-              const coverage = Math.round(lead.coverage * 100)
+              const fitAvailable = lead.icp_matched_count !== null
+                && lead.icp_mismatched_count !== null
+                && lead.icp_unknown_count !== null
+                && lead.icp_total_count !== null
+              const hasConfiguredTarget = fitAvailable && (lead.icp_total_count ?? 0) > 0
+              const fitPercent = targetFit(lead) * 100
+              const fitLabel = !fitAvailable ? '—'
+                : lead.icp_total_count === 0 ? 'Not configured'
+                : `${lead.icp_matched_count}/${lead.icp_total_count} confirmed`
+              const fitTitle = !fitAvailable ? 'Run research again to calculate target fit'
+                : lead.icp_total_count === 0 ? 'No restrictive target criteria are configured'
+                : `${lead.icp_matched_count} match · ${lead.icp_mismatched_count} outside · ${lead.icp_unknown_count} unknown`
               return (
                 <li key={lead.id} className="grid cursor-pointer grid-cols-[minmax(200px,1.5fr)_120px_130px_minmax(140px,1fr)_120px_110px_72px] items-center gap-5 px-6 py-4 transition even:bg-[#FBF9F6] hover:bg-[#FFF0E5]" onClick={() => onOpenCompany(lead.company_id)}>
                   <div className="min-w-0">
@@ -195,11 +209,11 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
                     {lead.status !== 'new' && <span className="inline-flex rounded-full bg-[#E9F1FA] px-2.5 py-1 text-xs font-semibold capitalize text-[#315F8B]">{lead.status}</span>}
                   </div>
                   <p className="truncate text-sm text-[#34383D]" title={lead.strongest_signal ?? undefined}>{lead.strongest_signal ? humanize(lead.strongest_signal) : <span className="text-[#8A847D]">None confirmed</span>}</p>
-                  <div title={`${coverage}% of configured profile signals have verified evidence`}>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAE4]" role="meter" aria-label={`Evidence coverage for ${lead.company_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={coverage}>
-                      <div className="h-full rounded-full bg-[#4F8564]" style={{ width: `${coverage}%` }} />
+                  <div title={fitTitle}>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAE4]" role={hasConfiguredTarget ? 'meter' : undefined} aria-label={`Target fit for ${lead.company_name}`} aria-valuemin={hasConfiguredTarget ? 0 : undefined} aria-valuemax={hasConfiguredTarget ? 100 : undefined} aria-valuenow={hasConfiguredTarget ? fitPercent : undefined}>
+                      <div className="h-full rounded-full bg-[#4F8564]" style={{ width: `${Math.max(0, fitPercent)}%` }} />
                     </div>
-                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{coverage}% signals supported</p>
+                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{fitLabel}</p>
                   </div>
                   <time className="text-sm text-[#625D57]" dateTime={lead.last_researched_at}>{formatDate(lead.last_researched_at)}</time>
                   <div className="flex justify-end">
