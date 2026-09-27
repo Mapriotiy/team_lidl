@@ -52,6 +52,13 @@ test('opens settings from the sidebar without adding data sources to primary nav
   expect(screen.getByRole('button', { name: 'Switch to dark appearance' })).toBeInTheDocument()
 })
 
+test('opens tender opportunities from the sidebar', async () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Tender Opportunities' }))
+  expect(await screen.findByRole('heading', { name: 'Tender Opportunities' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'EU tender signals' })).toBeInTheDocument()
+})
+
 test('advances to company discovery after saving the service profile', async () => {
   render(<App />)
   await screen.findByRole('heading', { name: 'Tell us what a good opportunity looks like' })
