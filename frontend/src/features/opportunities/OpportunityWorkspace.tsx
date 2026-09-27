@@ -89,8 +89,8 @@ export function OpportunityWorkspace() {
           {view === 'discovery' && <DiscoveryWorkspace onActivity={() => { if (canOpen('activity')) setView('activity') }} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
           {view === 'leads' && <LeadsWorkspace onOpenCompany={openCompany} />}
           {view === 'tenders' && <TenderWorkspace />}
-          {view === 'activity' && <ResearchActivityWorkspace companyIds={activeResearchCompanyIds} initialCompanyId={openCompanyId} onInitialCompanyOpened={() => setOpenCompanyId(null)} onOpenHistory={() => setView('history')} />}
-          {view === 'history' && <ResearchActivityWorkspace history onBackToResearch={() => setView('activity')} />}
+          {view === 'activity' && <ResearchActivityWorkspace companyIds={activeResearchCompanyIds} initialCompanyId={openCompanyId} onConfigureSignals={() => { setSettingsSection('scoring'); setView('settings') }} onInitialCompanyOpened={() => setOpenCompanyId(null)} onOpenHistory={() => setView('history')} />}
+          {view === 'history' && <ResearchActivityWorkspace history onBackToResearch={() => setView('activity')} onConfigureSignals={() => { setSettingsSection('scoring'); setView('settings') }} />}
           <div hidden={view !== 'settings'}><SettingsWorkspace section={settingsSection} onSection={setSettingsSection} onEditProfile={() => setView('profiles')} appearance={appearance} setAppearance={setAppearance} {...sources} limit={logLimit} setLimit={setLogLimit} /></div>
         </div>
       </main>

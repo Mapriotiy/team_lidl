@@ -16,7 +16,7 @@ const presentation = (assessment?: Assessment) => {
   return { label: assessment.strength === 'moderate' ? 'Moderate' : 'Early', symbol: '◐', tone: 'bg-[#397EAA] text-white' }
 }
 
-export function SignalHeatmap({ companies, onOpen }: { companies: CompanyDetail[]; onOpen: (company: CompanyDetail) => void }) {
+export function SignalHeatmap({ companies, onConfigureSignals, onOpen }: { companies: CompanyDetail[]; onConfigureSignals?: () => void; onOpen: (company: CompanyDetail) => void }) {
   const comparable = useMemo(() => companies.filter(canCompare), [companies])
   const questions = useMemo(() => [...new Set(comparable.flatMap((company) => company.assessments.map((assessment) => assessment.question)))], [comparable])
   const first = comparable.flatMap((company) => company.assessments.map((assessment) => ({ companyId: company.id, question: assessment.question, supported: assessment.status === 'supported' }))).sort((a, b) => Number(b.supported) - Number(a.supported))[0]
@@ -34,7 +34,7 @@ export function SignalHeatmap({ companies, onOpen }: { companies: CompanyDetail[
         <h2 className="mt-1 text-xl font-semibold text-[#292D32]">Where the evidence is strongest</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68645F]">Compare verified buying signals, then select a square to inspect the evidence.</p>
       </div>
-      <span className="rounded-full bg-[#F2EEE8] px-3 py-1 text-xs font-semibold">{comparable.length} compared{omitted ? ` · ${omitted} omitted` : ''}</span>
+      <div className="flex items-center gap-2">{onConfigureSignals && <button className="rounded-lg border border-[#D65A1B] bg-white px-3.5 py-2 text-xs font-semibold text-[#A64212] transition hover:bg-[#FFF1E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E86722]/40" onClick={onConfigureSignals} type="button">Configure signal questions</button>}<span className="rounded-full bg-[#F2EEE8] px-3 py-1 text-xs font-semibold">{comparable.length} compared{omitted ? ` · ${omitted} omitted` : ''}</span></div>
     </div>
     {!comparable.length || !questions.length ? <div className="mt-5 rounded-xl border border-dashed border-[#CEC7BD] bg-[#FAF8F5] p-8 text-center text-sm text-[#68645F]">No companies have enough completed research to compare yet.</div> : <div className="mt-5">
       <div className="rounded-xl border border-[#E3DDD5] bg-[#FCFBF8] p-1.5 sm:p-2">

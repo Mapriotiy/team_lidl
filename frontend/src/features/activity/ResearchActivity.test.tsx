@@ -81,7 +81,7 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(screen.getByRole('button', { name: /^Sort by Confidence/ })).toBeInTheDocument()
   expect(screen.getByRole('region', { name: 'Signal heatmap' })).toBeInTheDocument()
   expect(screen.getAllByText(/%/).length).toBeGreaterThan(0)
-  fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open research for Lufthansa Group' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Signals and supporting facts' })).toBeInTheDocument()
   expect(screen.getByText('Promising signal')).toBeInTheDocument()
@@ -113,7 +113,7 @@ test('queues fresh research without deleting previous runs', async () => {
   })
   render(<ResearchActivityWorkspace />)
 
-  fireEvent.click(await screen.findByRole('button', { name: 'Open research' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Open research for Lufthansa Group' }))
   fireEvent.click(screen.getByRole('button', { name: 'Run fresh research' }))
 
   expect(await screen.findByText(/Existing sources, scores, and run history are preserved/)).toBeInTheDocument()
