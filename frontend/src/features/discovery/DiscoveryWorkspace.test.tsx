@@ -28,7 +28,8 @@ beforeEach(() => {
 })
 
 test('automatically uses the saved profile and queues selected research', async () => {
-  render(<DiscoveryWorkspace />)
+  const onResearchQueued = vi.fn()
+  render(<DiscoveryWorkspace onResearchQueued={onResearchQueued} />)
   expect(await screen.findByRole('button', { name: 'Example SA' })).toBeInTheDocument()
   expect(createDiscoveryRun).toHaveBeenCalledWith(expect.objectContaining({ country_codes: ['RO'], minimum_employees: 1000 }), expect.any(AbortSignal))
   expect(screen.getByText(/2[,.]500/)).toBeInTheDocument()
@@ -38,6 +39,7 @@ test('automatically uses the saved profile and queues selected research', async 
   fireEvent.click(screen.getByRole('button', { name: 'Research selected' }))
   expect(await screen.findByText(/1 company queued/)).toBeInTheDocument()
   expect(submitResearch).toHaveBeenCalledWith('company', `profile-version-${version}`, `discovery-run-profile-version-${version}-company`)
+  expect(onResearchQueued).toHaveBeenCalledWith(['company'])
 })
 
 test('keeps results and selections when returning, and opens source details', async () => {

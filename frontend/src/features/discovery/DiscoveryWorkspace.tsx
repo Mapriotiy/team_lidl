@@ -20,7 +20,7 @@ function readCache(key: string): Snapshot | undefined {
 }
 const employeeLabel = (item: DiscoveryCandidate) => item.employee_count === null ? 'Unknown' : item.employee_count.toLocaleString()
 
-export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: { onActivity?: () => void; onProfile?: () => void; onResearchQueued?: () => void }) {
+export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: { onActivity?: () => void; onProfile?: () => void; onResearchQueued?: (companyIds: string[]) => void }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
@@ -89,9 +89,10 @@ export function DiscoveryWorkspace({ onActivity, onProfile, onResearchQueued }: 
       const confirmed = await confirmDiscoveryRun(snapshot.run.id, snapshot.selected)
       const outcomes = await Promise.allSettled(confirmed.company_ids.map((id) => submitResearch(id, profile.current_version.id, `discovery-${snapshot.run.id}-${profile.current_version.id}-${id}`)))
       const succeeded = snapshot.selected.filter((_, index) => outcomes[index]?.status === 'fulfilled')
+      const succeededCompanyIds = confirmed.company_ids.filter((_, index) => outcomes[index]?.status === 'fulfilled')
       setSnapshot((current) => current ? { ...current, selected: current.selected.filter((domain) => !succeeded.includes(domain)) } : current)
       setNotice(`${succeeded.length} ${succeeded.length === 1 ? 'company' : 'companies'} queued for research. Follow progress in Research activity.`)
-      if (succeeded.length) onResearchQueued?.()
+      if (succeeded.length) onResearchQueued?.(succeededCompanyIds)
       if (succeeded.length < outcomes.length) setError('Some companies could not be queued. They remain selected so you can retry.')
     } catch (failure) { setError(errorMessage(failure)) } finally { setBusy(false) }
   }

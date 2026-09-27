@@ -28,13 +28,14 @@ export function ResearchActivity({ runs }: { runs: ResearchRun[] }) {
   )
 }
 
-export function ResearchActivityWorkspace({ initialCompanyId, onInitialCompanyOpened }: { initialCompanyId?: string | null; onInitialCompanyOpened?: () => void } = {}) {
+export function ResearchActivityWorkspace({ companyIds, history, initialCompanyId, onBackToResearch, onInitialCompanyOpened, onOpenHistory }: { companyIds?: string[]; history?: boolean; initialCompanyId?: string | null; onBackToResearch?: () => void; onInitialCompanyOpened?: () => void; onOpenHistory?: () => void } = {}) {
   const [companies, setCompanies] = useState<CompanyDetail[] | null>(null)
   const [selected, setSelected] = useState<CompanyDetail | null>(null)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CompanyDetail | null>(null)
+  const showHistory = history ?? companyIds === undefined
   useEffect(() => {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -76,6 +77,8 @@ export function ResearchActivityWorkspace({ initialCompanyId, onInitialCompanyOp
 
   if (selected) return <CompanyResearch company={selected} onBack={() => setSelected(null)} />
 
+  const visibleCompanies = showHistory ? companies : companies?.filter((company) => companyIds?.includes(company.id)) ?? null
+
   const removeResearch = async (company: CompanyDetail) => {
     setPendingDelete(null)
     setDeleting(company.id); setError('')
@@ -88,8 +91,8 @@ export function ResearchActivityWorkspace({ initialCompanyId, onInitialCompanyOp
 
   return (
     <div className="text-[#20242A]">
-      <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Company research</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Research coverage</h1><p className="mt-3 text-sm leading-6 text-[#68645F]">Track each company’s public-source research and open the evidence behind every extracted fact.</p></div>
-      <div className="mt-8">{error && <div className="mb-4 rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-4 text-[#8A2F20]"><p>{error}</p><button className="mt-2 text-sm font-semibold underline" onClick={() => setReload((value) => value + 1)}>Retry</button></div>}{companies ? companies.length ? <ResearchCompanyList companies={companies} deleting={deleting} onDelete={setPendingDelete} onOpen={setSelected} /> : <div className="rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">No saved research yet. Select companies in Discover companies to begin research.</div> : !error && <div className="rounded-2xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading company research…</div>}</div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-wider text-[#A44818]">Company research</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{showHistory ? 'Research history' : 'Selected company research'}</h1><p className="mt-3 text-sm leading-6 text-[#68645F]">{showHistory ? 'Review every company researched previously and reopen its complete evidence.' : 'Track only the companies selected in your latest discovery action.'}</p></div>{showHistory ? onBackToResearch && <button className="rounded-lg border border-[#D65A1B] bg-white px-4 py-2.5 text-sm font-semibold text-[#A64212] transition hover:bg-[#FFF1E8]" onClick={onBackToResearch} type="button">← Current research</button> : onOpenHistory && <button className="rounded-lg border border-[#D65A1B] bg-white px-4 py-2.5 text-sm font-semibold text-[#A64212] transition hover:bg-[#FFF1E8]" onClick={onOpenHistory} type="button">View research history</button>}</div>
+      <div className="mt-8">{error && <div className="mb-4 rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-4 text-[#8A2F20]"><p>{error}</p><button className="mt-2 text-sm font-semibold underline" onClick={() => setReload((value) => value + 1)}>Retry</button></div>}{visibleCompanies ? visibleCompanies.length ? <ResearchCompanyList companies={visibleCompanies} deleting={deleting} onDelete={setPendingDelete} onOpen={setSelected} /> : <div className="rounded-2xl border border-dashed border-[#CEC7BD] bg-white p-10 text-center text-[#68645F]">{showHistory ? 'No saved research yet. Select companies in Discover companies to begin research.' : 'No companies are in the current research selection. Return to Discover companies and select the companies you want to research.'}</div> : !error && <div className="rounded-2xl border border-[#DED9D1] bg-white p-10 text-[#73706A]">Loading company research…</div>}</div>
       {pendingDelete && <div className="fixed inset-0 z-50 grid place-items-center bg-[#201A16]/45 p-5 backdrop-blur-sm" onClick={() => setPendingDelete(null)}><section aria-describedby="delete-research-description" aria-labelledby="delete-research-title" aria-modal="true" className="w-full max-w-md rounded-2xl border border-[#E2D8D0] bg-white p-6 shadow-[0_24px_70px_rgba(45,28,18,0.28)]" onClick={(event) => event.stopPropagation()} role="alertdialog"><div className="grid size-11 place-items-center rounded-full bg-[#FBE9E5] text-xl text-[#9A3828]" aria-hidden="true">×</div><h2 className="mt-4 text-xl font-semibold text-[#292521]" id="delete-research-title">Delete research for {pendingDelete.name}?</h2><p className="mt-2 text-sm leading-6 text-[#68615B]" id="delete-research-description">This permanently removes its saved research runs, sources, evidence, assessments, and scores. The company remains available so you can research it again later.</p><div className="mt-6 flex justify-end gap-3"><button autoFocus className="rounded-lg border border-[#B8B0A8] bg-white px-4 py-2.5 text-sm font-semibold text-[#4F4943] transition hover:bg-[#F5F2EE]" onClick={() => setPendingDelete(null)}>Keep research</button><button className="rounded-lg bg-[#A33B2C] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#862F23] focus:outline-none focus:ring-2 focus:ring-[#A33B2C]/30" onClick={() => void removeResearch(pendingDelete)}>Delete permanently</button></div></section></div>}
 
     </div>
