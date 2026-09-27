@@ -8,6 +8,8 @@ test('compares signals and opens the selected company evidence', () => {
   render(<SignalHeatmap companies={[companyFixture]} onOpen={onOpen} />)
   const grid = screen.getByRole('table', { name: 'Companies by researched signal' })
   expect(within(grid).getByText('Lufthansa Group')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Signals shown')).not.toBeInTheDocument()
+  expect(within(grid).getByLabelText(/Signal 1:.*operational-efficiency program/)).toBeInTheDocument()
   const signal = within(grid).getByRole('button', { name: /operational-efficiency program.*Strong, 1 supporting sources/ })
   fireEvent.click(signal)
   expect(within(screen.getByRole('complementary')).getByText('Strong')).toBeInTheDocument()
