@@ -149,8 +149,8 @@ _EXPANSIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("cybersecurity", "cyber", "security", "information security", "ICT"),
         ("cyber", "security", "resilien", "threat", "incident"),
     ),
-    "software": (
-        ("software", "IT services", "application development", "digital", "ICT"),
+    "software development": (
+        ("software development", "IT services", "application development", "digital", "ICT"),
         (
             "software",
             "digital",

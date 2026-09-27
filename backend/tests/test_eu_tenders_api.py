@@ -83,7 +83,7 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["profile_name"] == "Process automation"
-    assert body["total"] == 5
+    assert body["total"] == 1
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
     assert body["opportunities"][0]["fit_score"] >= 0
     assert body["opportunities"][0]["recommendation"] == "needs_review"
