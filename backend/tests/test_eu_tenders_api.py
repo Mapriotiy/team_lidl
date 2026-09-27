@@ -85,6 +85,12 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert body["profile_name"] == "Process automation"
     assert body["total"] == 1
     assert body["calls"][0]["identifier"] == "DIGITAL-2026-A"
+    assert body["opportunities"][0]["fit_score"] >= 0
+    assert body["opportunities"][0]["recommendation"] == "needs_review"
+    assert body["opportunities"][0]["dimensions"][-1]["score"] is None
+    assert body["opportunities"][0]["risks"]
+    assert body["opportunities"][0]["decision_summary"]
+    assert body["opportunities"][0]["next_actions"]
     assert body["warnings"]
     assert tenders.queries[0] == "automation"
     assert body["query"] == " | ".join(tenders.queries)
@@ -92,15 +98,30 @@ def test_search_uses_profile_terms_when_enabled() -> None:
     assert "services" not in tenders.queries[0]
 
 
-def test_builtin_services_use_recall_safe_tender_queries() -> None:
+def test_builtin_services_use_diverse_recall_safe_tender_queries() -> None:
     queries = {
-        preset.name: eu_tenders.profile_query(preset.configuration) for preset in load_presets()
+        preset.name: eu_tenders.profile_query_portfolio(preset.configuration)
+        for preset in load_presets()
     }
 
     assert queries == {
-        "RPA": "automation",
-        "Cybersecurity": "cybersecurity",
-        "Software development": "software",
+        "RPA": [
+            "automation",
+            "process automation",
+            "workflow automation",
+            "process mining",
+            "digital transformation",
+        ],
+        "Cybersecurity": [
+            "cybersecurity", "cyber resilience", "information security", "zero trust"
+        ],
+        "Software development": [
+            "software development",
+            "digital platform",
+            "cloud platform",
+            "data platform",
+            "open source",
+        ],
     }
 
 
@@ -111,6 +132,35 @@ def test_builtin_services_fan_out_to_synonym_queries_with_relevance_stems() -> N
         assert 1 < len(queries) <= 5
         assert stems
 
+
+def test_fit_score_preserves_real_differences_below_unverified_eligibility() -> None:
+    now = datetime(2026, 9, 26, tzinfo=UTC)
+    complete = TenderCall(
+        identifier="A",
+        title="Automation platform",
+        url="https://example.eu/a",
+        status="open",
+        summary="Automation delivery programme",
+        deadline=datetime(2026, 12, 31, tzinfo=UTC),
+        programme="Digital Europe",
+        budget=1_000_000,
+        opportunity_type="public_procurement",
+    )
+    incomplete = TenderCall(
+        identifier="B",
+        title="Automation support",
+        url="https://example.eu/b",
+        status="open",
+        summary="Automation support",
+        opportunity_type="cascade_funding",
+    )
+
+    complete_fit = eu_tenders._fit_opportunity(complete, "automation", now=now)
+    incomplete_fit = eu_tenders._fit_opportunity(incomplete, "automation", now=now)
+
+    assert complete_fit.fit_score > incomplete_fit.fit_score
+    assert complete_fit.fit_score < 80
+    assert incomplete_fit.fit_score < 70
 
 def test_search_reports_unknown_profile_and_upstream_failure_safely() -> None:
     enable(True)

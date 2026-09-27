@@ -12,6 +12,7 @@ from app.discovery.models import (
     QualificationStatus,
     SizeVerification,
 )
+from app.discovery.moldova_tenders import MoldovaTendersDiscovery
 from app.discovery.newsapi import NewsApiDiscovery, NewsApiError
 from app.discovery.qualification import qualify_candidate, qualify_candidates
 from app.discovery.wikidata import WikidataDiscovery, WikidataError
@@ -27,6 +28,7 @@ __all__ = [
     "NewsApiDiscovery",
     "NewsApiError",
     "NewsCandidate",
+    "MoldovaTendersDiscovery",
     "QualificationStatus",
     "SizeVerification",
     "TenderCall",

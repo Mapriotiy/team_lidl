@@ -22,13 +22,14 @@ export const sourceDestinations = [
   { id: 'gdelt', label: 'GDELT', keywords: 'news articles global events' },
   { id: 'newsapi', label: 'NewsAPI', keywords: 'news articles supplementary fallback' },
   { id: 'websites', label: 'Public websites', keywords: 'company websites pages careers newsroom reports playwright crawl' },
-  { id: 'eu-tenders', label: 'EU Tenders', keywords: 'tenders procurement contracts ted cpv market signals' },
+  { id: 'eu-tenders', label: 'EU Tenders', keywords: 'tenders procurement contracts mtender moldova ted cpv market signals' },
 ]
 
 export const screenKeywords: Record<string, string> = {
   profiles: 'service profile icp ideal customer industry geography company size criteria',
   discovery: 'discover companies find leads import domains catalogue catalog',
   activity: 'research companies evidence facts signals results outreach gmail email',
+  tenders: 'tender opportunities procurement eu moldova mtender bids contracts',
   settings: 'settings configuration preferences',
 }
 

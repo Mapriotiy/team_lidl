@@ -15,7 +15,7 @@ import { EuTenderSignals } from './EuTenderSignals'
 
 beforeEach(() => {
   listProfiles.mockReset().mockResolvedValue([{ id: 'profile-1', name: 'Automation', current_version: { id: 'version-1', version: 2, configuration: { service_description: '', icp: {}, signals: [] }, icp_criteria: [], created_at: '2026-01-01' }, created_at: '2026-01-01', updated_at: '2026-01-01' }])
-  searchEuTenders.mockReset().mockResolvedValue({ profile_id: 'profile-1', profile_name: 'Automation', query: 'automation OR workflow', total: 1, retrieved_at: '2026-09-26T12:00:00Z', warnings: [], calls: [{ identifier: 'call-1', title: 'Automation services framework', url: 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/call-1', status: 'open', start_date: null, deadline: '2026-12-31T00:00:00Z', programme: 'Digital Europe', summary: 'Services for process automation.' }] })
+  searchEuTenders.mockReset().mockResolvedValue({ profile_id: 'profile-1', profile_name: 'Automation', query: 'automation OR workflow', queries: ['automation OR workflow'], total: 1, retrieved_at: '2026-09-26T12:00:00Z', warnings: [], opportunities: [], calls: [{ identifier: 'call-1', title: 'Automation services framework', url: 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/call-1', status: 'open', start_date: null, deadline: '2026-12-31T00:00:00Z', programme: 'Digital Europe', summary: 'Services for process automation.', opportunity_type: 'public_procurement', budget: null }] })
 })
 
 test('searches EU calls explicitly and labels them as market demand', async () => {

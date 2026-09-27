@@ -10,7 +10,7 @@ import json
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Literal, Protocol
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -95,6 +95,12 @@ class TenderCall(BaseModel):
     deadline: datetime | None = None
     programme: str | None = None
     summary: str = Field(default="", max_length=600)
+    opportunity_type: Literal[
+        "public_procurement", "funding_call", "cascade_funding", "market_consultation", "unknown"
+    ] = "unknown"
+    budget: float | None = None
+    currency: str = "EUR"
+    source: Literal["eu", "moldova"] = "eu"
 
 
 class TenderSearchResult(BaseModel):
@@ -153,11 +159,46 @@ def _public_call_url(item: Mapping[str, object], metadata: Mapping[str, object])
     return portal_url
 
 
-def _programme(value: object) -> str | None:
+_PROGRAMME_PREFIXES = {
+    "CEF": "Connecting Europe Facility",
+    "DIGITAL": "Digital Europe Programme",
+    "ERASMUS": "Erasmus+",
+    "EU4H": "EU4Health",
+    "HORIZON": "Horizon Europe",
+    "LIFE": "LIFE Programme",
+    "SMP": "Single Market Programme",
+}
+
+
+def _programme(value: object, identifier: str) -> str | None:
     programme = _first(value)
-    if programme is None or programme.isdigit():
+    if programme is not None and not programme.isdigit():
+        return programme
+    prefix = identifier.split("-", 1)[0].upper()
+    return _PROGRAMME_PREFIXES.get(prefix)
+
+
+def _number(value: object) -> float | None:
+    raw = _first(value)
+    if raw is None:
         return None
-    return programme
+    try:
+        number = float(raw.replace(",", "").strip())
+    except ValueError:
+        return None
+    return number if number >= 0 else None
+
+
+def _opportunity_type(portal_url: str) -> str:
+    if "/competitive-calls-cs/" in portal_url:
+        return "cascade_funding"
+    if "/tender-details/" in portal_url or "/calls-for-tenders" in portal_url:
+        return "public_procurement"
+    if "consultation" in portal_url:
+        return "market_consultation"
+    if "/opportunities/" in portal_url:
+        return "funding_call"
+    return "unknown"
 
 
 def _query_terms(query: str) -> list[str]:
@@ -273,8 +314,6 @@ class EuTendersDiscovery:
             # then enforce profile-term relevance and the requested limit locally.
             "pageSize": str(self.max_page_size),
             "pageNumber": "1",
-            "sortBy": "startDate",
-            "order": "DESC",
         }
         payload = self._request(f"{SEDIA_ENDPOINT}?{urlencode(params)}", filters)
         if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
@@ -290,9 +329,16 @@ class EuTendersDiscovery:
             if not isinstance(metadata, dict):
                 continue
             identifier = _first(metadata.get("identifier"))
+            portal_url = _portal_url(item.get("url"))
             url = _public_call_url(item, metadata)
             title = _first(metadata.get("callTitle")) or _first(item.get("title"))
-            if identifier is None or url is None or title is None or url in seen:
+            if (
+                identifier is None
+                or url is None
+                or portal_url is None
+                or title is None
+                or url in seen
+            ):
                 continue
             seen.add(url)
             status = _first(metadata.get("status"))
@@ -314,8 +360,10 @@ class EuTendersDiscovery:
                         status="forthcoming" if status == STATUS_FORTHCOMING else "open",
                         start_date=_date(metadata.get("startDate")),
                         deadline=deadline,
-                        programme=_programme(metadata.get("frameworkProgramme")),
+                        programme=_programme(metadata.get("frameworkProgramme"), identifier),
                         summary=summary,
+                        opportunity_type=_opportunity_type(portal_url),
+                        budget=_number(metadata.get("budget")),
                     ),
                 )
             )

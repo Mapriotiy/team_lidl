@@ -13,6 +13,7 @@ from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import (
     EvidenceTranslation,
+    Opportunity,
     StoredEvidence,
     StoredScoreSnapshot,
     StoredSignalAssessment,
@@ -29,9 +30,7 @@ def load_presets() -> list[ProfileCreate]:
 
 
 def load_reference_research() -> list[dict[str, Any]]:
-    fixture = files("app.fixtures").joinpath("reference_research.json").read_text(
-        encoding="utf-8"
-    )
+    fixture = files("app.fixtures").joinpath("reference_research.json").read_text(encoding="utf-8")
     return list(json.loads(fixture))
 
 
@@ -41,6 +40,35 @@ def stable_id(value: str) -> str:
 
 def parsed_date(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value).replace(tzinfo=UTC) if value else None
+
+
+def ensure_reference_opportunity(
+    session: Any,
+    *,
+    company_id: str,
+    profile_id: str,
+    snapshot_id: str,
+    now: datetime,
+) -> None:
+    opportunity = session.scalar(
+        select(Opportunity).where(
+            Opportunity.company_id == company_id,
+            Opportunity.profile_id == profile_id,
+        )
+    )
+    if opportunity is None:
+        session.add(
+            Opportunity(
+                company_id=company_id,
+                profile_id=profile_id,
+                latest_snapshot_id=snapshot_id,
+                status="new",
+                updated_at=now,
+            )
+        )
+        return
+    opportunity.latest_snapshot_id = snapshot_id
+    opportunity.updated_at = now
 
 
 def seed_reference_research() -> None:
@@ -57,13 +85,29 @@ def seed_reference_research() -> None:
         for entry in load_reference_research():
             domain = str(entry["domain"])
             run_key = f"reference-research-v1-{domain}"
-            if session.scalar(select(ResearchRun).where(ResearchRun.idempotency_key == run_key)):
-                continue
             company = session.scalar(select(Company).where(Company.canonical_domain == domain))
             if company is None:
                 company = Company(canonical_domain=domain, display_name=str(entry["name"]))
                 session.add(company)
                 session.flush()
+            existing_run = session.scalar(
+                select(ResearchRun).where(ResearchRun.idempotency_key == run_key)
+            )
+            if existing_run is not None:
+                snapshot = session.scalar(
+                    select(StoredScoreSnapshot)
+                    .where(StoredScoreSnapshot.research_run_id == existing_run.id)
+                    .order_by(StoredScoreSnapshot.created_at.desc())
+                )
+                if snapshot is not None:
+                    ensure_reference_opportunity(
+                        session,
+                        company_id=company.id,
+                        profile_id=profile_version.profile_id,
+                        snapshot_id=snapshot.id,
+                        now=now,
+                    )
+                continue
             company.display_name = str(entry["name"])
             company.aliases = list(entry["aliases"])
             run_id = stable_id(f"run/{domain}")
@@ -179,23 +223,30 @@ def seed_reference_research() -> None:
                             "evidence_ids": related_evidence,
                         }
                     )
-            session.add(
-                StoredScoreSnapshot(
-                    id=stable_id(f"score/{domain}"),
-                    research_run_id=run_id,
-                    company_id=company.id,
-                    profile_version_id=profile_version.id,
-                    calculation_version="2.0",
-                    score=94,
-                    eligibility="eligible",
-                    coverage=0.8,
-                    icp_fit=1.0,
-                    positive_strength=1.0,
-                    penalty_points=0,
-                    contributions=contributions,
-                    exclusion_reasons=[],
-                    warnings=[],
-                )
+            snapshot = StoredScoreSnapshot(
+                id=stable_id(f"score/{domain}"),
+                research_run_id=run_id,
+                company_id=company.id,
+                profile_version_id=profile_version.id,
+                calculation_version="2.0",
+                score=94,
+                eligibility="eligible",
+                coverage=0.8,
+                icp_fit=1.0,
+                positive_strength=1.0,
+                penalty_points=0,
+                contributions=contributions,
+                exclusion_reasons=[],
+                warnings=[],
+            )
+            session.add(snapshot)
+            session.flush()
+            ensure_reference_opportunity(
+                session,
+                company_id=company.id,
+                profile_id=profile_version.profile_id,
+                snapshot_id=snapshot.id,
+                now=now,
             )
 
 

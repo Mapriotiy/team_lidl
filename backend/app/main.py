@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.api.data_sources import router as data_sources_router
 from app.api.discovery import router as discovery_router
 from app.api.eu_tenders import router as eu_tenders_router
+from app.api.moldova_tenders import router as moldova_tenders_router
 from app.api.outreach import router as outreach_router
 from app.api.profiles import router as profiles_router
 from app.api.research import router as research_router
@@ -30,6 +31,7 @@ app.include_router(discovery_router)
 app.include_router(outreach_router)
 app.include_router(data_sources_router)
 app.include_router(eu_tenders_router)
+app.include_router(moldova_tenders_router)
 
 
 class HealthResponse(BaseModel):
