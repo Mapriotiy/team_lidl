@@ -71,7 +71,7 @@ def test_search_builds_portal_filters_and_sanitizes_results() -> None:
     body, as_file = transport.fields["query"]
     assert as_file
     must = json.loads(body)["bool"]["must"]
-    assert {"terms": {"type": ["0", "1", "2", "8"]}} in must
+    assert {"terms": {"type": ["8"]}} in must
     assert {"terms": {"status": ["31094502", "31094501"]}} in must
 
     assert result.total == 3
