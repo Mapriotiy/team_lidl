@@ -28,6 +28,7 @@ const eligibility: Record<OpportunityRecord['eligibility'], { label: string; ton
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value))
 const humanize = (value: string) => value.replace(/[-_]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase())
+const displayedScore = (lead: OpportunityRecord) => Math.round(lead.score)
 
 async function loadAllOpportunities(signal: AbortSignal) {
   const items: OpportunityRecord[] = []
@@ -49,6 +50,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
   const [profile, setProfile] = useState('all')
   const [sort, setSort] = useState<{ key: SortKey; direction: Direction }>({ key: 'score', direction: 'desc' })
   const [exporting, setExporting] = useState(false)
+  const [hideZeroScores, setHideZeroScores] = useState(true)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -73,17 +75,19 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
       : sort.key === 'updated' ? lead.last_researched_at
       : lead.score
     return inProfile
-      .filter((lead) => test(lead) && (!needle || lead.company_name.toLowerCase().includes(needle) || lead.canonical_domain.toLowerCase().includes(needle)))
+      .filter((lead) => (!hideZeroScores || displayedScore(lead) > 0)
+        && test(lead)
+        && (!needle || lead.company_name.toLowerCase().includes(needle) || lead.canonical_domain.toLowerCase().includes(needle)))
       .sort((a, b) => {
         const left = value(a)
         const right = value(b)
         if (left === right) return a.company_name.localeCompare(b.company_name)
         return (left > right ? 1 : -1) * (sort.direction === 'asc' ? 1 : -1)
       })
-  }, [inProfile, query, filter, sort])
+  }, [inProfile, query, filter, sort, hideZeroScores])
 
   const toggleSort = (key: SortKey) => setSort((current) => ({ key, direction: current.key === key && current.direction === 'desc' ? 'asc' : key === 'company' && current.key !== key ? 'asc' : 'desc' }))
-  const clearFilters = () => { setQuery(''); setFilter('all'); setProfile('all') }
+  const clearFilters = () => { setQuery(''); setFilter('all'); setProfile('all'); setHideZeroScores(false) }
 
   const exportCsv = useCallback(async () => {
     setExporting(true)
@@ -161,9 +165,14 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
         </div>
       ) : (
         <section className="overflow-hidden rounded-2xl border border-[#CFC7BC] bg-white shadow-[0_8px_28px_rgba(58,45,31,0.09)]">
-          <div className="grid grid-cols-[minmax(200px,1.5fr)_72px_130px_minmax(140px,1fr)_120px_110px_72px] gap-5 border-b-2 border-[#C8BFB3] bg-[#E8E2DA] px-6 py-3 text-[11px] text-[#4F4943]">
+          <div className="grid grid-cols-[minmax(200px,1.5fr)_120px_130px_minmax(140px,1fr)_120px_110px_72px] gap-5 border-b-2 border-[#C8BFB3] bg-[#E8E2DA] px-6 py-3 text-[11px] text-[#4F4943]">
             {header('company', 'Company')}
-            {header('score', 'Score')}
+            <div className="flex items-center gap-2">
+              {header('score', 'Score')}
+              <button type="button" aria-label="Hide zero-score companies" aria-pressed={hideZeroScores} title={hideZeroScores ? 'Zero-score companies are hidden' : 'Zero-score companies are shown'} className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold normal-case tracking-normal transition ${hideZeroScores ? 'bg-[#E86722] text-white' : 'bg-white text-[#625D57] hover:bg-[#F4F0EA]'}`} onClick={() => setHideZeroScores((current) => !current)}>
+                Hide 0
+              </button>
+            </div>
             <span className="font-bold uppercase tracking-wider">Status</span>
             <span className="font-bold uppercase tracking-wider">Strongest signal</span>
             {header('coverage', 'Evidence coverage')}
@@ -175,12 +184,12 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
               const state = eligibility[lead.eligibility]
               const coverage = Math.round(lead.coverage * 100)
               return (
-                <li key={lead.id} className="grid cursor-pointer grid-cols-[minmax(200px,1.5fr)_72px_130px_minmax(140px,1fr)_120px_110px_72px] items-center gap-5 px-6 py-4 transition even:bg-[#FBF9F6] hover:bg-[#FFF0E5]" onClick={() => onOpenCompany(lead.company_id)}>
+                <li key={lead.id} className="grid cursor-pointer grid-cols-[minmax(200px,1.5fr)_120px_130px_minmax(140px,1fr)_120px_110px_72px] items-center gap-5 px-6 py-4 transition even:bg-[#FBF9F6] hover:bg-[#FFF0E5]" onClick={() => onOpenCompany(lead.company_id)}>
                   <div className="min-w-0">
                     <h2 className="truncate font-semibold text-[#25292E]">{lead.company_name}</h2>
                     <p className="mt-1 truncate text-sm text-[#625D57]">{lead.canonical_domain}{profiles.length > 1 ? ` · ${lead.profile_name}` : ''}</p>
                   </div>
-                  <span className={`inline-flex w-fit rounded-lg px-2.5 py-1 text-base font-bold tabular-nums ${lead.eligibility === 'excluded' ? 'bg-[#EEEAE4] text-[#8A847D] line-through' : lead.score >= 70 ? 'bg-[#E86722] text-white' : 'bg-[#EEEAE4] text-[#34383D]'}`}>{Math.round(lead.score)}</span>
+                  <span className={`inline-flex w-fit rounded-lg px-2.5 py-1 text-base font-bold tabular-nums ${lead.eligibility === 'excluded' ? 'bg-[#EEEAE4] text-[#8A847D] line-through' : lead.score >= 70 ? 'bg-[#E86722] text-white' : 'bg-[#EEEAE4] text-[#34383D]'}`}>{displayedScore(lead)}</span>
                   <div className="flex flex-wrap gap-1.5">
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${state.tone}`}>{state.label}</span>
                     {lead.status !== 'new' && <span className="inline-flex rounded-full bg-[#E9F1FA] px-2.5 py-1 text-xs font-semibold capitalize text-[#315F8B]">{lead.status}</span>}

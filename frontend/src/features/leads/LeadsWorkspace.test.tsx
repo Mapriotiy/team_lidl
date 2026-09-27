@@ -15,8 +15,8 @@ const items = [
   lead({ id: 'o3', company_id: 'c3', company_name: 'Gamma', canonical_domain: 'gamma.cz', score: 60, eligibility: 'excluded', status: 'shortlisted' }),
 ]
 
-function stub() {
-  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items, meta: { page: 1, page_size: 100, total: items.length } }) })
+function stub(records = items) {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: records, meta: { page: 1, page_size: 100, total: records.length } }) })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
@@ -53,6 +53,19 @@ test('filters, searches and opens the company research', async () => {
   expect(onOpen).toHaveBeenCalledWith('c3')
   fireEvent.click(screen.getByText('gamma.cz'))
   expect(onOpen).toHaveBeenCalledTimes(2)
+})
+
+test('hides zero-score companies by default and can show them from the score heading', async () => {
+  stub([...items, lead({ id: 'o4', company_id: 'c4', company_name: 'Zero Corp', canonical_domain: 'zero.example', score: 0 })])
+  render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
+
+  const toggle = await screen.findByRole('button', { name: 'Hide zero-score companies' })
+  expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByText('Zero Corp')).not.toBeInTheDocument()
+
+  fireEvent.click(toggle)
+  expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByText('Zero Corp')).toBeInTheDocument()
 })
 
 test('reports a load failure with retry', async () => {
