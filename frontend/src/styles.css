@@ -20,6 +20,10 @@ input {
   font: inherit;
 }
 
+[class*="shadow-[-10px_0_14px_-14px_rgba"] {
+  box-shadow: none !important;
+}
+
 ::selection {
   background: rgb(232 103 34 / 22%);
 }
