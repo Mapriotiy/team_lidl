@@ -22,6 +22,24 @@ test('shows only the current selection and links to complete research history', 
   expect(onOpenHistory).toHaveBeenCalledOnce()
 })
 
+test('paginates research history ten companies at a time', async () => {
+  const companies = Array.from({ length: 12 }, (_, index) => ({ ...structuredClone(companyFixture), id: `company-${index + 1}`, name: `Company ${String(index + 1).padStart(2, '0')}` }))
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(companies.map(({ id }) => ({ id }))), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  vi.spyOn(repository, 'getCompany').mockImplementation(async (id) => structuredClone(companies.find((company) => company.id === id)!))
+
+  render(<ResearchActivityWorkspace history />)
+
+  const list = await screen.findByRole('list')
+  expect(within(list).getAllByRole('listitem')).toHaveLength(10)
+  expect(within(list).getByText('Company 01')).toBeInTheDocument()
+  expect(within(list).queryByText('Company 11')).not.toBeInTheDocument()
+  expect(screen.getByText('Showing 1–10 of 12')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+  expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+  expect(within(list).getByText('Company 11')).toBeInTheDocument()
+  expect(screen.getByText('Page 2 of 2')).toBeInTheDocument()
+})
+
 test.each([0, 1])('shows Not enough data for a finished run with %i sources despite supported signals', async (count) => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200 }))
   vi.spyOn(repository, 'getCompany').mockResolvedValue({

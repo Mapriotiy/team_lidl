@@ -4,6 +4,7 @@ import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
 import { LeadsWorkspace } from '../leads/LeadsWorkspace'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
+import { SignalsWorkspace } from '../signals/SignalsWorkspace'
 import { TenderWorkspace } from '../tenders/TenderWorkspace'
 import { TopBar } from '../../components/TopBar'
 import { useAppearance } from '../../components/useAppearance'
@@ -12,7 +13,7 @@ import { useDataSources } from '../settings/useDataSources'
 import sidebarResearcher from '../../assets/sidebar-researcher.png'
 
 type WorkflowView = 'profiles' | 'discovery' | 'activity'
-type View = WorkflowView | 'history' | 'leads' | 'tenders' | 'settings'
+type View = WorkflowView | 'history' | 'leads' | 'signals' | 'tenders' | 'settings'
 
 const navigation: Array<{ id: WorkflowView; label: string }> = [
   { id: 'profiles', label: 'Service Profile' },
@@ -28,6 +29,7 @@ export function OpportunityWorkspace() {
   const [openCompanyId, setOpenCompanyId] = useState<string | null>(null)
   const [activeResearchCompanyIds, setActiveResearchCompanyIds] = useState<string[]>([])
   const [view, setView] = useState<View>('profiles')
+  const [signalsReturnView, setSignalsReturnView] = useState<'activity' | 'history'>('activity')
   const [completed, setCompleted] = useState<Record<WorkflowView, boolean>>({ profiles: false, discovery: false, activity: false })
   const complete = useCallback((step: WorkflowView) => {
     setCompleted((current) => current[step] ? current : { ...current, [step]: true })
@@ -43,7 +45,7 @@ export function OpportunityWorkspace() {
 
   const openSources = () => { setSettingsSection('sources'); setView('settings') }
   const openCompany = (id: string) => { setOpenCompanyId(id); setView('activity') }
-  const screens = [...navigation, { id: 'history', label: 'Research history' }, { id: 'leads', label: 'Leads' }, { id: 'tenders', label: 'Tender opportunities' }, { id: 'settings', label: 'Settings' }].map((item) => ({ ...item, disabled: !canOpen(item.id as View) }))
+  const screens = [...navigation, { id: 'history', label: 'Research history' }, { id: 'leads', label: 'Leads' }, { id: 'signals', label: 'Signals' }, { id: 'tenders', label: 'Tender opportunities' }, { id: 'settings', label: 'Settings' }].map((item) => ({ ...item, disabled: !canOpen(item.id as View) }))
 
   return (
     <div className="min-h-screen bg-[#F7F6F3] text-[#20242A]">
@@ -78,7 +80,7 @@ export function OpportunityWorkspace() {
       </aside>
 
       <main className="lr-theme-surface lg:pl-64">
-        <TopBar viewLabel={view === 'settings' ? `Settings / ${settingsSection === 'sources' ? 'Data sources' : settingsSection === 'scoring' ? 'ICP & Scoring' : settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1)}` : view === 'history' ? 'Research history' : view === 'leads' ? 'Leads' : view === 'tenders' ? 'Tender opportunities' : navigation.find((item) => item.id === view)?.label ?? ''} screens={screens} onNavigate={(id) => { if (screens.some((item) => item.id === id && !item.disabled)) setView(id as View) }} onOpenCompany={openCompany} onOpenSources={openSources} onOpenSetting={(section) => { setSettingsSection(section); setView('settings') }} appearance={appearance} setAppearance={setAppearance} notifications={{ loading: sources.loading && !sources.snapshot, error: sources.error, entryCount: sources.snapshot?.crawl_log.length ?? 0, failures: (sources.snapshot?.crawl_log ?? []).filter((entry) => entry.status === 'error').slice(0, 8).map((entry) => ({ id: entry.id, sourceName: entry.provider, detail: entry.detail, at: entry.at })) }} />
+        <TopBar viewLabel={view === 'settings' ? `Settings / ${settingsSection === 'sources' ? 'Data sources' : settingsSection === 'scoring' ? 'ICP & Scoring' : settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1)}` : view === 'history' ? 'Research history' : view === 'leads' ? 'Leads' : view === 'signals' ? 'Signals' : view === 'tenders' ? 'Tender opportunities' : navigation.find((item) => item.id === view)?.label ?? ''} screens={screens} onNavigate={(id) => { if (screens.some((item) => item.id === id && !item.disabled)) setView(id as View) }} onOpenCompany={openCompany} onOpenSources={openSources} onOpenSetting={(section) => { setSettingsSection(section); setView('settings') }} appearance={appearance} setAppearance={setAppearance} notifications={{ loading: sources.loading && !sources.snapshot, error: sources.error, entryCount: sources.snapshot?.crawl_log.length ?? 0, failures: (sources.snapshot?.crawl_log ?? []).filter((entry) => entry.status === 'error').slice(0, 8).map((entry) => ({ id: entry.id, sourceName: entry.provider, detail: entry.detail, at: entry.at })) }} />
         <nav aria-label="Mobile navigation" className="flex gap-2 overflow-x-auto border-b border-[#DED9D1] bg-white p-3 lg:hidden">
           <select aria-label="Navigate to page" className="w-full rounded-lg border border-[#DED9D1] bg-white p-2 text-sm" value={view} onChange={(event) => setView(event.target.value as View)}>
             {screens.map(({ id, label }) => <option disabled={!canOpen(id as View)} key={id} value={id}>{label}</option>)}
@@ -88,9 +90,10 @@ export function OpportunityWorkspace() {
           {view === 'profiles' && <ProfileWorkspace onReady={finishProfile} />}
           {view === 'discovery' && <DiscoveryWorkspace onActivity={() => { if (canOpen('activity')) setView('activity') }} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
           {view === 'leads' && <LeadsWorkspace onOpenCompany={openCompany} />}
+          {view === 'signals' && <SignalsWorkspace onBack={() => setView(signalsReturnView)} onOpenCompany={openCompany} />}
           {view === 'tenders' && <TenderWorkspace />}
-          {view === 'activity' && <ResearchActivityWorkspace companyIds={activeResearchCompanyIds} initialCompanyId={openCompanyId} onConfigureSignals={() => { setSettingsSection('scoring'); setView('settings') }} onInitialCompanyOpened={() => setOpenCompanyId(null)} onOpenHistory={() => setView('history')} />}
-          {view === 'history' && <ResearchActivityWorkspace history onBackToResearch={() => setView('activity')} onConfigureSignals={() => { setSettingsSection('scoring'); setView('settings') }} />}
+          {view === 'activity' && <ResearchActivityWorkspace companyIds={activeResearchCompanyIds} initialCompanyId={openCompanyId} onInitialCompanyOpened={() => setOpenCompanyId(null)} onOpenHistory={() => setView('history')} onOpenSignals={() => { setSignalsReturnView('activity'); setView('signals') }} />}
+          {view === 'history' && <ResearchActivityWorkspace history onBackToResearch={() => setView('activity')} onOpenSignals={() => { setSignalsReturnView('history'); setView('signals') }} />}
           <div hidden={view !== 'settings'}><SettingsWorkspace section={settingsSection} onSection={setSettingsSection} onEditProfile={() => setView('profiles')} appearance={appearance} setAppearance={setAppearance} {...sources} limit={logLimit} setLimit={setLogLimit} /></div>
         </div>
       </main>
