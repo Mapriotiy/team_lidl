@@ -78,6 +78,7 @@ class AssessmentRead(ContractModel):
     id: str
     profile_version_id: str
     signal_id: str
+    question: str | None = None
     status: str
     evidence_strength: str | None
     rationale: str
@@ -94,6 +95,8 @@ class ScoreRead(ContractModel):
     eligibility: Eligibility
     coverage: float
     icp_fit: float
+    icp_evaluated_count: int = 0
+    icp_total_count: int = 0
     positive_strength: float
     penalty_points: float
     contributions: list[dict[str, object]]

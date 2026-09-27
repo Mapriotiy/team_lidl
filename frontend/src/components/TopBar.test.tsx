@@ -16,26 +16,36 @@ describe('TopBar', () => {
     render(<TopBar {...callbacks} />)
     expect(listCompanies).not.toHaveBeenCalled()
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
-    const input = screen.getByRole('combobox', { name: 'Search companies or screens' })
+    const input = screen.getByRole('combobox', { name: 'Search companies, signals, or screens' })
     await waitFor(() => expect(input).toHaveFocus())
     expect(screen.getByRole('option', { name: /Discover companies/ })).toBeDisabled()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(callbacks.onNavigate).toHaveBeenCalledWith('settings')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Search companies and screens' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Search companies, signals, and screens' })).toHaveFocus()
   })
   it('searches persisted companies by domain and opens the chosen company', async () => {
     vi.mocked(listCompanies).mockResolvedValue([{ id: 'company-42', canonical_domain: 'example.com', display_name: 'Example Ltd', aliases: [], industry: null, geography: null, company_size: null, operational_complexity: null }])
     const callbacks = props()
     render(<TopBar {...callbacks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     await screen.findByRole('option', { name: 'Example Ltd example.com' })
     const input = screen.getByRole('combobox')
     fireEvent.change(input, { target: { value: 'example.com' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(callbacks.onOpenCompany).toHaveBeenCalledWith('company-42')
     expect(callbacks.onNavigate).not.toHaveBeenCalled()
+  })
+  it('finds companies by persisted industry and geography facts', async () => {
+    vi.mocked(listCompanies).mockResolvedValue([{ id: 'company-facts', canonical_domain: 'factory.example', display_name: 'Factory Group', aliases: [], industry: { value: 'Industrial manufacturing', source_ids: ['source-1'], is_unknown: false }, geography: { value: 'Poland', source_ids: ['source-1'], is_unknown: false }, company_size: null, operational_complexity: null }])
+    const callbacks = props()
+    render(<TopBar {...callbacks} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
+    const input = screen.getByRole('combobox')
+    await act(async () => fireEvent.change(input, { target: { value: 'manufacturing Poland' } }))
+    fireEvent.click(screen.getByRole('option', { name: 'Factory Group factory.example' }))
+    expect(callbacks.onOpenCompany).toHaveBeenCalledWith('company-facts')
   })
   it('reports company API failure while keeping screen navigation usable', async () => {
     vi.mocked(listCompanies).mockRejectedValue(new Error('Network is offline'))
@@ -48,14 +58,14 @@ describe('TopBar', () => {
   })
   it('keeps focus inside the palette and restores it on dismissal', async () => {
     render(<TopBar {...props()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     const input = screen.getByRole('combobox')
     await act(async () => { fireEvent.keyDown(input, { key: 'Tab', shiftKey: true }) })
     expect(screen.getByRole('option', { name: 'EU Tenders' })).toHaveFocus()
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
     expect(input).toHaveFocus()
     fireEvent.keyDown(input, { key: 'Escape' })
-    expect(screen.getByRole('button', { name: 'Search companies and screens' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Search companies, signals, and screens' })).toHaveFocus()
   })
   it('does not portray unavailable notifications as successful collection', () => {
     render(<TopBar {...props()} notifications={{ loading: false, error: 'API unavailable', failures: [], entryCount: 0 }} />)
@@ -84,7 +94,7 @@ describe('TopBar', () => {
 
 const savedProfile: Profile = {
   id: 'profile-security', name: 'Cybersecurity', created_at: '2026-09-26', updated_at: '2026-09-26',
-  current_version: { id: 'version-2', version: 2, created_at: '2026-09-26', icp_criteria: [], configuration: { service_description: 'Security incident response', service_role: 'Cybersecurity', icp: {}, signals: [] } },
+  current_version: { id: 'version-2', version: 2, created_at: '2026-09-26', icp_criteria: [], configuration: { service_description: 'Security incident response', service_role: 'Cybersecurity', icp: {}, signals: [{ id: 'automation-rollout', question: 'Is there an active automation rollout?', positive_criteria: ['A named rollout with a delivery date.'], exclusions: ['Generic innovation language.'], weight: 20, effect: 'positive', freshness_window_days: 365 }] } },
 }
 
 describe('global search destinations', () => {
@@ -94,7 +104,7 @@ describe('global search destinations', () => {
   ])('opens the settings section matching "%s"', async (query, section) => {
     const callbacks = props()
     render(<TopBar {...callbacks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     const input = screen.getByRole('combobox')
     await act(async () => fireEvent.change(input, { target: { value: query } }))
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -105,7 +115,7 @@ describe('global search destinations', () => {
   it.each(['GDELT', 'NewsAPI', 'Public websites', 'EU Tenders'])('opens Data sources for %s without claiming provider health', async (name) => {
     const callbacks = props()
     render(<TopBar {...callbacks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     await act(async () => fireEvent.change(screen.getByRole('combobox'), { target: { value: name } }))
     const option = screen.getByRole('option', { name })
     expect(option).toHaveTextContent('Open Data sources')
@@ -119,11 +129,24 @@ describe('global search destinations', () => {
     const callbacks = props()
     render(<TopBar {...callbacks} />)
     expect(listProfiles).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     await screen.findByRole('option', { name: 'Profile: Cybersecurity' })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'incident response' } })
     const option = screen.getByRole('option', { name: 'Profile: Cybersecurity' })
     expect(option).toHaveTextContent('Open service profile workspace')
+    fireEvent.click(option)
+    expect(callbacks.onNavigate).toHaveBeenCalledWith('profiles')
+  })
+
+  it('finds profile signals by question and evidence criteria', async () => {
+    vi.mocked(listProfiles).mockResolvedValue([savedProfile])
+    const callbacks = props()
+    render(<TopBar {...callbacks} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
+    await screen.findByRole('option', { name: 'Signal: Is there an active automation rollout?' })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'named rollout delivery date' } })
+    const option = screen.getByRole('option', { name: 'Signal: Is there an active automation rollout?' })
+    expect(option).toHaveTextContent('Cybersecurity · Buying signal')
     fireEvent.click(option)
     expect(callbacks.onNavigate).toHaveBeenCalledWith('profiles')
   })
@@ -133,7 +156,7 @@ describe('global search destinations', () => {
     vi.mocked(listCompanies).mockResolvedValue([{ id: 'company-42', canonical_domain: 'example.com', display_name: 'Example Ltd', aliases: ['Legacy Example'], industry: null, geography: null, company_size: null, operational_complexity: null }])
     const callbacks = props()
     render(<TopBar {...callbacks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Profile search is unavailable. Profile API unavailable')
     expect(screen.getByRole('option', { name: 'ICP & Scoring' })).toBeEnabled()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'legacy example' } })
@@ -147,7 +170,7 @@ describe('global search destinations', () => {
     vi.mocked(listCompanies).mockResolvedValue([{ id: 'security-company', canonical_domain: 'security.example', display_name: 'Security Company', aliases: [], industry: null, geography: null, company_size: null, operational_complexity: null }])
     const callbacks = props()
     render(<TopBar {...callbacks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     await screen.findByRole('option', { name: 'Security Company security.example' })
     const input = screen.getByRole('combobox')
     fireEvent.change(input, { target: { value: 'security' } })
@@ -162,7 +185,7 @@ describe('global search destinations', () => {
     vi.mocked(listProfiles).mockImplementation(() => new Promise(() => {}))
     vi.mocked(listCompanies).mockImplementation(() => new Promise(() => {}))
     render(<TopBar {...props()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search companies and screens' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies, signals, and screens' }))
     const companySignal = vi.mocked(listCompanies).mock.calls[0][0]
     const profileSignal = vi.mocked(listProfiles).mock.calls[0][0]
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })

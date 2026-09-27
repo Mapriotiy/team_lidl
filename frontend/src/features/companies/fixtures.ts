@@ -1,7 +1,7 @@
 import type { CompanyDetail } from './types'
 
 export const companyFixture: CompanyDetail = {
-  id: 'company-lufthansa', name: 'Lufthansa Group', domain: 'lufthansagroup.com', aliases: ['Deutsche Lufthansa AG'], profileName: 'Process automation', score: 86, coverage: 0.88, eligibility: 'Eligible',
+  id: 'company-lufthansa', name: 'Lufthansa Group', domain: 'lufthansagroup.com', aliases: ['Deutsche Lufthansa AG'], profileName: 'Process automation', score: 86, icpFit: 0.92, icpEvaluatedCount: 3, icpTotalCount: 4, serviceInterest: 0.8, coverage: 0.88, eligibility: 'Eligible',
   facts: [
     { label: 'Industry', value: 'Aviation', state: 'known', sourceIds: ['source-report'] },
     { label: 'Geography', value: 'Germany', state: 'known', sourceIds: ['source-report'] },

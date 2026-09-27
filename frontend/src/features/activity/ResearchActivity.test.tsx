@@ -7,6 +7,21 @@ import { companyFixture } from '../companies/fixtures'
 
 afterEach(() => vi.restoreAllMocks())
 
+test('shows only the current selection and links to complete research history', async () => {
+  const historical = { ...structuredClone(companyFixture), id: 'company-history', name: 'Historical Company', domain: 'history.example' }
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: companyFixture.id }, { id: historical.id }]), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  vi.spyOn(repository, 'getCompany').mockImplementation(async (id) => structuredClone(id === historical.id ? historical : companyFixture))
+  const onOpenHistory = vi.fn()
+
+  render(<ResearchActivityWorkspace companyIds={[companyFixture.id]} onOpenHistory={onOpenHistory} />)
+
+  expect((await screen.findAllByText(companyFixture.name)).length).toBeGreaterThan(0)
+  expect(screen.queryByText(historical.name)).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Selected company research' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'View research history' }))
+  expect(onOpenHistory).toHaveBeenCalledOnce()
+})
+
 test.each([0, 1])('shows Not enough data for a finished run with %i sources despite supported signals', async (count) => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: companyFixture.id }]), { status: 200 }))
   vi.spyOn(repository, 'getCompany').mockResolvedValue({
@@ -39,7 +54,8 @@ test('opens company research and links facts to original excerpts', async () => 
 
   expect(await screen.findByText('Promising')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^Sort by Confidence/ })).toBeInTheDocument()
-  expect(screen.getByText(/%/)).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Signal heatmap' })).toBeInTheDocument()
+  expect(screen.getAllByText(/%/).length).toBeGreaterThan(0)
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Signals and supporting facts' })).toBeInTheDocument()
