@@ -4,6 +4,7 @@ import { analyzeEuTender, searchEuTenders, searchMoldovaTenders, type EuTendersS
 import { errorMessage } from '../../api/errors'
 import { listProfiles, selectDefaultProfile, type Profile } from '../../api/profiles'
 import { Icon } from '../../components/icons'
+import { preseededTenderResults } from './preseededTenders'
 
 const typeLabel: Record<TenderOpportunity['call']['opportunity_type'], string> = {
   public_procurement: 'Public procurement', funding_call: 'EU funding call', cascade_funding: 'Cascade funding', market_consultation: 'Market consultation', unknown: 'Needs classification',
@@ -27,9 +28,22 @@ export function TenderWorkspace() {
   const [portalTotal, setPortalTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [snapshotAt, setSnapshotAt] = useState('')
   const programmeCount = new Set(opportunities.map((item) => item.call.programme).filter(Boolean)).size
   const actionableCount = opportunities.filter((item) => item.recommendation === 'bid' || item.recommendation === 'partner').length
   const upcomingCount = opportunities.filter((item) => item.call.status === 'forthcoming').length
+
+  const applyResults = useCallback((results: EuTendersSearch[]) => {
+    const merged = results.flatMap((item) => item.opportunities).sort((a, b) => b.fit_score - a.fit_score)
+    setOpportunities(merged); setSelected(merged[0] ?? null); setQuery(results.map((item) => item.query).join(' · ')); setQueries(results.flatMap((item) => item.queries)); setPortalTotal(results.reduce((sum, item) => sum + item.total, 0)); setSnapshotAt(results.map((item) => item.retrieved_at).sort().at(0) ?? '')
+  }, [])
+
+  const showPreseeded = useCallback((id: string, name: string, selectedSource: TenderSource) => {
+    const results = preseededTenderResults(id, name, selectedSource)
+    if (!results.length) return false
+    applyResults(results); setError(''); setLoading(false)
+    return true
+  }, [applyResults])
 
   const run = useCallback(async (id: string, selectedSource: TenderSource) => {
     if (!id) return
@@ -41,32 +55,31 @@ export function TenderWorkspace() {
       const settled = await Promise.allSettled(requests)
       const results = settled.filter((item): item is PromiseFulfilledResult<EuTendersSearch> => item.status === 'fulfilled').map((item) => item.value)
       if (!results.length) throw settled[0]?.status === 'rejected' ? settled[0].reason : new Error('Tender sources unavailable')
-      const merged = results.flatMap((item) => item.opportunities).sort((a, b) => b.fit_score - a.fit_score)
-      setOpportunities(merged); setSelected(merged[0] ?? null); setQuery(results.map((item) => item.query).join(' · ')); setQueries(results.flatMap((item) => item.queries)); setPortalTotal(results.reduce((sum, item) => sum + item.total, 0))
+      applyResults(results)
       if (settled.some((item) => item.status === 'rejected')) setError('One tender source is temporarily unavailable; showing partial results.')
     } catch (reason) { setError(errorMessage(reason)); setOpportunities([]); setSelected(null) }
     finally { setLoading(false) }
-  }, [])
+  }, [applyResults])
 
   useEffect(() => {
     const controller = new AbortController()
     void listProfiles(controller.signal).then((items) => {
       if (controller.signal.aborted) return
-      const initial = selectDefaultProfile(items)?.id ?? ''
-      setProfiles(items); setProfileId(initial)
+      const initial = selectDefaultProfile(items)
+      setProfiles(items); setProfileId(initial?.id ?? '')
       if (!initial) setLoading(false)
-      else void run(initial, 'all')
+      else if (!showPreseeded(initial.id, initial.name, 'all')) void run(initial.id, 'all')
     }).catch((reason) => { if (!controller.signal.aborted) { setError(errorMessage(reason)); setLoading(false) } })
     return () => controller.abort()
-  }, [run])
+  }, [run, showPreseeded])
 
   return <div className="text-[#20242A]">
     <header className="flex flex-wrap items-end justify-between gap-5">
       <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#A44818]">Published demand</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Tender opportunities</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#68645F]">Turn official EU and Moldova procurement calls into explainable bid, partner, monitor, or reject decisions.</p></div>
-      <div className="flex min-w-[390px] items-end gap-3"><label className="text-xs font-semibold text-[#59554F]">Source<select aria-label="Tender source" className="mt-2 w-full rounded-xl border border-[#D6D0C7] bg-white px-3 py-2.5 text-sm" value={source} onChange={(event) => { const value = event.target.value as TenderSource; setSource(value); void run(profileId, value) }}><option value="all">EU + Moldova</option><option value="eu">EU only</option><option value="moldova">Moldova only</option></select></label><label className="flex-1 text-xs font-semibold text-[#59554F]">Service profile<select className="mt-2 w-full rounded-xl border border-[#D6D0C7] bg-white px-3 py-2.5 text-sm" value={profileId} onChange={(event) => { setProfileId(event.target.value); void run(event.target.value, source) }}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label><button className="rounded-xl bg-[#C94F12] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" disabled={!profileId || loading} onClick={() => void run(profileId, source)}>{loading ? 'Searching…' : 'Refresh'}</button></div>
+      <div className="flex min-w-[390px] items-end gap-3"><label className="text-xs font-semibold text-[#59554F]">Source<select aria-label="Tender source" className="mt-2 w-full rounded-xl border border-[#D6D0C7] bg-white px-3 py-2.5 text-sm" value={source} onChange={(event) => { const value = event.target.value as TenderSource; const profile = profiles.find((item) => item.id === profileId); setSource(value); if (!profile || !showPreseeded(profile.id, profile.name, value)) void run(profileId, value) }}><option value="all">EU + Moldova</option><option value="eu">EU only</option><option value="moldova">Moldova only</option></select></label><label className="flex-1 text-xs font-semibold text-[#59554F]">Service profile<select className="mt-2 w-full rounded-xl border border-[#D6D0C7] bg-white px-3 py-2.5 text-sm" value={profileId} onChange={(event) => { const profile = profiles.find((item) => item.id === event.target.value); setProfileId(event.target.value); if (!profile || !showPreseeded(profile.id, profile.name, source)) void run(event.target.value, source) }}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label><button className="rounded-xl bg-[#C94F12] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" disabled={!profileId || loading} onClick={() => void run(profileId, source)}>{loading ? 'Searching…' : 'Refresh'}</button></div>
     </header>
     {error && <p role="alert" className="mt-5 rounded-xl border border-[#E6B8AE] bg-[#FFF4F1] p-4 text-sm text-[#8A2F20]">{error}</p>}
-    <div className="mt-7 flex flex-wrap items-center gap-3 text-xs text-[#68645F]"><span className="rounded-full bg-[#1D1B19] px-3 py-1.5 font-semibold text-white">{opportunities.length} qualified results</span><span>{portalTotal} candidates reviewed across {queries.length || 1} searches</span>{query && <span>Primary query: <strong className="text-[#35312D]">{query}</strong></span>}</div>
+    <div className="mt-7 flex flex-wrap items-center gap-3 text-xs text-[#68645F]"><span className="rounded-full bg-[#1D1B19] px-3 py-1.5 font-semibold text-white">{opportunities.length} qualified results</span><span>{portalTotal} candidates reviewed across {queries.length || 1} searches</span>{query && <span>Primary query: <strong className="text-[#35312D]">{query}</strong></span>}{snapshotAt && <span className="rounded-full border border-[#DDD5CB] bg-white px-3 py-1.5">Snapshot {date(snapshotAt)} · Refresh for latest</span>}</div>
     {queries.length > 1 && <div aria-label="Search portfolio" className="mt-3 flex flex-wrap gap-2">{queries.map((item) => <span className="rounded-full border border-[#DDD5CB] bg-white px-3 py-1.5 text-xs text-[#665F58]" key={item}>{item}</span>)}</div>}
     {opportunities.length > 0 && <dl className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-[#DDD7CF] bg-white p-4"><dt className="text-[11px] font-bold uppercase tracking-wider text-[#80786F]">Programmes represented</dt><dd className="mt-1 text-2xl font-semibold text-[#C94F12]">{programmeCount}</dd></div><div className="rounded-xl border border-[#DDD7CF] bg-white p-4"><dt className="text-[11px] font-bold uppercase tracking-wider text-[#80786F]">Actionable now</dt><dd className="mt-1 text-2xl font-semibold text-[#C94F12]">{actionableCount}</dd></div><div className="rounded-xl border border-[#DDD7CF] bg-white p-4"><dt className="text-[11px] font-bold uppercase tracking-wider text-[#80786F]">Forthcoming</dt><dd className="mt-1 text-2xl font-semibold text-[#C94F12]">{upcomingCount}</dd></div></dl>}
     {!loading && !error && opportunities.length === 0 && <div className="mt-8 rounded-2xl border border-dashed border-[#CEC7BE] bg-white p-12 text-center"><h2 className="font-semibold">No sufficiently relevant open calls</h2><p className="mt-2 text-sm text-[#68645F]">The portal may have candidates, but none passed the service-specific relevance and deadline checks.</p></div>}
