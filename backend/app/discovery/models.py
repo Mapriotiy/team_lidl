@@ -26,6 +26,12 @@ class SizeVerification(StrEnum):
     NEEDS_VERIFICATION = "needs_verification"
 
 
+class QualificationStatus(StrEnum):
+    QUALIFIED = "qualified"
+    NEEDS_VERIFICATION = "needs_verification"
+    OUT_OF_ICP = "out_of_icp"
+
+
 class DiscoveryRequest(DiscoveryModel):
     country_codes: list[str] = Field(
         default_factory=lambda: list(EASTERN_EUROPE_DEFAULT), max_length=50
@@ -56,3 +62,5 @@ class DiscoveryCandidate(DiscoveryModel):
     size_verification: SizeVerification
     discovery_confidence: float = Field(ge=0, le=1)
     source_url: str
+    qualification: QualificationStatus = QualificationStatus.NEEDS_VERIFICATION
+    qualification_reasons: list[str] = Field(default_factory=list)

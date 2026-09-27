@@ -24,10 +24,10 @@ from app.api.result_contracts import (
 )
 from app.assessment.providers.openrouter import OpenRouterError
 from app.config import get_settings
+from app.contracts.icp import IcpCriterionDefinition, criteria_from_legacy_icp
 from app.contracts.opportunity import OpportunityStatus
 from app.contracts.score import Eligibility
 from app.db import get_session
-from app.contracts.icp import IcpCriterionDefinition, criteria_from_legacy_icp
 from app.icp.evaluation import evaluate_criteria
 from app.models.profile import ServiceProfile, ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
@@ -94,11 +94,17 @@ def _score_read(snapshot: StoredScoreSnapshot, company: Company, session: Sessio
         try:
             raw_definitions = version.configuration.get("icp_criteria")
             if isinstance(raw_definitions, list):
-                definitions = [IcpCriterionDefinition.model_validate(item) for item in raw_definitions]
+                definitions = [
+                    IcpCriterionDefinition.model_validate(item) for item in raw_definitions
+                ]
             else:
                 legacy = version.configuration.get("icp", {})
-                definitions = criteria_from_legacy_icp(legacy) if isinstance(legacy, Mapping) else []
-            criteria = evaluate_criteria([item for item in definitions if item.is_restrictive()], company.facts)
+                definitions = (
+                    criteria_from_legacy_icp(legacy) if isinstance(legacy, Mapping) else []
+                )
+            criteria = evaluate_criteria(
+                [item for item in definitions if item.is_restrictive()], company.facts
+            )
             total = len(criteria)
             evaluated = sum(item.matched is not None for item in criteria)
         except ValueError:

@@ -17,12 +17,23 @@ from app.models.profile import ServiceProfile, ServiceProfileVersion
 from app.models.research import Company, ResearchRun
 from app.models.results import Opportunity, StoredScoreSnapshot, StoredSourceDocument
 from app.research import IntegratedResearchPipeline
-from app.research.pipeline import _research_queries
+from app.research.pipeline import _publisher_key, _research_queries
 
 
 class FakeNews:
     def discover(self, company_name: str, *, limit: int = 5) -> list[object]:
         return []
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://business.publisher.com/article", "publisher.com"),
+        ("https://news.publisher.co.uk/article", "publisher.co.uk"),
+    ],
+)
+def test_publisher_key_collapses_subdomains(url: str, expected: str) -> None:
+    assert _publisher_key(url) == expected
 
 
 def test_research_queries_cover_profile_official_analysis_and_discussions() -> None:
@@ -552,6 +563,9 @@ def test_newsapi_targets_merge_with_gdelt_and_failures_stay_partial() -> None:
     collected = pipeline.collect("run-news", company)
     assert newsapi_stub.queries[0] == '"Example"'
     assert all(query.startswith('"Example"') for query in newsapi_stub.queries)
+    assert "efficiency" in newsapi_stub.queries[1]
+    assert "automation" in newsapi_stub.queries[2]
+    assert all("hiring OR recruiting" not in query for query in newsapi_stub.queries)
 
     news_urls = [t.url for t in collector.targets if t.source_type == SourceType.NEWS]
     assert news_urls == [

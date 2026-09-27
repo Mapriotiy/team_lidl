@@ -1,6 +1,7 @@
 import re
 from datetime import timedelta
 from typing import Literal
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -16,7 +17,7 @@ from app.assessment.validation import AssessmentValidationError
 from app.collection import CanonicalCompany, CollectedDocument, PublicSourceCollector, SourceTarget
 from app.contracts.data_sources import CrawlLogEntry
 from app.contracts.evidence import SourceType
-from app.contracts.profile import ProfileConfiguration
+from app.contracts.profile import ProfileConfiguration, SignalEffect
 from app.contracts.research import PartialError
 from app.discovery import (
     GdeltError,
@@ -36,6 +37,7 @@ from app.models.results import (
     StoredSignalAssessment,
     StoredSourceDocument,
 )
+from app.research.identity import verify_document_identity
 from app.scoring import IcpCriterion, ScoringInput, SignalScoringInput, calculate_score
 
 
@@ -62,6 +64,39 @@ _QUERY_STOPWORDS = {
     "would",
 }
 
+_SIGNAL_QUERY_STOPWORDS = _QUERY_STOPWORDS | {
+    "active",
+    "announced",
+    "clear",
+    "concrete",
+    "confirmed",
+    "current",
+    "dated",
+    "establish",
+    "evidence",
+    "explicit",
+    "named",
+    "programme",
+    "program",
+    "relevant",
+    "specific",
+}
+_SHORT_SIGNAL_TERMS = {"ai", "ml", "rpa", "soc"}
+_COMMON_SECOND_LEVEL_DOMAINS = {"ac", "co", "com", "edu", "gov", "net", "org"}
+
+
+def _publisher_key(url: str) -> str:
+    """Collapse publisher subdomains while retaining common country-code domains."""
+    hostname = (urlparse(url).hostname or url).casefold().strip(".")
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    labels = [label for label in hostname.split(".") if label]
+    if len(labels) <= 2:
+        return hostname
+    if len(labels[-1]) == 2 and labels[-2] in _COMMON_SECOND_LEVEL_DOMAINS:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
 
 def _research_queries(company_name: str, configuration: ProfileConfiguration) -> list[str]:
     """Build repeatable search angles from the selected company and saved profile."""
@@ -87,20 +122,51 @@ def _research_queries(company_name: str, configuration: ProfileConfiguration) ->
     ]
 
 
-_TRANSFORMATION_TERMS = '"digital transformation" OR "shared services" OR outsourcing'
+def _signal_query_terms(text: str, *, limit: int = 5) -> list[str]:
+    terms: list[str] = []
+    for term in re.findall(r"[A-Za-z][A-Za-z0-9-]{1,}", text.casefold()):
+        if (
+            (len(term) >= 4 or term in _SHORT_SIGNAL_TERMS)
+            and term not in _SIGNAL_QUERY_STOPWORDS
+            and term not in terms
+        ):
+            terms.append(term)
+        if len(terms) == limit:
+            break
+    return terms
 
 
-def _newsapi_queries(company: Company) -> list[str]:
-    """Identity query, then themed ones; each query spends one request of the daily quota."""
+def _newsapi_queries(
+    company: Company, configuration: ProfileConfiguration
+) -> list[str]:
+    """Use the immutable service profile for two bounded, high-priority news angles."""
     names = [company.display_name.strip(), *(alias.strip() for alias in company.aliases)]
     unique_names = [n for n in dict.fromkeys(names) if len(n) >= 3][:3]
     identity = " OR ".join(f'"{name}"' for name in unique_names)
     scoped = f"({identity})" if len(unique_names) > 1 else identity
-    return [
-        identity,
-        f"{scoped} AND (hiring OR recruiting OR vacancies OR jobs)",
-        f"{scoped} AND (automation OR {_TRANSFORMATION_TERMS})",
-    ]
+    ranked_signals = sorted(
+        enumerate(configuration.signals),
+        key=lambda item: (-item[1].weight, item[0]),
+    )
+    clauses: list[str] = []
+    for _, signal in ranked_signals:
+        if signal.effect != SignalEffect.POSITIVE or signal.weight <= 0:
+            continue
+        terms = _signal_query_terms(
+            " ".join([signal.question, *signal.positive_criteria])
+        )
+        clause = " OR ".join(terms)
+        if clause and clause not in clauses:
+            clauses.append(clause)
+        if len(clauses) == 2:
+            break
+    if len(clauses) < 2:
+        service_clause = " OR ".join(
+            _signal_query_terms(configuration.service_description)
+        )
+        if service_clause and service_clause not in clauses:
+            clauses.append(service_clause)
+    return [identity, *(f"{scoped} AND ({clause})" for clause in clauses[:2])]
 
 
 def _fact_source_targets(company: Company) -> list[SourceTarget]:
@@ -212,8 +278,15 @@ class IntegratedResearchPipeline:
 
         if self.newsapi is not None:
             try:
+                newsapi_queries = (
+                    _newsapi_queries(company, configuration)
+                    if configuration is not None
+                    else [f'"{company.display_name.strip()}"']
+                )
                 newsapi_candidates = self.newsapi.discover_queries(
-                    _newsapi_queries(company), limit_per_query=30, max_results=12
+                    newsapi_queries,
+                    limit_per_query=30,
+                    max_results=12,
                 )
                 new_urls = 0
                 for c in newsapi_candidates:
@@ -252,6 +325,27 @@ class IntegratedResearchPipeline:
             ),
             targets,
         )
+        verified_documents: list[CollectedDocument] = []
+        rejected_documents: list[CollectedDocument] = []
+        for document in result.documents:
+            decision = verify_document_identity(company, document)
+            if decision.matched:
+                verified_documents.append(document)
+            else:
+                rejected_documents.append(document)
+                crawl_log.append(
+                    CrawlLogEntry(
+                        id=str(uuid4()),
+                        run_id=run_id,
+                        company_id=company.id,
+                        company_name=company.display_name,
+                        provider="websites",
+                        target=document.canonical_url,
+                        status="skipped",
+                        detail="Collected page excluded: company identity could not be verified",
+                        at=utc_now(),
+                    )
+                )
         crawl_log.extend(
             CrawlLogEntry(
                 id=str(uuid4()),
@@ -271,13 +365,25 @@ class IntegratedResearchPipeline:
             PartialError(stage="collection", code=error.code, message=error.message)
             for error in result.errors
         )
+        if rejected_documents:
+            partial_errors.append(
+                PartialError(
+                    stage="collection",
+                    code="source_identity_unverified",
+                    message=(
+                        f"Excluded {len(rejected_documents)} external source"
+                        f"{'s' if len(rejected_documents) != 1 else ''} that could not be "
+                        "attributed to the selected company"
+                    ),
+                )
+            )
         expires_at = utc_now() + timedelta(days=self.retention_days)
         persisted_documents: list[CollectedDocument] = []
         with self.sessions.begin() as session:
             # Serialize repeated research for one company across worker slots, so
             # deduplication cannot race against the unique company/content key.
             session.execute(select(Company.id).where(Company.id == company.id).with_for_update())
-            for document in result.documents:
+            for document in verified_documents:
                 stored = session.get(StoredSourceDocument, document.id)
                 if stored is None:
                     stored = session.scalar(
@@ -320,7 +426,7 @@ class IntegratedResearchPipeline:
                 "documents": [document.model_dump(mode="json") for document in persisted_documents],
                 "crawl_log": [entry.model_dump(mode="json") for entry in crawl_log],
             },
-            completed=len(result.documents),
+            completed=len(verified_documents),
             total=result.total or len(targets),
             errors=partial_errors,
         )
@@ -411,6 +517,10 @@ class IntegratedResearchPipeline:
                     assessment=assessment,
                     event_date=max(event_dates) if event_dates else None,
                     publication_date=max(publication_dates) if publication_dates else None,
+                    source_independence_keys={
+                        item.id: _publisher_key(item.canonical_url)
+                        for item in cited_documents
+                    },
                 )
             )
         score = calculate_score(

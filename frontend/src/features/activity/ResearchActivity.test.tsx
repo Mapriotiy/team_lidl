@@ -47,7 +47,7 @@ test('does not turn completed checks without evidence into research confidence',
     evidence: [],
     assessments: Array.from({ length: 6 }, (_, index) => ({ id: `assessment-${index}`, question: `Signal ${index}`, status: 'insufficient_evidence' as const, strength: null, interpretation: 'No direct evidence found.', evidenceIds: [] })),
     sources: Array.from({ length: 7 }, (_, index) => ({ id: `source-${index}`, title: `Source ${index}`, url: `https://example.com/${index}`, type: 'company', retrievedAt: '2026-09-26T12:00:00Z', publicationDate: null })),
-    researchRuns: [{ id: 'partial-run', status: 'partial' as const, startedAt: '2026-09-26T12:00:00Z', finishedAt: '2026-09-26T12:05:00Z', collected: 7, collectionTotal: 11, assessed: 6, assessmentTotal: 6, warning: 'Four pages could not be collected.' }],
+    researchRuns: [{ id: 'partial-run', profileVersionId: 'profile-version-rpa-1', status: 'partial' as const, startedAt: '2026-09-26T12:00:00Z', finishedAt: '2026-09-26T12:05:00Z', collected: 7, collectionTotal: 11, assessed: 6, assessmentTotal: 6, warning: 'Four pages could not be collected.' }],
   }
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{ id: company.id }]), { status: 200 }))
   vi.spyOn(repository, 'getCompany').mockResolvedValue(company)
@@ -102,6 +102,27 @@ test('opens company research and links facts to original excerpts', async () => 
   expect(screen.queryByRole('heading', { name: 'Research history and diagnostics' })).not.toBeInTheDocument()
   const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
   expect(headings.indexOf('Collected sources')).toBeGreaterThan(headings.indexOf('Signals and supporting facts'))
+})
+
+test('queues fresh research without deleting previous runs', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+    const payload = init?.method === 'POST'
+      ? { id: 'run-refresh', status: 'queued' }
+      : [{ id: companyFixture.id }]
+    return Promise.resolve(new Response(JSON.stringify(payload), { status: init?.method === 'POST' ? 202 : 200, headers: { 'Content-Type': 'application/json' } }))
+  })
+  render(<ResearchActivityWorkspace />)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Open research' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Run fresh research' }))
+
+  expect(await screen.findByText(/Existing sources, scores, and run history are preserved/)).toBeInTheDocument()
+  const submission = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
+  expect(submission?.[0]).toEqual(expect.stringContaining('/research-runs'))
+  expect(JSON.parse(String(submission?.[1]?.body))).toMatchObject({
+    company_id: companyFixture.id,
+    profile_version_id: 'profile-version-rpa-1',
+  })
 })
 
 test('allows all saved research for a company to be deleted', async () => {
