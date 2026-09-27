@@ -18,7 +18,7 @@ test('shows only the current selection and links to complete research history', 
   expect((await screen.findAllByText(companyFixture.name)).length).toBeGreaterThan(0)
   expect(screen.queryByText(historical.name)).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Selected company research' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'View research history' }))
+  fireEvent.click(screen.getByRole('button', { name: 'View leads' }))
   expect(onOpenHistory).toHaveBeenCalledOnce()
 })
 
