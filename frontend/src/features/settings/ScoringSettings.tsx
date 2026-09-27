@@ -35,7 +35,7 @@ export function ScoringSettings({ renderProfileContext, intro = true }: { render
       // Refuse to overwrite a version saved elsewhere while this editor was open.
       const latest = (await listProfiles()).find((item) => item.id === profile.id)
       if (!latest || latest.current_version.id !== profile.current_version.id) throw new Error('This profile changed elsewhere. Reload profiles before saving your weights.')
-      const saved = await updateProfile(profile.id, profile.name, {
+      const saved = await updateProfile(profile.id, {
         ...profile.current_version.configuration,
         signals: signals.map((signal) => ({ ...signal, weight: weightOf(signal) })),
       })

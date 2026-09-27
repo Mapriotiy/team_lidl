@@ -39,7 +39,8 @@ test('opens company research and links facts to original excerpts', async () => 
 
   expect(await screen.findByText('Promising')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^Sort by Confidence/ })).toBeInTheDocument()
-  expect(screen.getByText(/%/)).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Signal heatmap' })).toBeInTheDocument()
+  expect(screen.getAllByText(/%/).length).toBeGreaterThan(0)
   fireEvent.click(screen.getByRole('button', { name: 'Open research' }))
   expect(await screen.findByRole('heading', { name: 'Lufthansa Group' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Signals and supporting facts' })).toBeInTheDocument()

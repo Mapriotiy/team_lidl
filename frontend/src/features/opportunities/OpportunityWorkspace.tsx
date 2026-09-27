@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { ResearchActivityWorkspace } from '../activity/ResearchActivity'
 import { DiscoveryWorkspace } from '../discovery/DiscoveryWorkspace'
 import { LeadsWorkspace } from '../leads/LeadsWorkspace'
 import { IcpScoringWorkspace } from '../scoring/IcpScoringWorkspace'
 import { ProfileWorkspace } from '../profiles/ProfileWorkspace'
-import { getProfile } from '../profiles/repository'
 import { TopBar } from '../../components/TopBar'
 import { useAppearance } from '../../components/useAppearance'
 import { SettingsWorkspace, type SettingsSection } from '../settings/SettingsWorkspace'
@@ -36,14 +35,10 @@ export function OpportunityWorkspace() {
   const completeDiscovery = useCallback(() => complete('discovery'), [complete])
   const finishProfile = useCallback(() => { completeProfile(); setView('discovery') }, [completeProfile])
   const finishDiscovery = useCallback(() => { completeDiscovery(); setView('activity') }, [completeDiscovery])
-  useEffect(() => {
-    let active = true
-    void getProfile().then((profile) => {
-      if (active && profile.serviceRole) completeProfile()
-    }).catch(() => { /* The profile editor exposes loading errors and retry. */ })
-    return () => { active = false }
-  }, [completeProfile])
-  const canOpen = (target: View) => target !== 'discovery' || completed.profiles
+  const canOpen = (target: View) => target === 'profiles'
+    || (target === 'discovery' ? completed.profiles
+      : target === 'activity' ? completed.profiles && completed.discovery
+        : true)
 
   const openSources = () => { setSettingsSection('sources'); setView('settings') }
   const openCompany = (id: string) => { setOpenCompanyId(id); setView('activity') }
@@ -90,7 +85,7 @@ export function OpportunityWorkspace() {
         </nav>
         <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
           {view === 'profiles' && <ProfileWorkspace onReady={finishProfile} />}
-          {view === 'discovery' && <DiscoveryWorkspace onActivity={() => setView('activity')} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
+          {view === 'discovery' && <DiscoveryWorkspace onActivity={() => { if (canOpen('activity')) setView('activity') }} onProfile={() => setView('profiles')} onResearchQueued={finishDiscovery} />}
           {view === 'scoring' && <IcpScoringWorkspace onEditProfile={() => setView('profiles')} />}
           {view === 'leads' && <LeadsWorkspace onOpenCompany={openCompany} />}
           {view === 'activity' && <ResearchActivityWorkspace initialCompanyId={openCompanyId} onInitialCompanyOpened={() => setOpenCompanyId(null)} />}

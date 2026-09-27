@@ -53,8 +53,16 @@ def seed_result(company_name: str = "Example Logistics") -> tuple[str, str]:
             version=1,
             configuration={
                 "service_description": "Automation",
-                "icp": {},
-                "signals": [],
+                "icp": {"industry": ["Logistics"], "geography": ["Germany"]},
+                "signals": [{
+                    "id": "efficiency",
+                    "question": "Is there a current efficiency programme?",
+                    "positive_criteria": ["Named current programme"],
+                    "exclusions": [],
+                    "weight": 20,
+                    "effect": "positive",
+                    "freshness_window_days": 365,
+                }],
             },
         )
         profile.versions.append(version)
@@ -171,8 +179,11 @@ def test_company_detail_exposes_excerpt_but_not_private_source_text() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["assessments"][0]["evidence"][0]["excerpt"] == "efficiency program"
+    assert body["assessments"][0]["question"] == "Is there a current efficiency programme?"
     assert "normalized_text" not in str(body)
     assert body["scores"][0]["score"] == 82
+    assert body["scores"][0]["icp_evaluated_count"] == 1
+    assert body["scores"][0]["icp_total_count"] == 2
 
 
 def test_company_detail_returns_assessments_from_latest_scored_run_only() -> None:
