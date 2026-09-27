@@ -45,8 +45,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [tool.setuptools.package-data]
-app = ["fixtures/*.json"]
+app = ["fixtures/*.json", "fixtures/evaluation/*.json"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
-

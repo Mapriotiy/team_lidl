@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "corpus": "reviewed_corpus.json",
   "corpus_version": "reviewed-labels-v1",
   "run": {
@@ -17,11 +17,13 @@
     "true_positive_supported": 0,
     "false_positive_supported": 0,
     "false_negative_supported": 0,
+    "supported_predictions": 0,
     "reviewed_labels": 0,
     "labels_with_usable_sources": 0,
     "wrong_company_attributions": 0,
     "inaccurate_excerpts": 0,
-    "duplicate_events_counted": 0
+    "duplicate_events_counted": 0,
+    "headline_only_supported": 0
   },
   "metrics": {
     "supported_finding_precision": null,
@@ -29,8 +31,11 @@
     "research_coverage": null,
     "wrong_company_attribution_rate": null,
     "excerpt_accuracy": null,
+    "headline_only_supported_rate": null,
     "mean_latency_ms_per_completed_account": null,
     "mean_cost_usd_per_completed_account": null
   },
+  "passed_quality_gate": false,
+  "gate_failures": ["Benchmark has not been run"],
   "notes": []
 }

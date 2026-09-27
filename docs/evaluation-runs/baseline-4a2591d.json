@@ -1,0 +1,656 @@
+{
+  "schema_version": 2,
+  "corpus_version": "reviewed-labels-v1",
+  "run": {
+    "revision": "4a2591d",
+    "started_at": "2026-09-26T23:38:40.560713Z",
+    "finished_at": "2026-09-26T23:40:28.750566Z",
+    "provider_model": "google/gemini-3.1-flash-lite",
+    "prompt_version": "assessment-v2",
+    "accounts_attempted": 17,
+    "accounts_completed": 17,
+    "latency_ms_total": 108189,
+    "provider_cost_usd": null
+  },
+  "counts": {
+    "true_positive_supported": 14,
+    "false_positive_supported": 1,
+    "false_negative_supported": 10,
+    "supported_predictions": 15,
+    "reviewed_labels": 65,
+    "labels_with_usable_sources": 65,
+    "wrong_company_attributions": 0,
+    "inaccurate_excerpts": 0,
+    "duplicate_events_counted": 0,
+    "headline_only_supported": 0
+  },
+  "metrics": {
+    "supported_finding_precision": 0.9333333333333333,
+    "missed_signal_rate": 0.4166666666666667,
+    "research_coverage": 1.0,
+    "wrong_company_attribution_rate": 0.0,
+    "excerpt_accuracy": 1.0,
+    "headline_only_supported_rate": 0.0,
+    "mean_latency_ms_per_completed_account": 6364.058823529412,
+    "mean_cost_usd_per_completed_account": null
+  },
+  "passed_quality_gate": false,
+  "gate_failures": [
+    "Missed-signal rate is above 20% or unavailable"
+  ],
+  "notes": [
+    "Provider cost was unavailable; the monetary budget could not be verified"
+  ],
+  "predictions": [
+    {
+      "company_id": "eval-uipath",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "uipath-s1",
+          "excerpt": "UiPath announced new agentic automation capabilities for its enterprise automation platform.",
+          "event_group_key": "agentic-automation-launch"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-uipath",
+      "profile": "Process automation",
+      "signal_id": "internal-capability",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-uipath",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "uipath-s1",
+          "excerpt": "UiPath announced new agentic automation capabilities for its enterprise automation platform.",
+          "event_group_key": "agentic-automation-launch"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-uipath",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-allegro",
+      "profile": "Software development",
+      "signal_id": "platform-modernization",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-allegro",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-allegro",
+      "profile": "Process automation",
+      "signal_id": "process-consolidation",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-allegro",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-pko",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-pko",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-pko",
+      "profile": "Cybersecurity",
+      "signal_id": "compliance-initiative",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-pko",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-omv-petrom",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "petrom-s1",
+          "excerpt": "OMV Petrom accelerează programul de eficientizare și digitalizare a operațiunilor.",
+          "event_group_key": "efficiency-program-2024"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-omv-petrom",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "petrom-s1",
+          "excerpt": "OMV Petrom accelerează programul de eficientizare și digitalizare a operațiunilor.",
+          "event_group_key": "digital-transformation-2024"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-omv-petrom",
+      "profile": "Process automation",
+      "signal_id": "incumbent-partner",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-omv-petrom",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-banca-transilvania",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "bt-s1",
+          "excerpt": "Banca Transilvania a extins funcționalitățile aplicației mobile pentru clienți.",
+          "event_group_key": "mobile-app-expansion"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-banca-transilvania",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-banca-transilvania",
+      "profile": "Cybersecurity",
+      "signal_id": "cloud-migration",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-banca-transilvania",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cez",
+      "profile": "Software development",
+      "signal_id": "platform-modernization",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "cez-s1",
+          "excerpt": "Skupina ČEZ pokračuje v digitalizaci distribuční sítě a modernizaci zákaznických služeb.",
+          "event_group_key": "modernization-effort"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cez",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cez",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cez",
+      "profile": "Process automation",
+      "signal_id": "process-consolidation",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-skoda",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "skoda-s1",
+          "excerpt": "Škoda Auto rozšiřuje automatizaci výroby a digitální řízení výrobních procesů.",
+          "event_group_key": "production-automation-expansion"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-skoda",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-skoda",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-skoda",
+      "profile": "Cybersecurity",
+      "signal_id": "security-hiring",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wizz",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "wizz-s1",
+          "excerpt": "Wizz Air released an update to its mobile application with revised booking features.",
+          "event_group_key": "mobile-app-update"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wizz",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wizz",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wizz",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-mol",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "mol-s1",
+          "excerpt": "MOL Group continued its efficiency programme",
+          "event_group_key": "efficiency-program-2024"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-mol",
+      "profile": "Process automation",
+      "signal_id": "incumbent-partner",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-mol",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "mol-s1",
+          "excerpt": "MOL Group continued its efficiency programme and modernization of customer digital channels.",
+          "event_group_key": "digital-channel-modernization"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-mol",
+      "profile": "Cybersecurity",
+      "signal_id": "compliance-initiative",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-otp",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "otp-s1",
+          "excerpt": "Az OTP Bank folytatta a digitális transzformációs programját.",
+          "event_group_key": "digital-transformation-program"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-otp",
+      "profile": "Software development",
+      "signal_id": "platform-modernization",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-otp",
+      "profile": "Cybersecurity",
+      "signal_id": "cloud-migration",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-otp",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-bitdefender",
+      "profile": "Process automation",
+      "signal_id": "internal-capability",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "bitdefender-s1",
+          "excerpt": "Bitdefender develops and operates its own security platform with an established internal research team.",
+          "event_group_key": "internal-capability"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-bitdefender",
+      "profile": "Cybersecurity",
+      "signal_id": "security-hiring",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-bitdefender",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-bitdefender",
+      "profile": "Software development",
+      "signal_id": "platform-modernization",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-gen-digital",
+      "profile": "Process automation",
+      "signal_id": "internal-capability",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-gen-digital",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-gen-digital",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-gen-digital",
+      "profile": "Cybersecurity",
+      "signal_id": "compliance-initiative",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cd-projekt",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "cdp-s1",
+          "excerpt": "CD PROJEKT confirmed that a new game entered full-scale production.",
+          "event_group_key": "full-scale-production-announcement"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cd-projekt",
+      "profile": "Software development",
+      "signal_id": "engineering-hiring",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cd-projekt",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-cd-projekt",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-nokia",
+      "profile": "Software development",
+      "signal_id": "platform-modernization",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "nokia-s1",
+          "excerpt": "Nokia announced a cloud-native platform modernization programme.",
+          "event_group_key": "platform-modernization-2024"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-nokia",
+      "profile": "Cybersecurity",
+      "signal_id": "cloud-migration",
+      "status": "supported",
+      "evidence": [
+        {
+          "source_id": "nokia-s1",
+          "excerpt": "Nokia announced a cloud-native platform modernization programme.",
+          "event_group_key": "cloud-modernization"
+        }
+      ],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-nokia",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-nokia",
+      "profile": "Process automation",
+      "signal_id": "process-consolidation",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-epam",
+      "profile": "Process automation",
+      "signal_id": "internal-capability",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-epam",
+      "profile": "Software development",
+      "signal_id": "engineering-hiring",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-epam",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-epam",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wise",
+      "profile": "Software development",
+      "signal_id": "product-launch",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wise",
+      "profile": "Software development",
+      "signal_id": "digital-expansion",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wise",
+      "profile": "Process automation",
+      "signal_id": "efficiency-program",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-wise",
+      "profile": "Cybersecurity",
+      "signal_id": "confirmed-incident",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    },
+    {
+      "company_id": "eval-headline-only-synthetic",
+      "profile": "Process automation",
+      "signal_id": "transformation-initiative",
+      "status": "insufficient_evidence",
+      "evidence": [],
+      "validation_errors": []
+    }
+  ]
+}
