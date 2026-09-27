@@ -64,6 +64,7 @@ The API applies Alembic migrations and loads the three service-profile presets w
 - [Product scope](docs/product-scope.md): user flows, service presets, and release boundaries.
 - [Contribution guide](CONTRIBUTING.md): branches, commits, reviews, squash merges, and repository settings.
 - [Quality and demo](docs/quality-and-demo.md): acceptance checks, evaluation dataset, and presentation runbook.
+- [EU Tenders integration](docs/eu-tenders-integration.md): setup, workflow, API, evidence analysis, and scoring boundaries.
 - [Parallel workstreams](docs/parallel-workstreams.md): five-person ownership, contracts, merge order, and agent-ready work packets.
 - [Annex alignment](docs/annex-alignment.md): traceability to the supplied participant reference pack.
 
