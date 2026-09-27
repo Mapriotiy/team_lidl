@@ -69,8 +69,12 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
     # facts are thin would be scored as if it fitted badly.
     decided = [item for item in scoring_input.icp_criteria if item.matched is not None]
     icp_configured = bool(scoring_input.icp_criteria)
+    icp_matched_count = sum(item.matched is True for item in scoring_input.icp_criteria)
+    icp_mismatched_count = sum(item.matched is False for item in scoring_input.icp_criteria)
+    icp_unknown_count = sum(item.matched is None for item in scoring_input.icp_criteria)
+    icp_total_count = len(scoring_input.icp_criteria)
     icp_fit = (
-        sum(criterion.matched is True for criterion in decided) / len(decided)
+        icp_matched_count / len(decided)
         if decided
         else 0.0
     )
@@ -215,6 +219,10 @@ def calculate_score(scoring_input: ScoringInput) -> ScoringResult:
         coverage=coverage,
         icp_fit=icp_fit,
         icp_configured=icp_configured,
+        icp_matched_count=icp_matched_count,
+        icp_mismatched_count=icp_mismatched_count,
+        icp_unknown_count=icp_unknown_count,
+        icp_total_count=icp_total_count,
         positive_strength=positive_strength,
         evidence_confidence=evidence_confidence,
         independent_positive_sources=len(independent_positive_sources),

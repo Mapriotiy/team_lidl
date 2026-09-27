@@ -27,6 +27,10 @@ class OpportunityRead(ContractModel):
     score: float
     eligibility: Eligibility
     coverage: float
+    icp_matched_count: int | None = None
+    icp_mismatched_count: int | None = None
+    icp_unknown_count: int | None = None
+    icp_total_count: int | None = None
     collection_completion: float
     strongest_signal: str | None
     last_researched_at: datetime
@@ -95,8 +99,8 @@ class ScoreRead(ContractModel):
     eligibility: Eligibility
     coverage: float
     icp_fit: float
-    icp_evaluated_count: int = 0
-    icp_total_count: int = 0
+    icp_evaluated_count: int | None = None
+    icp_total_count: int | None = None
     positive_strength: float
     penalty_points: float
     contributions: list[dict[str, object]]

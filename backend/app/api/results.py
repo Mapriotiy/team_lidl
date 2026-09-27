@@ -150,6 +150,10 @@ def _opportunity_read(
         score=snapshot.score,
         eligibility=snapshot.eligibility,
         coverage=snapshot.coverage,
+        icp_matched_count=snapshot.icp_matched_count,
+        icp_mismatched_count=snapshot.icp_mismatched_count,
+        icp_unknown_count=snapshot.icp_unknown_count,
+        icp_total_count=snapshot.icp_total_count,
         collection_completion=_collection_completion(run),
         strongest_signal=_strongest(snapshot),
         last_researched_at=snapshot.created_at,
@@ -441,7 +445,10 @@ def export_opportunities(
             "status",
             "eligibility",
             "score",
-            "coverage",
+            "target_fit_confirmed",
+            "target_fit_outside",
+            "target_fit_unknown",
+            "target_fit_total",
             "strongest_signal",
         ]
     )
@@ -455,7 +462,10 @@ def export_opportunities(
                 item.status,
                 item.eligibility,
                 item.score,
-                item.coverage,
+                item.icp_matched_count,
+                item.icp_mismatched_count,
+                item.icp_unknown_count,
+                item.icp_total_count,
                 _csv_safe(item.strongest_signal),
             ]
         )

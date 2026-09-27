@@ -129,6 +129,10 @@ def seed_result(company_name: str = "Example Logistics") -> tuple[str, str]:
             eligibility="eligible",
             coverage=0.75,
             icp_fit=1,
+            icp_matched_count=1,
+            icp_mismatched_count=0,
+            icp_unknown_count=1,
+            icp_total_count=2,
             positive_strength=0.8,
             penalty_points=4,
             contributions=[
@@ -163,6 +167,10 @@ def test_lists_filters_and_updates_persisted_opportunities() -> None:
     assert body["items"][0]["company_id"] == company_id
     assert body["items"][0]["collection_completion"] == 0.5
     assert body["items"][0]["strongest_signal"] == "efficiency"
+    assert body["items"][0]["icp_matched_count"] == 1
+    assert body["items"][0]["icp_mismatched_count"] == 0
+    assert body["items"][0]["icp_unknown_count"] == 1
+    assert body["items"][0]["icp_total_count"] == 2
 
     changed = client.patch(
         f"/opportunities/{opportunity_id}",
@@ -242,6 +250,10 @@ def test_csv_neutralizes_formula_prefixes() -> None:
     response = TestClient(app).get("/exports/opportunities.csv")
     assert response.status_code == 200
     assert "'=HYPERLINK" in response.text
+    assert (
+        "target_fit_confirmed,target_fit_outside,target_fit_unknown,target_fit_total"
+        in response.text
+    )
     assert "normalized_text" not in response.text
 
 

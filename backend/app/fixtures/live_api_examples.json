@@ -15,6 +15,10 @@
         "score": 68.5,
         "eligibility": "eligible",
         "coverage": 0.75,
+        "icp_matched_count": 2,
+        "icp_mismatched_count": 0,
+        "icp_unknown_count": 1,
+        "icp_total_count": 3,
         "collection_completion": 0.67,
         "strongest_signal": "efficiency-program",
         "last_researched_at": "2026-09-25T16:20:00Z"

@@ -55,6 +55,10 @@ class ScoringResult(ScoringModel):
     coverage: float
     icp_fit: float
     icp_configured: bool
+    icp_matched_count: int
+    icp_mismatched_count: int
+    icp_unknown_count: int
+    icp_total_count: int
     positive_strength: float
     evidence_confidence: float
     independent_positive_sources: int

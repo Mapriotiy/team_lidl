@@ -112,6 +112,10 @@ def test_calculates_evidence_gated_score_without_icp_inflation() -> None:
     assert result.independent_positive_sources == 1
     assert result.score == 25.0
     assert result.coverage == 0.5
+    assert result.icp_matched_count == 1
+    assert result.icp_mismatched_count == 1
+    assert result.icp_unknown_count == 0
+    assert result.icp_total_count == 2
     assert result.eligibility == Eligibility.NEEDS_RESEARCH
 
 

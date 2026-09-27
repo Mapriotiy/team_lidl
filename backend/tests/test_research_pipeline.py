@@ -467,6 +467,10 @@ def test_pipeline_keeps_valid_signals_when_one_citation_is_invalid() -> None:
         snapshot = session.scalar(select(StoredScoreSnapshot))
         assert snapshot is not None
         assert snapshot.coverage == 0.5
+        assert snapshot.icp_matched_count == 0
+        assert snapshot.icp_mismatched_count == 0
+        assert snapshot.icp_unknown_count == 0
+        assert snapshot.icp_total_count == 0
         assert len(snapshot.contributions) == 1
 
 
