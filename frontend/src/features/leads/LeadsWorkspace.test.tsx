@@ -24,6 +24,9 @@ function stub() {
 test('ranks leads by score and counts each filter', async () => {
   stub()
   render(<LeadsWorkspace onOpenCompany={vi.fn()} />)
+  expect((await screen.findAllByText('50% signals supported')).length).toBe(2)
+  expect(screen.queryByText('50% match')).not.toBeInTheDocument()
+  expect(screen.getByText(/evidence coverage shows the share of profile signals/i)).toBeInTheDocument()
   const names = (await screen.findAllByRole('listitem')).filter((node) => node.closest('ul')).map((node) => node.querySelector('h2')?.textContent)
   expect(names).toEqual(['Acme', 'Gamma', 'Beta'])
   const group = screen.getByRole('group', { name: 'Lead filters' })

@@ -108,7 +108,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-[#20242A]">Leads</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#625D57]">
-            {leads ? `${rows.length} researched ${rows.length === 1 ? 'company' : 'companies'}, ranked by score. Scores rest on quoted public evidence; coverage shows how many profile signals were answered.` : 'Researched companies, ranked by score.'}
+            {leads ? `${rows.length} researched ${rows.length === 1 ? 'company' : 'companies'}, ranked by score. Scores rest on quoted public evidence; evidence coverage shows the share of profile signals with verified evidence. It is not a fit or buying-intent score.` : 'Researched companies, ranked by score.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
             {header('score', 'Score')}
             <span className="font-bold uppercase tracking-wider">Status</span>
             <span className="font-bold uppercase tracking-wider">Strongest signal</span>
-            {header('coverage', 'Coverage')}
+            {header('coverage', 'Evidence coverage')}
             {header('updated', 'Researched')}
             <span className="text-right font-bold uppercase tracking-wider">Evidence</span>
           </div>
@@ -186,11 +186,11 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
                     {lead.status !== 'new' && <span className="inline-flex rounded-full bg-[#E9F1FA] px-2.5 py-1 text-xs font-semibold capitalize text-[#315F8B]">{lead.status}</span>}
                   </div>
                   <p className="truncate text-sm text-[#34383D]" title={lead.strongest_signal ?? undefined}>{lead.strongest_signal ? humanize(lead.strongest_signal) : <span className="text-[#8A847D]">None confirmed</span>}</p>
-                  <div title={`${coverage}% of profile signals answered`}>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAE4]" role="meter" aria-label={`Coverage for ${lead.company_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={coverage}>
+                  <div title={`${coverage}% of configured profile signals have verified evidence`}>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAE4]" role="meter" aria-label={`Evidence coverage for ${lead.company_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={coverage}>
                       <div className="h-full rounded-full bg-[#4F8564]" style={{ width: `${coverage}%` }} />
                     </div>
-                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{coverage}% match</p>
+                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{coverage}% signals supported</p>
                   </div>
                   <time className="text-sm text-[#625D57]" dateTime={lead.last_researched_at}>{formatDate(lead.last_researched_at)}</time>
                   <div className="flex justify-end">
