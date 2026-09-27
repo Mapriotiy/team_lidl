@@ -64,7 +64,7 @@ export function TopBar({ viewLabel, screens, onNavigate, onOpenCompany, onOpenSo
     <header className="lr-topbar">
       <nav className="lr-breadcrumb" aria-label="Breadcrumb"><span className="lr-workspace-label">Workspace</span><Icon name="chevron" /><span className="lr-view-label" aria-current="page">{viewLabel}</span></nav>
       <div className="lr-topbar-actions">
-        <button className="lr-search-trigger" ref={searchButton} type="button" onClick={() => { setPaletteOpen(true); setNotificationsOpen(false) }} aria-label="Search companies and screens"><Icon name="search" /><span>Search companies and screens…</span><kbd>⌘K</kbd></button>
+        <button className="lr-search-trigger" ref={searchButton} type="button" onClick={() => { setPaletteOpen(true); setNotificationsOpen(false) }} aria-label="Search companies, signals, and screens"><Icon name="search" /><span>Search companies, signals, and screens…</span><kbd>⌘K</kbd></button>
         <button type="button" className="lr-icon-button" aria-label={`Switch to ${appearance === 'dark' ? 'light' : 'dark'} appearance`} title={`Switch to ${appearance === 'dark' ? 'light' : 'dark'}`} onClick={() => setAppearance(appearance === 'dark' ? 'light' : 'dark')}><Icon name={appearance === 'dark' ? 'sun' : 'moon'} /></button>
         <div className="lr-notifications">
           <button ref={bellButton} type="button" className="lr-icon-button" aria-label={notificationLabel} aria-expanded={notificationsOpen} aria-controls="crawl-notifications" onClick={() => setNotificationsOpen((open) => !open)}><Icon name="bell" />{!notifications.loading && !notifications.error && problems.length > 0 && <span className="lr-notification-dot" />}</button>
@@ -96,14 +96,19 @@ function CommandPalette({ screens, onClose, onNavigate, onOpenCompany, onOpenSet
   const pages = screens.filter((screen) => matchesSearch(needle, `${screen.label} ${screenKeywords[screen.id] ?? ''}`))
   const settings = settingsDestinations.filter((item) => matchesSearch(needle, `${item.label} ${item.keywords}`))
   const sources = sourceDestinations.filter((item) => matchesSearch(needle, `${item.label} ${item.keywords}`))
-  const matchingCompanies = companies.filter((company) => matchesSearch(needle, `${company.display_name} ${company.canonical_domain} ${company.aliases.join(' ')}`)).slice(0, needle ? 8 : 6)
+  const factValue = (fact: CompanySummary['industry']) => fact && !fact.is_unknown && fact.value !== null ? String(fact.value) : ''
+  const matchingCompanies = companies.filter((company) => matchesSearch(needle, [company.display_name, company.canonical_domain, ...company.aliases, factValue(company.industry), factValue(company.geography), factValue(company.company_size), factValue(company.operational_complexity)].join(' '))).slice(0, needle ? 8 : 6)
   const matchingProfiles = profiles.filter((profile) => matchesSearch(needle, `${profile.name} ${profile.current_version.configuration.service_role ?? ''} ${profile.current_version.configuration.service_description}`)).slice(0, 6)
+  const matchingSignals = profiles.flatMap((profile) => profile.current_version.configuration.signals.map((signal) => ({ profile, signal })))
+    .filter(({ profile, signal }) => matchesSearch(needle, `${profile.name} ${signal.question} ${signal.positive_criteria.join(' ')} ${signal.exclusions.join(' ')} ${signal.effect}`))
+    .slice(0, needle ? 8 : 4)
   const canOpenProfiles = screens.some((screen) => screen.id === 'profiles' && !screen.disabled)
   const options = [
     ...pages.filter((screen) => !screen.disabled).map((screen) => ({ key: `screen-${screen.id}`, select: () => onNavigate(screen.id) })),
     ...settings.map((item) => ({ key: `setting-${item.id}`, select: () => onOpenSetting(item.id) })),
     ...sources.map((item) => ({ key: `source-${item.id}`, select: () => onOpenSetting('sources') })),
     ...(canOpenProfiles ? matchingProfiles.map((profile) => ({ key: `profile-${profile.id}`, select: () => onNavigate('profiles') })) : []),
+    ...(canOpenProfiles ? matchingSignals.map(({ profile, signal }) => ({ key: `signal-${profile.id}-${signal.id}`, select: () => onNavigate('profiles') })) : []),
     ...matchingCompanies.map((company) => ({ key: `company-${company.id}`, select: () => onOpenCompany(company.id) })),
   ]
   const active = options.find((option) => option.key === selectedKey) ?? options[0]
@@ -130,7 +135,7 @@ function CommandPalette({ screens, onClose, onNavigate, onOpenCompany, onOpenSet
   const open = (action: () => void) => { action(); onClose() }
 
   return <div className="lr-palette-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <div ref={panel} className="lr-palette" role="dialog" aria-modal="true" aria-label="Search companies and screens" onKeyDown={(event) => {
+    <div ref={panel} className="lr-palette" role="dialog" aria-modal="true" aria-label="Search companies, signals, and screens" onKeyDown={(event) => {
       if (event.key === 'Escape') { event.preventDefault(); onClose() }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
@@ -149,7 +154,7 @@ function CommandPalette({ screens, onClose, onNavigate, onOpenCompany, onOpenSet
       }
     }}>
       <div className="lr-palette-input">
-        <Icon name="search" /><input ref={input} value={query} onChange={(event) => { setQuery(event.target.value); setSelectedKey(null) }} role="combobox" aria-label="Search companies or screens" aria-autocomplete="list" aria-expanded="true" aria-controls="workspace-search-results" aria-activedescendant={activeKey} placeholder="Search companies, profiles, settings, sources…" />
+        <Icon name="search" /><input ref={input} value={query} onChange={(event) => { setQuery(event.target.value); setSelectedKey(null) }} role="combobox" aria-label="Search companies, signals, or screens" aria-autocomplete="list" aria-expanded="true" aria-controls="workspace-search-results" aria-activedescendant={activeKey} placeholder="Search companies, profiles, signals, settings, sources…" />
         <button className="lr-icon-button" type="button" onClick={onClose} aria-label="Close search"><Icon name="close" /></button>
       </div>
       <div className="lr-palette-results" id="workspace-search-results" role="listbox" aria-label="Search results">
@@ -159,6 +164,7 @@ function CommandPalette({ screens, onClose, onNavigate, onOpenCompany, onOpenSet
         <div role="group" aria-label="Saved profiles"><p className="lr-palette-heading">Saved profiles</p>
           {profilesLoading ? <p className="lr-search-status" role="status">Loading profiles…</p> : profilesError ? <p className="lr-search-status" role="alert">Profile search is unavailable. {profilesError}</p> : matchingProfiles.length === 0 ? <p className="lr-search-status">{needle ? 'No matching saved profiles.' : 'No saved profiles yet.'}</p> : matchingProfiles.map((profile) => <button id={`profile-${profile.id}`} role="option" aria-label={`Profile: ${profile.name}`} aria-selected={activeKey === `profile-${profile.id}`} disabled={!canOpenProfiles} key={profile.id} type="button" onClick={() => open(() => onNavigate('profiles'))}><span>{profile.name}</span><small>Open service profile workspace</small></button>)}
         </div>
+        {matchingSignals.length > 0 && <div role="group" aria-label="Profile signals"><p className="lr-palette-heading">Profile signals</p>{matchingSignals.map(({ profile, signal }) => <button id={`signal-${profile.id}-${signal.id}`} role="option" aria-label={`Signal: ${signal.question}`} aria-selected={activeKey === `signal-${profile.id}-${signal.id}`} disabled={!canOpenProfiles} key={`${profile.id}-${signal.id}`} type="button" onClick={() => open(() => onNavigate('profiles'))}><span>{signal.question}</span><small>{profile.name} · {signal.effect === 'positive' ? 'Buying signal' : signal.effect === 'penalty' ? 'Warning' : 'Disqualifier'}</small></button>)}</div>}
         <div role="group" aria-label="Companies"><p className="lr-palette-heading">{needle ? 'Matching companies' : 'Companies'}</p>
           {loading ? <p className="lr-search-status" role="status">Loading companies…</p> : error ? <p className="lr-search-status" role="alert">Company search is unavailable. {error}</p> : matchingCompanies.length === 0 ? <p className="lr-search-status">{needle ? `No company matches “${query}”.` : 'No companies yet. Discover or import companies to get started.'}</p> : matchingCompanies.map((company) => <button aria-label={`${company.display_name} ${company.canonical_domain}`} id={`company-${company.id}`} role="option" aria-selected={activeKey === `company-${company.id}`} key={company.id} type="button" onClick={() => open(() => onOpenCompany(company.id))}><span>{company.display_name}</span><small>{company.canonical_domain}</small></button>)}
         </div>
