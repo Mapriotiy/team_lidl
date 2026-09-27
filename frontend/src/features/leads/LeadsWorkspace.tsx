@@ -190,7 +190,7 @@ export function LeadsWorkspace({ onOpenCompany }: { onOpenCompany: (companyId: s
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAE4]" role="meter" aria-label={`Coverage for ${lead.company_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={coverage}>
                       <div className="h-full rounded-full bg-[#4F8564]" style={{ width: `${coverage}%` }} />
                     </div>
-                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{coverage}% answered</p>
+                    <p className="mt-1 text-xs tabular-nums text-[#625D57]">{coverage}% match</p>
                   </div>
                   <time className="text-sm text-[#625D57]" dateTime={lead.last_researched_at}>{formatDate(lead.last_researched_at)}</time>
                   <div className="flex justify-end">
