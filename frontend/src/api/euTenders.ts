@@ -11,6 +11,8 @@ export interface TenderCall {
   summary: string
   opportunity_type: 'public_procurement' | 'funding_call' | 'cascade_funding' | 'market_consultation' | 'unknown'
   budget: number | null
+  currency: string
+  source: 'eu' | 'moldova'
 }
 
 export interface TenderFitDimension { id: string; label: string; score: number | null; explanation: string }
@@ -32,6 +34,9 @@ export interface EuTendersSearch {
 
 export const searchEuTenders = (profileId: string, limit = 10) =>
   apiRequest<EuTendersSearch>(`/eu-tenders/search${queryString({ profile_id: profileId, limit })}`)
+
+export const searchMoldovaTenders = (profileId: string, limit = 10) =>
+  apiRequest<EuTendersSearch>(`/moldova-tenders/search${queryString({ profile_id: profileId, limit })}`)
 
 export const analyzeEuTender = (call: TenderCall) =>
   apiRequest<TenderIntelligence>('/eu-tenders/analyze', { method: 'POST', body: JSON.stringify({ call }) })

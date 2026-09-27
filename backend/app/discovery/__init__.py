@@ -7,6 +7,7 @@ from app.discovery.eu_tenders import (
 )
 from app.discovery.gdelt import GdeltError, GdeltNewsDiscovery, NewsCandidate
 from app.discovery.models import DiscoveryCandidate, DiscoveryRequest, SizeVerification
+from app.discovery.moldova_tenders import MoldovaTendersDiscovery
 from app.discovery.newsapi import NewsApiDiscovery, NewsApiError
 from app.discovery.wikidata import WikidataDiscovery, WikidataError
 
@@ -21,6 +22,7 @@ __all__ = [
     "NewsApiDiscovery",
     "NewsApiError",
     "NewsCandidate",
+    "MoldovaTendersDiscovery",
     "SizeVerification",
     "TenderCall",
     "TenderSearchResult",

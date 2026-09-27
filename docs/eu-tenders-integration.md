@@ -1,9 +1,13 @@
-# EU Tenders integration
+# EU and Moldova tenders integration
 
 LeadRadar uses the public search API behind the EU Funding & Tenders Portal to find
 procurement opportunities that match the active Service Profile. Tender results are a
 separate demand channel: they are not treated as company evidence and do not change a
 company's prospect score.
+
+The same workspace can search Moldova's official MTender portal. MTender publishes
+real-time OCDS 1.1 open contracting data and exposes the public search used by its own
+portal interface.
 
 ## Enable the integration
 
@@ -11,6 +15,7 @@ Set the feature flag in `.env` and restart the API:
 
 ```dotenv
 EU_TENDERS_ENABLED=true
+MOLDOVA_TENDERS_ENABLED=true
 ```
 
 ```bash
@@ -18,7 +23,8 @@ docker compose restart api
 ```
 
 The public SEDIA search endpoint does not require a user API key. `OPENROUTER_API_KEY`
-is not required for tender search or the current evidence analysis.
+is not required for tender search or the current evidence analysis. MTender search also
+uses public endpoints and requires no credential.
 
 Verify the integration without exposing configuration values:
 
@@ -32,7 +38,8 @@ the status remains visible but search and analysis are unavailable.
 ## Product workflow
 
 1. Create or select a Service Profile.
-2. Open **Tender opportunities** in the sidebar.
+2. Open **Tender opportunities** in the sidebar and choose **EU + Moldova**, **EU only**,
+   or **Moldova only**.
 3. Run the search. The backend derives several domain queries from the profile, searches
    official procurement records, removes duplicate URLs, and ranks the remaining calls.
 4. Review fit dimensions, missing eligibility evidence, risks, deadline and next actions.
@@ -42,6 +49,11 @@ the status remains visible but search and analysis are unavailable.
 The search is intentionally restricted to the official procurement lane (`type=8`). This
 avoids presenting sparse grant shells as bid-ready opportunities. Open and forthcoming
 English-language calls are considered; expired calls are removed.
+
+For Moldova, the profile is expanded with Romanian-language service terms. Only current
+government procedures in published, clarification, bidding, or auction stages are retained.
+Cancelled, awarded, completed, and contract-stage records are excluded. Results preserve
+the official MTender URL, buyer, region, procedure type, amount, and MDL currency.
 
 ## API
 
@@ -82,6 +94,15 @@ Content-Type: application/json
 Analysis returns evidence coverage, confidence, supported facts with excerpts, blockers,
 next actions and the original source URL. If the source page cannot be collected, the
 response explicitly warns that only portal metadata was available.
+
+### Moldova profile-based search
+
+```http
+GET /moldova-tenders/search?profile_id={service_profile_id}&limit=20
+```
+
+The response follows the same opportunity contract as EU search, with `source=moldova`
+and `currency=MDL`, so the frontend can merge and rank both official sources.
 
 ## Data and scoring boundaries
 

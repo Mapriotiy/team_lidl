@@ -99,6 +99,8 @@ class TenderCall(BaseModel):
         "public_procurement", "funding_call", "cascade_funding", "market_consultation", "unknown"
     ] = "unknown"
     budget: float | None = None
+    currency: str = "EUR"
+    source: Literal["eu", "moldova"] = "eu"
 
 
 class TenderSearchResult(BaseModel):
