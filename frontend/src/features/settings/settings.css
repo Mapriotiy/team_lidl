@@ -61,14 +61,25 @@
 .runtime-details div { display: flex; gap: 20px; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .runtime-details dt { color: var(--muted-foreground); }
 .runtime-details dd { font-weight: 500; overflow-wrap: anywhere; }
-.weight-list { margin-top: 18px; }
-.weight-row { padding: 22px 0; border-bottom: 1px solid var(--border); }
-.weight-row label { font-size: 14px; font-weight: 500; line-height: 1.6; }
-.weight-control { display: grid; grid-template-columns: minmax(70px, 1fr) 72px 130px; gap: 14px; align-items: center; margin-top: 16px; }
-.weight-control input[type=range] { width: 100%; }
-.weight-summary { padding: 22px 0; font-size: 13px; }
-.weight-distribution { display: flex; gap: 3px; height: 10px; overflow: hidden; border-radius: 10px; margin: 14px 0 10px; background: var(--muted); }
+.signal-questions-card { padding: 0; overflow: hidden; }
+.signal-questions-card > .settings-heading-row { padding: 25px; }
+.signal-questions-card > .settings-small { margin: -12px 25px 18px; }
+.signal-question-table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+.signal-question-table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; }
+.signal-question-table th { padding: 12px 18px; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.signal-question-table th:first-child, .signal-question-table td:first-child { padding-left: 25px; width: 48%; }
+.signal-question-table th:last-child, .signal-question-table td:last-child { padding-right: 25px; }
+.signal-question-table td { padding: 17px 18px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.signal-question-table tbody tr:last-child td { border-bottom: 0; }
+.signal-question-table tbody tr:hover { background: var(--muted, #f5f2ed); }
+.signal-question-key { display: block; max-width: 320px; overflow: hidden; color: var(--muted-foreground); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.signal-question-copy { display: block; margin-top: 5px; color: var(--foreground); font-size: 14px; font-weight: 500; line-height: 1.5; }
+.signal-weight-editor { display: grid; grid-template-columns: minmax(72px, 1fr) 64px 34px; align-items: center; gap: 9px; min-width: 190px; }
+.signal-weight-editor input[type=range] { width: 100%; }
+.signal-weight-editor input[type=number] { width: 64px; padding: 7px 8px; text-align: right; }
+.signal-freshness { color: var(--muted-foreground); font-size: 13px; white-space: nowrap; }
 .settings-footer { display: flex; align-items: center; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+.signal-questions-card > .settings-footer { padding: 18px 25px 25px; }
 .settings-footer p { margin-right: auto; }
 .sources-overview { display: grid; grid-template-columns: minmax(0, 1fr) 245px; gap: 16px; align-items: start; }
 .source-card { padding: 20px; }
@@ -112,4 +123,4 @@
 .crawl-target { max-width: 220px; overflow-wrap: anywhere; }
 .crawl-detail { min-width: 165px; overflow-wrap: anywhere; }
 @media (max-width: 1250px) { .sources-overview { grid-template-columns: 1fr; } .source-health { display: none; } }
-@media (max-width: 700px) { .settings-layout { grid-template-columns: 1fr; gap: 20px; } .settings-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 5px; } .settings-nav button { white-space: nowrap; padding: 10px; font-size: 12px; } .settings-card { padding: 18px; } .weight-control { grid-template-columns: 1fr 65px; } .weight-control span { grid-column: span 2; } .settings-footer { flex-wrap: wrap; } .settings-footer p { width: 100%; } .settings-heading-row { flex-wrap: wrap; } .crawl-filters > input { flex-basis: 100%; width: 100%; } .tender-controls { align-items: stretch; flex-direction: column; } .tender-list { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .settings-layout { grid-template-columns: 1fr; gap: 20px; } .settings-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 5px; } .settings-nav button { white-space: nowrap; padding: 10px; font-size: 12px; } .settings-card { padding: 18px; } .signal-questions-card { padding: 0; } .signal-questions-card > .settings-heading-row { padding: 20px 18px; } .signal-questions-card > .settings-footer { padding: 16px 18px 20px; } .settings-footer { flex-wrap: wrap; } .settings-footer p { width: 100%; } .settings-heading-row { flex-wrap: wrap; } .crawl-filters > input { flex-basis: 100%; width: 100%; } .tender-controls { align-items: stretch; flex-direction: column; } .tender-list { grid-template-columns: 1fr; } }

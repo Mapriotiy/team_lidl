@@ -5,7 +5,10 @@ import { SignalHeatmap } from './SignalHeatmap'
 
 test('compares signals and opens the selected company evidence', () => {
   const onOpen = vi.fn()
-  render(<SignalHeatmap companies={[companyFixture]} onOpen={onOpen} />)
+  const onOpenSignals = vi.fn()
+  render(<SignalHeatmap companies={[companyFixture]} onOpen={onOpen} onOpenSignals={onOpenSignals} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Signals' }))
+  expect(onOpenSignals).toHaveBeenCalledOnce()
   const grid = screen.getByRole('table', { name: 'Companies by researched signal' })
   expect(within(grid).getByText('Lufthansa Group')).toBeInTheDocument()
   expect(screen.queryByLabelText('Signals shown')).not.toBeInTheDocument()
