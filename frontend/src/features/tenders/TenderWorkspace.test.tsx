@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-const { analyzeEuTender, listProfiles, searchEuTenders, searchMoldovaTenders } = vi.hoisted(() => ({
+const { analyzeEuTender, listProfiles, preseededTenderResults, searchEuTenders, searchMoldovaTenders } = vi.hoisted(() => ({
   analyzeEuTender: vi.fn(),
   listProfiles: vi.fn(),
+  preseededTenderResults: vi.fn(),
   searchEuTenders: vi.fn(),
   searchMoldovaTenders: vi.fn(),
 }))
@@ -13,6 +14,7 @@ vi.mock('../../api/profiles', async (load) => ({
   listProfiles,
 }))
 vi.mock('../../api/euTenders', () => ({ analyzeEuTender, searchEuTenders, searchMoldovaTenders }))
+vi.mock('./preseededTenders', () => ({ preseededTenderResults }))
 
 import { TenderWorkspace } from './TenderWorkspace'
 
@@ -30,7 +32,25 @@ beforeEach(() => {
     }],
   })
   searchMoldovaTenders.mockReset().mockResolvedValue({ profile_id: 'profile-1', profile_name: 'RPA', query: 'automatizare', queries: ['automatizare'], total: 0, retrieved_at: '2026-09-26T12:00:00Z', warnings: [], calls: [], opportunities: [] })
+  preseededTenderResults.mockReset().mockReturnValue([])
   analyzeEuTender.mockReset().mockResolvedValue({ decision: 'partner_search', confidence: 67, evidence_coverage: 60, source_url: 'https://example.eu/call', retrieved_at: '2026-09-26T12:00:00Z', warnings: [], blockers: ['Consortium requirements are not evidenced.'], next_actions: ['Find a partner.'], facts: [{ category: 'eligibility', label: 'Applicant eligibility', status: 'supported', finding: 'Eligibility language was found.', excerpt: 'Eligible applicants are SMEs.', source_url: 'https://example.eu/call' }] })
+})
+
+test('shows the preseeded snapshot without waiting for tender portals', async () => {
+  preseededTenderResults.mockReturnValue([{
+    profile_id: 'profile-1', profile_name: 'RPA', query: 'automation', queries: ['automation'], total: 193, retrieved_at: '2026-09-27T08:00:00Z', warnings: [], calls: [],
+    opportunities: [{
+      call: { identifier: 'PRESEEDED-1', title: 'Preseeded automation framework', url: 'https://example.eu/preseeded', status: 'open', start_date: null, deadline: '2026-12-31T00:00:00Z', programme: 'Digital Europe', summary: 'Automation delivery.', opportunity_type: 'public_procurement', budget: null, currency: 'EUR', source: 'eu' },
+      fit_score: 71, recommendation: 'needs_review', matched_terms: ['automation'], risks: [], decision_summary: 'Review eligibility.', next_actions: ['Open the call.'], dimensions: [],
+    }],
+  }])
+
+  render(<TenderWorkspace />)
+
+  expect(await screen.findByRole('heading', { name: 'Preseeded automation framework' })).toBeInTheDocument()
+  expect(screen.getByText(/Refresh for latest/)).toBeInTheDocument()
+  expect(searchEuTenders).not.toHaveBeenCalled()
+  expect(searchMoldovaTenders).not.toHaveBeenCalled()
 })
 
 test('turns portal calls into an explainable tender decision brief', async () => {

@@ -37,10 +37,11 @@ test('shows buying signal guidance from the first page', async () => {
   expect(screen.getByText('Evidence of active need, change, or investment.')).toBeInTheDocument()
 })
 
-test('opens the complete research history from the sidebar', async () => {
+test('opens the ranked leads list from the sidebar', async () => {
   render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Research history' }))
-  expect(await screen.findByRole('heading', { name: 'Research history' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Leads' }))
+  expect(await screen.findByRole('heading', { name: 'Leads' })).toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'Lead filters' })).toHaveTextContent('Ready to contact')
 })
 
 test('opens settings from the sidebar without adding data sources to primary navigation', async () => {
