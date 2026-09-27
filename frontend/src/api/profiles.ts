@@ -15,4 +15,4 @@ export const selectDefaultProfile = (profiles: Profile[]) =>
 
 export const listProfiles = (signal?: AbortSignal) => apiRequest<Profile[]>('/service-profiles', { signal })
 export const createProfile = (name: string, configuration: ProfileConfiguration) => apiRequest<Profile>('/service-profiles', { method: 'POST', body: JSON.stringify({ name, configuration }) })
-export const updateProfile = (id: string, name: string, configuration: ProfileConfiguration) => apiRequest<Profile>(`/service-profiles/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ name, configuration }) })
+export const updateProfile = (id: string, configuration: ProfileConfiguration) => apiRequest<Profile>(`/service-profiles/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ configuration }) })

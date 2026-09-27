@@ -1,5 +1,6 @@
 import csv
 import io
+from collections.abc import Mapping
 from typing import Literal, Protocol, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -26,7 +27,9 @@ from app.config import get_settings
 from app.contracts.opportunity import OpportunityStatus
 from app.contracts.score import Eligibility
 from app.db import get_session
-from app.models.profile import ServiceProfile, utc_now
+from app.contracts.icp import IcpCriterionDefinition, criteria_from_legacy_icp
+from app.icp.evaluation import evaluate_criteria
+from app.models.profile import ServiceProfile, ServiceProfileVersion, utc_now
 from app.models.research import Company, ResearchRun
 from app.models.results import (
     EvidenceTranslation,
@@ -82,6 +85,43 @@ def _strongest(snapshot: StoredScoreSnapshot) -> str | None:
     strongest = max(positive, key=weight)
     value = strongest.get("signal_id")
     return str(value) if value is not None else None
+
+
+def _score_read(snapshot: StoredScoreSnapshot, company: Company, session: Session) -> ScoreRead:
+    evaluated = total = 0
+    version = session.get(ServiceProfileVersion, snapshot.profile_version_id)
+    if version is not None:
+        try:
+            raw_definitions = version.configuration.get("icp_criteria")
+            if isinstance(raw_definitions, list):
+                definitions = [IcpCriterionDefinition.model_validate(item) for item in raw_definitions]
+            else:
+                legacy = version.configuration.get("icp", {})
+                definitions = criteria_from_legacy_icp(legacy) if isinstance(legacy, Mapping) else []
+            criteria = evaluate_criteria([item for item in definitions if item.is_restrictive()], company.facts)
+            total = len(criteria)
+            evaluated = sum(item.matched is not None for item in criteria)
+        except ValueError:
+            # Older invalid profile versions remain readable, but cannot claim ICP certainty.
+            pass
+    return ScoreRead.model_validate(snapshot).model_copy(update={
+        "icp_evaluated_count": evaluated,
+        "icp_total_count": total,
+    })
+
+
+def _signal_question(assessment: StoredSignalAssessment, session: Session) -> str | None:
+    version = session.get(ServiceProfileVersion, assessment.profile_version_id)
+    if version is None:
+        return None
+    signals = version.configuration.get("signals", [])
+    if not isinstance(signals, list):
+        return None
+    for signal in signals:
+        if isinstance(signal, Mapping) and signal.get("id") == assessment.signal_id:
+            question = signal.get("question")
+            return str(question) if question else None
+    return None
 
 
 def _opportunity_read(
@@ -298,6 +338,7 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
                 id=item.id,
                 profile_version_id=item.profile_version_id,
                 signal_id=item.signal_id,
+                question=_signal_question(item, session),
                 status=item.status,
                 evidence_strength=item.evidence_strength,
                 rationale=item.rationale,
@@ -307,7 +348,7 @@ def company_detail(company_id: str, session: Session = Depends(get_session)) -> 
             )
             for item in assessments
         ],
-        scores=[ScoreRead.model_validate(item) for item in scores],
+        scores=[_score_read(item, company, session) for item in scores],
         research_history=[ResearchHistoryRead.model_validate(item) for item in runs],
         created_at=company.created_at,
         updated_at=company.updated_at,

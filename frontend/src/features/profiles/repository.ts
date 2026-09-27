@@ -15,7 +15,7 @@ export async function getProfile(): Promise<ProfileDraft> {
 
 export async function saveProfile(profile: ProfileDraft): Promise<ProfileDraft> {
   if (import.meta.env.MODE === 'test') { await delay(180); return structuredClone(profile) }
-  return fromApi(await updateProfile(profile.id, profile.name, toConfiguration(profile)))
+  return fromApi(await updateProfile(profile.id, toConfiguration(profile)))
 }
 
 // The editor shows the words the user typed, so it reads them back from the criteria the
