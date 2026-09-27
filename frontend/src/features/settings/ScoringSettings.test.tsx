@@ -28,7 +28,7 @@ vi.mock('../../api/profiles', async (load) => {
 
 beforeEach(() => {
   listProfiles.mockReset().mockResolvedValue([profile])
-  updateProfile.mockReset().mockImplementation(async (_id: string, _name: string, next: typeof configuration) => ({
+  updateProfile.mockReset().mockImplementation(async (_id: string, next: typeof configuration) => ({
     ...profile,
     current_version: { ...profile.current_version, id: 'version-2', version: 2, configuration: next },
   }))
@@ -41,8 +41,8 @@ test('saves a new profile version with only the selected weights changed', async
   fireEvent.click(screen.getByRole('button', { name: 'Save weights' }))
 
   await waitFor(() => expect(updateProfile).toHaveBeenCalledOnce())
-  const [id, name, saved] = updateProfile.mock.calls[0]
-  expect({ id, name }).toEqual({ id: 'profile-1', name: 'RPA' })
+  const [id, saved] = updateProfile.mock.calls[0]
+  expect(id).toBe('profile-1')
   expect(saved).toEqual({
     ...configuration,
     signals: [{ ...configuration.signals[0], weight: 35 }, configuration.signals[1]],

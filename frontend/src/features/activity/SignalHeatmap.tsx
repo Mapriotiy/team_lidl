@@ -37,19 +37,9 @@ export function SignalHeatmap({ companies, onOpen }: { companies: CompanyDetail[
       <span className="rounded-full bg-[#F2EEE8] px-3 py-1 text-xs font-semibold">{comparable.length} compared{omitted ? ` · ${omitted} omitted` : ''}</span>
     </div>
     {!comparable.length || !questions.length ? <div className="mt-5 rounded-xl border border-dashed border-[#CEC7BD] bg-[#FAF8F5] p-8 text-center text-sm text-[#68645F]">No companies have enough completed research to compare yet.</div> : <div className="mt-5">
-      <div className="flex flex-wrap gap-1.5" aria-label="Signals shown">
-        {questions.map((question) => {
-          const signalNumber = questions.indexOf(question) + 1
-          return <div className="group relative" key={question}>
-            <span className="grid size-7 cursor-help place-items-center rounded-lg bg-[#F1EDE7] text-[10px] font-bold text-[#555A5F] ring-1 ring-inset ring-[#DED7CE]" title={question}>S{signalNumber}</span>
-            <span className="pointer-events-none absolute left-0 top-9 z-20 hidden w-64 rounded-lg bg-[#292D32] p-2.5 text-xs font-medium leading-4 text-white shadow-xl group-hover:block">{question}</span>
-          </div>
-        })}
-        <span className="ml-1 self-center text-[11px] text-[#716C65]">Hover a signal label to read the question.</span>
-      </div>
-      <div className="mt-2 rounded-xl border border-[#E3DDD5] bg-[#FCFBF8] p-1.5 sm:p-2">
+      <div className="rounded-xl border border-[#E3DDD5] bg-[#FCFBF8] p-1.5 sm:p-2">
         <table className="w-full table-fixed border-separate border-spacing-0.5 text-left" aria-label="Companies by researched signal">
-          <thead><tr><th className="w-[34%] px-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#68645F] sm:w-48">Company</th>{questions.map((question) => <th className="px-0.5 pb-1 text-center text-[9px] font-bold text-[#625D57]" key={question} title={question}>S{questions.indexOf(question) + 1}</th>)}</tr></thead>
+          <thead><tr><th className="w-[34%] px-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#68645F] sm:w-48">Company</th>{questions.map((question, index) => <th className="px-0.5 pb-1 text-center text-[9px] font-bold text-[#625D57]" key={question} scope="col"><span aria-label={`Signal ${index + 1}: ${question}`} className="group relative inline-grid size-6 cursor-help place-items-center rounded-md outline-none hover:bg-[#EEE8E0] focus-visible:ring-2 focus-visible:ring-[#D65A1B]" tabIndex={0}>S{index + 1}<span className="pointer-events-none absolute left-1/2 top-7 z-20 hidden w-64 -translate-x-1/2 rounded-lg bg-[#292D32] p-2.5 text-left text-xs font-medium leading-4 text-white shadow-xl group-hover:block group-focus:block">{question}</span></span></th>)}</tr></thead>
           <tbody>{comparable.map((company) => <tr key={company.id}><th className="px-1.5 py-1"><span className="block truncate text-xs font-semibold text-[#292D32]" title={company.name}>{company.name}</span><span className="block truncate text-[9px] font-normal text-[#716C65]">ICP {Math.round(company.icpFit * 100)}% · {Math.round(company.score)} pts</span></th>{questions.map((question) => {
             const assessment = company.assessments.find((item) => item.question === question)
             const cell = presentation(assessment)
